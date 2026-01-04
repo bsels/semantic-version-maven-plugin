@@ -34,6 +34,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
+/// Utility class for handling various operations related to Project Object Model (POM) files, such as reading, writing,
+/// version updates, and backups.
+/// Provides methods for XML parsing and manipulation with the goal of managing POM files effectively
+/// in a Maven project context.
+///
+/// This class is not intended to be instantiated, and all methods are designed to be used in a static context.
 public final class POMUtils {
     /// Represents the file suffix used for creating backup copies of POM (Project Object Model) files.
     /// This constant is appended to the original file name when a backup is created.
@@ -46,12 +52,61 @@ public final class POMUtils {
     /// or creating name conflicts.
     public static final String POM_XML_BACKUP_SUFFIX = ".backup";
 
+    /// Defines the path to locate the project version element within a POM (Project Object Model) file.
+    /// The path is expressed as a list of strings, where each string represents a hierarchical element
+    /// from the root of the XML document to the target "version" node.
+    ///
+    /// This path is primarily used by methods that traverse or manipulate the XML document structure
+    /// to locate and update the version information in a Maven project.
     private static final List<String> VERSION_PROPERTY_PATH = List.of("project", "version");
+    /// A constant list of strings representing the XML traversal path to locate the "revision" property
+    /// within a Maven POM file.
+    /// This path defines the sequential hierarchy of nodes that need to be traversed in the XML document,
+    /// starting with the "project" node, followed by the "properties" node, and finally the "revision" node.
+    ///
+    /// This is primarily used in scenarios where the "revision" property value needs to be accessed or
+    /// modified programmatically within the POM file.
+    /// It serves as a predefined navigation path, ensuring a consistent and
+    /// error-free location of the "revision" property across operations.
     private static final List<String> REVISION_PROPERTY_PATH = List.of("project", "properties", "revision");
 
+    /// A static and lazily initialized instance of [DocumentBuilder] used for XML parsing operations.
+    /// This field serves as a shared resource across methods in the class, preventing the need to
+    /// repeatedly create new [DocumentBuilder] instances.
+    /// The instance is configured with specific settings, such as namespace awareness,
+    /// ignoring of whitespace, and inclusion of comments in parsed documents.
+    ///
+    /// This variable is intended to facilitate efficient and consistent XML document parsing in the context
+    /// of handling Project Object Model (POM) files.
+    ///
+    /// The initialization and configuration of this [DocumentBuilder] instance are managed by
+    /// the [#getOrCreateDocumentBuilder] method.
+    /// Access to this field should be done only through that method to ensure proper initialization and error handling.
     private static DocumentBuilder documentBuilder = null;
+    /// A static instance of the [Transformer] class used for XML transformation tasks within the utility.
+    /// The `transformer` is lazily initialized when required to perform operations such as
+    /// writing and formatting XML documents.
+    /// It is configured to work with XML-related tasks in the context of processing POM (Project Object Model) files.
+    ///
+    /// This variable is managed internally to ensure a single instance is reused, avoiding
+    /// repetitive creation and enhancing performance during XML transformations.
+    /// If creation of the [Transformer] instance fails,
+    /// it throws an exception managed by the utility's methods leveraging this variable.
+    ///
+    /// The `transformer` is shared across various operations in this utility class,
+    /// ensuring consistency in XML transformation behavior.
+    ///
+    /// The initialization and configuration of this [Transformer] instance are managed by
+    /// the [#getOrCreateTransformer] method.
+    /// Access to this field should be done only through that method to ensure proper initialization and error handling.
     private static Transformer transformer = null;
 
+    /// Utility class for handling various operations related to Project Object Model (POM) files,
+    /// such as reading, writing, version updates, and backups.
+    /// Provides methods for XML parsing and manipulation with the goal of managing POM files effectively
+    /// in a Maven project context.
+    ///
+    /// This class is not intended to be instantiated, and all methods are designed to be used in a static context.
     private POMUtils() {
         // No instance needed
     }
