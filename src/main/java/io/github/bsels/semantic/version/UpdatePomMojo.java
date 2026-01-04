@@ -1,7 +1,9 @@
 package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.VersionBump;
+import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.POMUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -11,6 +13,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.commonmark.parser.Parser;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
@@ -102,6 +105,12 @@ public final class UpdatePomMojo extends BaseMojo {
                 .toPath();
         Document document = POMUtils.readPom(pom);
         Node versionNode = POMUtils.getProjectVersionNode(document, modus);
+
+        VersionMarkdown markdown = MarkdownUtils.readMarkdown(
+                log,
+                baseDirectory.resolve(".versioning").resolve("20250104-132200.md")
+        );
+
         SemanticVersionBump semanticVersionBump = getSemanticVersionBump(document);
         log.info("Updating version with a %s semantic version".formatted(semanticVersionBump));
         try {
