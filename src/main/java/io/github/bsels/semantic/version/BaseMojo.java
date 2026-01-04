@@ -1,6 +1,8 @@
 package io.github.bsels.semantic.version;
 
+import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.Modus;
+import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -9,8 +11,12 @@ import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 /// Base class for Maven plugin goals, providing foundational functionality for Mojo execution.
 /// This class extends [AbstractMojo] and serves as the base for plugins managing versioning
@@ -168,4 +174,32 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
     /// @throws MojoExecutionException if an unexpected error occurs during the execution, causing it to fail irrecoverably.
     /// @throws MojoFailureException   if the execution fails due to a recoverable or known issue, such as an invalid configuration.
     protected abstract void internalExecute() throws MojoExecutionException, MojoFailureException;
+
+    /// Reads all Markdown files from the `.versioning` directory within the base directory,
+    /// parses their content, and converts them into a list of [VersionMarkdown] objects.
+    ///
+    /// The method recursively iterates through the `.versioning` directory, filtering for files with a `.md` extension,
+    /// and processes each Markdown file using the [MarkdownUtils#readVersionMarkdown] method.
+    /// The parsed results are returned as immutable instances of [VersionMarkdown].
+    ///
+    /// @return a [List] of [VersionMarkdown] objects representing the parsed Markdown content and versioning metadata
+    /// @throws MojoExecutionException if an I/O error occurs while accessing the `.versioning` directory or its contents, or if there is an error in parsing the Markdown files
+    protected final List<VersionMarkdown> getVersionMarkdowns() throws MojoExecutionException {
+        Log log = getLog();
+        Path versioningFolder = baseDirectory.resolve(".versioning");
+        List<VersionMarkdown> versionMarkdowns;
+        try (Stream<Path> markdownFileStream = Files.walk(versioningFolder)) {
+            List<Path> markdownFiles = markdownFileStream.filter(Files::isRegularFile)
+                    .filter(path -> path.toString().toLowerCase().endsWith(".md"))
+                    .toList();
+            List<VersionMarkdown> parsedMarkdowns = new ArrayList<>();
+            for (Path markdownFile : markdownFiles) {
+                parsedMarkdowns.add(MarkdownUtils.readVersionMarkdown(log, markdownFile));
+            }
+            versionMarkdowns = List.copyOf(parsedMarkdowns);
+        } catch (IOException e) {
+            throw new MojoExecutionException("Unable to read versioning folder", e);
+        }
+        return versionMarkdowns;
+    }
 }

@@ -1,5 +1,7 @@
 package io.github.bsels.semantic.version.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -36,6 +38,7 @@ public enum SemanticVersionBump {
     /// @param value the string representation of the semantic version bump, such as "MAJOR", "MINOR", "PATCH", or "NONE"
     /// @return the corresponding `SemanticVersionBump` enum value
     /// @throws IllegalArgumentException if the input value does not match any of the valid enum names
+    @JsonCreator
     public static SemanticVersionBump fromString(String value) throws IllegalArgumentException {
         return valueOf(value.toUpperCase());
     }
@@ -63,7 +66,7 @@ public enum SemanticVersionBump {
     public static SemanticVersionBump max(Collection<SemanticVersionBump> bumps) throws NullPointerException {
         Objects.requireNonNull(bumps, "`bumps` must not be null");
         return bumps.stream()
-                .max(Comparator.naturalOrder())
+                .min(Comparator.naturalOrder())
                 .orElse(NONE);
     }
 }

@@ -48,6 +48,17 @@ public class YamlFrontMatterBlockParser extends AbstractBlockParser {
     /// [YamlFrontMatterBlockParser] object.
     private final List<String> lines;
 
+    /// Represents the current YAML front matter block being parsed.
+    ///
+    /// This variable is used to store an instance of the [YamlFrontMatterBlock],
+    /// which encapsulates the parsed YAML front matter content from a Markdown document.
+    /// It is initialized during the parsing process and holds the serialized YAML content
+    /// once the parsing of a YAML block is complete.
+    ///
+    /// As an immutable and final field, this variable ensures the integrity of
+    /// the YAML block throughout its lifecycle within the parser.
+    private final YamlFrontMatterBlock block;
+
     /// Constructs a new instance of the [YamlFrontMatterBlockParser] class.
     ///
     /// This parser is responsible for handling YAML front matter blocks in Markdown documents.
@@ -59,6 +70,7 @@ public class YamlFrontMatterBlockParser extends AbstractBlockParser {
     /// encountered during parsing.
     public YamlFrontMatterBlockParser() {
         lines = new ArrayList<>();
+        block = new YamlFrontMatterBlock("");
     }
 
     /// Returns a [Block] object representing the YAML front matter block.
@@ -67,7 +79,7 @@ public class YamlFrontMatterBlockParser extends AbstractBlockParser {
     /// @return a [YamlFrontMatterBlock] containing the serialized YAML front matter content
     @Override
     public Block getBlock() {
-        return new YamlFrontMatterBlock(String.join("\n", lines));
+        return block;
     }
 
     /// Attempts to continue parsing a block of text according to the current parser state.
@@ -80,6 +92,7 @@ public class YamlFrontMatterBlockParser extends AbstractBlockParser {
     public BlockContinue tryContinue(ParserState parserState) {
         CharSequence line = parserState.getLine().getContent();
         if (YAML_FRONT_MATTER_PATTERN.matcher(line).matches()) {
+            block.setYaml(String.join("\n", lines));
             return BlockContinue.finished();
         }
         lines.add(line.toString());

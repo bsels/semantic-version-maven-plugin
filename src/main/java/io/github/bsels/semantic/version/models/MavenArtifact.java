@@ -1,5 +1,7 @@
 package io.github.bsels.semantic.version.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+
 import java.util.Objects;
 
 /// Represents a Maven artifact consisting of a group ID and an artifact ID.
@@ -32,8 +34,11 @@ public record MavenArtifact(String groupId, String artifactId) {
     /// @param colonSeparatedString the string representing the Maven artifact in the format `<group-id>:<artifact-id>`
     /// @return a new `MavenArtifact` instance constructed using the parsed group ID and artifact ID
     /// @throws IllegalArgumentException if the input string does not conform to the expected format
+    /// @throws NullPointerException if the `colonSeparatedString` parameter is null
+    @JsonCreator
     public static MavenArtifact of(String colonSeparatedString) {
-        String[] parts = colonSeparatedString.split(":");
+        String[] parts = Objects.requireNonNull(colonSeparatedString, "`colonSeparatedString` must not be null")
+                .split(":");
         if (parts.length != 2) {
             throw new IllegalArgumentException(
                     "Invalid Maven artifact format: %s, expected <group-id>:<artifact-id>".formatted(

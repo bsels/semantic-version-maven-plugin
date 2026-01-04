@@ -15,7 +15,7 @@ import java.util.Objects;
 public class YamlFrontMatterBlock extends CustomBlock {
     /// Represents the YAML content extracted or associated with a specific block of text within a document.
     /// This variable is expected to hold the serialized YAML string content and is managed as part of a block's lifecycle.
-    private final String yaml;
+    private String yaml;
 
     /// Constructs a new instance of the YamlFrontMatterBlock class with the specified YAML content.
     ///
@@ -30,5 +30,16 @@ public class YamlFrontMatterBlock extends CustomBlock {
     /// @return the YAML string associated with this block, or null if not set
     public String getYaml() {
         return yaml;
+    }
+
+    /// Sets the YAML content for this block.
+    ///
+    /// Updates the YAML front matter content associated with this block.
+    /// The input string must not be null.
+    ///
+    /// @param yaml the YAML string content to be set; must not be null
+    /// @throws NullPointerException if the provided YAML parameter is null
+    public void setYaml(String yaml) throws NullPointerException {
+        this.yaml = Objects.requireNonNull(yaml, "`yaml` must not be null");
     }
 }

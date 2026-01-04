@@ -1,9 +1,10 @@
 package io.github.bsels.semantic.version;
 
+import io.github.bsels.semantic.version.models.MarkdownMapping;
+import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.VersionBump;
-import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.POMUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -13,13 +14,17 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
-import org.commonmark.parser.Parser;
+import org.apache.maven.project.MavenProject;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Mojo(name = "update", requiresDependencyResolution = ResolutionScope.RUNTIME)
 @Execute(phase = LifecyclePhase.NONE)
@@ -73,8 +78,11 @@ public final class UpdatePomMojo extends BaseMojo {
     @Override
     public void internalExecute() throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
+        List<VersionMarkdown> versionMarkdowns = getVersionMarkdowns();
+        MarkdownMapping markdownMapping = getMarkdownMapping(versionMarkdowns);
+
         switch (modus) {
-            case REVISION_PROPERTY, SINGLE_PROJECT_VERSION -> handleSingleVersionUpdate();
+            case REVISION_PROPERTY, SINGLE_PROJECT_VERSION -> handleSingleVersionUpdate(markdownMapping);
             case MULTI_PROJECT_VERSION ->
                     log.warn("Versioning mode is set to MULTI_PROJECT_VERSION, skipping execution not yet implemented");
             case MULTI_PROJECT_VERSION_ONLY_LEAFS ->
@@ -96,22 +104,32 @@ public final class UpdatePomMojo extends BaseMojo {
     /// - Updates the POM version node with the new version.
     /// - Performs a dry-run if enabled, writing the proposed changes to a log instead of modifying the file.
     ///
+    /// @param markdownMapping the markdown version file mappings
     /// @throws MojoExecutionException if the POM cannot be read or written, or it cannot update the version node.
     /// @throws MojoFailureException   if the runtime system fails to initial the XML reader and writer helper classes
-    private void handleSingleVersionUpdate() throws MojoExecutionException, MojoFailureException {
+    private void handleSingleVersionUpdate(MarkdownMapping markdownMapping)
+            throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
-        Path pom = session.getCurrentProject()
+        MavenProject currentProject = session.getCurrentProject();
+        Path pom = currentProject
                 .getFile()
                 .toPath();
+        MavenArtifact projectArtifact = new MavenArtifact(currentProject.getGroupId(), currentProject.getArtifactId());
+
         Document document = POMUtils.readPom(pom);
         Node versionNode = POMUtils.getProjectVersionNode(document, modus);
 
-        VersionMarkdown markdown = MarkdownUtils.readMarkdown(
-                log,
-                baseDirectory.resolve(".versioning").resolve("20250104-132200.md")
-        );
+        Map<MavenArtifact, SemanticVersionBump> versionBumpMap = markdownMapping.versionBumpMap();
+        if (!Set.of(projectArtifact).equals(versionBumpMap.keySet())) {
+            throw new MojoExecutionException(
+                    "Single version update expected to update only the project %s, found: %s".formatted(
+                            currentProject,
+                            versionBumpMap.keySet()
+                    )
+            );
+        }
 
-        SemanticVersionBump semanticVersionBump = getSemanticVersionBump(document);
+        SemanticVersionBump semanticVersionBump = getSemanticVersionBump(projectArtifact, versionBumpMap);
         log.info("Updating version with a %s semantic version".formatted(semanticVersionBump));
         try {
             POMUtils.updateVersion(versionNode, semanticVersionBump);
@@ -122,16 +140,48 @@ public final class UpdatePomMojo extends BaseMojo {
         writeUpdatedPom(document, pom);
     }
 
+    /// Creates a MarkdownMapping instance based on a list of [VersionMarkdown] objects.
+    ///
+    /// This method processes a list of [VersionMarkdown] entries to generate a mapping
+    /// between Maven artifacts and their respective semantic version bumps.
+    ///
+    /// @param versionMarkdowns the list of [VersionMarkdown] objects representing version updates; must not be null
+    /// @return a MarkdownMapping instance encapsulating the calculated semantic version bumps and an empty Markdown map
+    private MarkdownMapping getMarkdownMapping(List<VersionMarkdown> versionMarkdowns) {
+        Map<MavenArtifact, SemanticVersionBump> versionBumpMap = versionMarkdowns.stream()
+                .map(VersionMarkdown::bumps)
+                .map(Map::entrySet)
+                .flatMap(Set::stream)
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        Collectors.reducing(SemanticVersionBump.NONE, Map.Entry::getValue, SemanticVersionBump::max)
+                ));
+        Map<MavenArtifact, List<VersionMarkdown>> markdownMap = versionMarkdowns.stream()
+                .<Map.Entry<MavenArtifact, VersionMarkdown>>mapMulti((item, consumer) -> {
+                    for (MavenArtifact artifact : item.bumps().keySet()) {
+                        consumer.accept(Map.entry(artifact, item));
+                    }
+                })
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        Collectors.mapping(
+                                Map.Entry::getValue,
+                                Collectors.collectingAndThen(Collectors.toList(), List::copyOf)
+                        )
+                ));
+        return new MarkdownMapping(versionBumpMap, markdownMap);
+    }
+
     /// Writes the updated Maven POM file. This method either writes the updated POM to the specified path or performs a dry-run
     /// where the updated POM content is logged for review without making any file changes.
     ///
-     /// If dry-run mode is enabled, the new POM content is created as a string and logged. Otherwise, the updated POM is
+    /// If dry-run mode is enabled, the new POM content is created as a string and logged. Otherwise, the updated POM is
     /// written to the provided file path, with an option to back up the original file before overwriting.
     ///
     /// @param document the XML Document representation of the Maven POM file to be updated
-    /// @param pom the path to the POM file where the updated content will be written
+    /// @param pom      the path to the POM file where the updated content will be written
     /// @throws MojoExecutionException if an I/O error occurs while writing the updated POM or processing the dry-run
-    /// @throws MojoFailureException if the operation fails due to an XML parsing or writing error
+    /// @throws MojoFailureException   if the operation fails due to an XML parsing or writing error
     private void writeUpdatedPom(Document document, Path pom) throws MojoExecutionException, MojoFailureException {
         if (dryRun) {
             try (StringWriter writer = new StringWriter()) {
@@ -145,21 +195,21 @@ public final class UpdatePomMojo extends BaseMojo {
         }
     }
 
-    /// Determines the type of semantic version increment to be applied based on the current configuration
-    /// and the provided document.
+    /// Determines the semantic version bump for a given Maven artifact based on the provided map of version bumps
+    /// and the current version bump configuration.
     ///
-    /// @param document the XML document used to determine the semantic version bump, typically representing the content of a POM file or similar configuration.
-    /// @return the type of semantic version bump to apply, which can be one of the predefined values in [SemanticVersionBump], such as MAJOR, MINOR, PATCH, or a custom determination based on file-based analysis.
-    private SemanticVersionBump getSemanticVersionBump(Document document) {
+    /// @param artifact the Maven artifact for which the semantic version bump is to be determined
+    /// @param bumps    a map containing Maven artifacts as keys and their corresponding semantic version bumping as values
+    /// @return the semantic version bump that should be applied to the given artifact
+    private SemanticVersionBump getSemanticVersionBump(
+            MavenArtifact artifact,
+            Map<MavenArtifact, SemanticVersionBump> bumps
+    ) {
         return switch (versionBump) {
-            case FILE_BASED -> getSemanticVersionBumpFromFile(document);
+            case FILE_BASED -> bumps.getOrDefault(artifact, SemanticVersionBump.NONE);
             case MAJOR -> SemanticVersionBump.MAJOR;
             case MINOR -> SemanticVersionBump.MINOR;
             case PATCH -> SemanticVersionBump.PATCH;
         };
-    }
-
-    private SemanticVersionBump getSemanticVersionBumpFromFile(Document document) {
-        throw new UnsupportedOperationException("File based versioning not yet implemented");
     }
 }
