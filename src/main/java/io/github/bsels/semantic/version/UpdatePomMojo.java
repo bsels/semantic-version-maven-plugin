@@ -5,6 +5,7 @@ import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.VersionBump;
+import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.POMUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -25,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static io.github.bsels.semantic.version.utils.MarkdownUtils.readMarkdown;
 
 @Mojo(name = "update", requiresDependencyResolution = ResolutionScope.RUNTIME)
 @Execute(phase = LifecyclePhase.NONE)
@@ -138,6 +141,27 @@ public final class UpdatePomMojo extends BaseMojo {
         }
 
         writeUpdatedPom(document, pom);
+
+        Path changelogFile = baseDirectory.resolve("CHANGELOG.md");
+        org.commonmark.node.Node node = readMarkdown(log, changelogFile);
+        log.debug("Original changelog");
+        MarkdownUtils.printMarkdown(log, node, 0);
+        MarkdownUtils.mergeVersionMarkdownsInChangelog(
+                log,
+                node,
+                versionNode.getTextContent(),
+                markdownMapping.markdownMap()
+                        .getOrDefault(projectArtifact, List.of())
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                entry -> entry.bumps().get(projectArtifact),
+                                Collectors.mapping(VersionMarkdown::content, Collectors.toList())
+                        ))
+        );
+        log.debug("Updated changelog");
+        MarkdownUtils.printMarkdown(log, node, 0);
+
+        // TODO: Write markdown file
     }
 
     /// Creates a MarkdownMapping instance based on a list of [VersionMarkdown] objects.

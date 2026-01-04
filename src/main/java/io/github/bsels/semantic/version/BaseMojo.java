@@ -188,7 +188,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
         Log log = getLog();
         Path versioningFolder = baseDirectory.resolve(".versioning");
         List<VersionMarkdown> versionMarkdowns;
-        try (Stream<Path> markdownFileStream = Files.walk(versioningFolder)) {
+        try (Stream<Path> markdownFileStream = Files.walk(versioningFolder, 1)) {
             List<Path> markdownFiles = markdownFileStream.filter(Files::isRegularFile)
                     .filter(path -> path.toString().toLowerCase().endsWith(".md"))
                     .toList();
