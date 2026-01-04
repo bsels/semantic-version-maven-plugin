@@ -104,7 +104,10 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
     ///
     /// @return a new `SemanticVersion` instance without the suffix.
     public SemanticVersion stripSuffix() {
-        return new SemanticVersion(major, minor, patch, Optional.empty());
+        if (suffix.isPresent()) {
+            return new SemanticVersion(major, minor, patch, Optional.empty());
+        }
+        return this;
     }
 
     /// Returns a new `SemanticVersion` instance with the specified suffix.
