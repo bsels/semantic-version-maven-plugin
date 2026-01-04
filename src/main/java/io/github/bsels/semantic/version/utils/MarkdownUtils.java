@@ -17,11 +17,15 @@ import org.commonmark.node.Node;
 import org.commonmark.node.Text;
 import org.commonmark.parser.IncludeSourceSpans;
 import org.commonmark.parser.Parser;
+import org.commonmark.renderer.Renderer;
+import org.commonmark.renderer.markdown.MarkdownRenderer;
 
 import java.io.IOException;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +34,12 @@ import java.util.Objects;
 import java.util.function.BinaryOperator;
 import java.util.stream.Stream;
 
-public class MarkdownUtils {
+/// Utility class for handling operations related to Markdown processing.
+///
+/// This class provides static methods for parsing, rendering, merging,
+/// and writing structured Markdown content and YAML front matter.
+/// It is not intended to be instantiated.
+public final class MarkdownUtils {
 
     /// A constant map type representing a mapping between [MavenArtifact] objects and [SemanticVersionBump] values.
     ///
@@ -60,6 +69,21 @@ public class MarkdownUtils {
     /// This variable is intended for parsing and generating YAML content.
     /// It provides a convenient singleton for YAML operations within the context of the MarkdownUtils utility class.
     private static final ObjectMapper YAML_MAPPER = new YAMLMapper();
+
+    /// A static, pre-configured instance of the [Renderer] used to process and render Markdown content within
+    /// the [MarkdownUtils] utility class.
+    ///
+    /// The [#MARKDOWN_RENDERER] is initialized using the [MarkdownRenderer#builder()] method to create a builder for
+    /// fine-grained control over the rendering configuration and finalizes the building process via `build()`.
+    ///
+    /// This instance serves as the primary renderer for various Markdown processing tasks in the utility methods
+    /// provided by the [MarkdownUtils] class.
+    ///
+    /// The renderer handles the task of generating structured output for Markdown nodes.
+    ///
+    /// This is a singleton-like static constant to ensure consistent rendering behavior throughout the invocation
+    /// of Markdown processing methods.
+    private static final Renderer MARKDOWN_RENDERER = MarkdownRenderer.builder().build();
 
     /// Utility class for handling operations related to Markdown processing.
     /// This class contains static methods and is not intended to be instantiated.
@@ -123,12 +147,26 @@ public class MarkdownUtils {
         }
     }
 
+    /// Merges version-specific Markdown content into a changelog Node structure.
+    ///
+    /// This method updates the provided changelog Node by inserting a new heading for the specified version
+    /// at the appropriate position.
+    /// The content associated with the version is then added under this heading,
+    /// grouped by semantic version bump types (e.g., MAJOR, MINOR, PATCH).
+    /// The changelog must begin with a single H1 heading titled "Changelog".
+    ///
+    /// @param log           the logger used to output informational and debug messages; must not be null
+    /// @param changelog     the root Node of the changelog Markdown structure to be updated; must not be null
+    /// @param version       the version string to be added to the changelog; must not be null
+    /// @param headerToNodes a mapping of SemanticVersionBump types to their associated Markdown nodes; must not be null
+    /// @throws NullPointerException     if any of the parameters `log`, `changelog`, `version`, or `headerToNodes` is null
+    /// @throws IllegalArgumentException if the changelog does not start with a single H1 heading titled "Changelog"
     public static void mergeVersionMarkdownsInChangelog(
             Log log,
             Node changelog,
             String version,
             Map<SemanticVersionBump, List<Node>> headerToNodes
-    ) {
+    ) throws NullPointerException, IllegalArgumentException {
         Objects.requireNonNull(log, "`log` must not be null");
         Objects.requireNonNull(changelog, "`changelog` must not be null");
         Objects.requireNonNull(version, "`version` must not be null");
@@ -151,12 +189,40 @@ public class MarkdownUtils {
                 .sorted(Map.Entry.comparingByKey())
                 .reduce(newVersionHeading, MarkdownUtils::copyVersionMarkdownToChangeset, mergeNodes());
 
-        while (nextChild != null) {
-            Node nextSibling = nextChild.getNext();
-            current.insertAfter(nextChild);
-            current = nextChild;
-            nextChild = nextSibling;
+        assert current.getNext().equals(nextChild);
+    }
+
+    /// Writes a Markdown document to a specified file. Optionally creates a backup of the existing file
+    /// before overwriting it.
+    ///
+    /// @param markdownFile the path to the Markdown file where the document will be written; must not be null
+    /// @param document     the node representing the structured Markdown content to be written; must not be null
+    /// @param backupOld    a boolean indicating whether to create a backup of the existing file before writing
+    /// @throws NullPointerException   if `markdownFile` or `document` is null
+    /// @throws MojoExecutionException if an error occurs while creating the backup or writing to the file
+    public static void writeMarkdownFile(Path markdownFile, Node document, boolean backupOld)
+            throws MojoExecutionException {
+        Objects.requireNonNull(markdownFile, "`markdownFile` must not be null");
+        Objects.requireNonNull(document, "`document` must not be null");
+        if (backupOld) {
+            Utils.backupFile(markdownFile);
         }
+        try (Writer writer = Files.newBufferedWriter(markdownFile, StandardCharsets.UTF_8, StandardOpenOption.CREATE)) {
+            writeMarkdown(writer, document);
+        } catch (IOException e) {
+            throw new MojoExecutionException("Unable to write %s".formatted(markdownFile), e);
+        }
+    }
+
+    /// Writes the rendered Markdown content of the given document node to the specified output writer.
+    /// This operation uses a pre-configured Markdown renderer to transform the structured document node into
+    /// Markdown format before writing it to the output.
+    ///
+    /// @param output   the writer to which the rendered Markdown content will be written; must not be null
+    /// @param document the node representing the structured Markdown content to be rendered; must not be null
+    /// @throws NullPointerException if `output` or `document` is null
+    public static void writeMarkdown(Writer output, Node document) {
+        MARKDOWN_RENDERER.render(document, output);
     }
 
     /// Merges two [Node] instances by inserting the second node after the first node and returning the second node.
@@ -169,6 +235,12 @@ public class MarkdownUtils {
         };
     }
 
+    /// Copies version-specific Markdown content to a changelog changeset by creating a new heading
+    /// for the semantic version bump type and appending associated nodes under that heading.
+    ///
+    /// @param current the current Node in the Markdown structure to which the bump type heading and its associated nodes will be inserted; must not be null
+    /// @param entry   a Map.Entry containing a SemanticVersionBump key representing the bump type (e.g., MAJOR, MINOR, PATCH, NONE) and a List of Nodes associated with that bump type; must not be null
+    /// @return the last Node inserted into the Markdown structure, representing the merged result of the operation
     private static Node copyVersionMarkdownToChangeset(Node current, Map.Entry<SemanticVersionBump, List<Node>> entry) {
         Heading bumpTypeHeading = new Heading();
         bumpTypeHeading.setLevel(3);
@@ -189,14 +261,14 @@ public class MarkdownUtils {
     /// and the method updates the current node reference to the last inserted child node.
     ///
     /// @param currentLambda the node after which the child nodes will be inserted; must not be null
-    /// @param node the node whose children are to be inserted; must not be null
+    /// @param node          the node whose children are to be inserted; must not be null
     /// @return the last child node that was inserted after the current node
     private static Node insertNodeChilds(Node currentLambda, Node node) {
+        BinaryOperator<Node> binaryOperator = mergeNodes();
         Node nextChild = node.getFirstChild();
         while (nextChild != null) {
             Node nextSibling = nextChild.getNext();
-            currentLambda.insertAfter(nextChild);
-            currentLambda = nextChild;
+            currentLambda = binaryOperator.apply(currentLambda, nextChild);
             nextChild = nextSibling;
         }
         return currentLambda;

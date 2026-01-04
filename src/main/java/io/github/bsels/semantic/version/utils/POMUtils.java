@@ -28,7 +28,6 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Objects;
@@ -41,16 +40,6 @@ import java.util.stream.IntStream;
 ///
 /// This class is not intended to be instantiated, and all methods are designed to be used in a static context.
 public final class POMUtils {
-    /// Represents the file suffix used for creating backup copies of POM (Project Object Model) files.
-    /// This constant is appended to the original file name when a backup is created.
-    /// For example, it allows storing a backup of the original POM file before modifications occur.
-    ///
-    /// Used primarily in operations where modifications to a POM file need a recoverable backup version
-    /// to safeguard against data loss or corruption during write operations.
-    ///
-    /// This suffix ensures backups are easily identifiable and avoids overwriting the original file
-    /// or creating name conflicts.
-    public static final String POM_XML_BACKUP_SUFFIX = ".backup";
 
     /// Defines the path to locate the project version element within a POM (Project Object Model) file.
     /// The path is expressed as a list of strings, where each string represents a hierarchical element
@@ -173,7 +162,7 @@ public final class POMUtils {
         Objects.requireNonNull(document, "`document` must not be null");
         Objects.requireNonNull(pomFile, "`pomFile` must not be null");
         if (backupOld) {
-            backupPom(pomFile);
+            Utils.backupFile(pomFile);
         }
         try (Writer writer = Files.newBufferedWriter(pomFile, StandardCharsets.UTF_8, StandardOpenOption.CREATE)) {
             writePom(document, writer);
@@ -249,30 +238,6 @@ public final class POMUtils {
                 .orElseThrow(() -> new IllegalStateException(
                         "Unable to find element %s in %s".formatted(currentElementName, parent.getNodeName())
                 ));
-    }
-
-
-    /// Creates a backup of the specified POM (Project Object Model) file.
-    /// The method copies the given POM file to a backup location in the same directory,
-    /// replacing existing backups if necessary.
-    ///
-    /// @param pomFile the path to the POM file to be backed up; must not be null
-    /// @throws MojoExecutionException if an I/O error occurs during the backup operation
-    private static void backupPom(Path pomFile) throws MojoExecutionException {
-        String fileName = pomFile.getFileName().toString();
-        Path backupPom = pomFile.getParent()
-                .resolve(fileName + POM_XML_BACKUP_SUFFIX);
-        try {
-            Files.copy(
-                    pomFile,
-                    backupPom,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.COPY_ATTRIBUTES,
-                    StandardCopyOption.REPLACE_EXISTING
-            );
-        } catch (IOException e) {
-            throw new MojoExecutionException("Failed to backup %s to %s".formatted(pomFile, backupPom), e);
-        }
     }
 
     /// Retrieves an existing instance of `DocumentBuilder` or creates a new one if it does not already exist.

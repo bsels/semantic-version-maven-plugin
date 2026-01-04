@@ -54,13 +54,13 @@ public final class UpdatePomMojo extends BaseMojo {
     @Parameter(property = "versioning.bump", required = true, defaultValue = "FILE_BASED")
     VersionBump versionBump = VersionBump.FILE_BASED;
 
-    /// Indicates whether the original POM file should be backed up before modifying its content.
+    /// Indicates whether the original POM file and CHANGELOG file should be backed up before modifying its content.
     ///
     /// This parameter is configurable via the Maven property `versioning.backup`.
-    /// When set to `true`, a backup of the POM file will be created before any updates are applied.
+    /// When set to `true`, a backup of the POM/CHANGELOG file will be created before any updates are applied.
     /// The default value for this parameter is `false`, meaning no backup will be created unless explicitly specified.
     @Parameter(property = "versioning.backup", defaultValue = "false")
-    boolean backupOldPom = false;
+    boolean backupFiles = false;
 
     /// Default constructor for the UpdatePomMojo class.
     ///
@@ -137,18 +137,18 @@ public final class UpdatePomMojo extends BaseMojo {
         try {
             POMUtils.updateVersion(versionNode, semanticVersionBump);
         } catch (IllegalArgumentException e) {
-            throw new MojoExecutionException("Unable to update version node", e);
+            throw new MojoExecutionException("Unable to update version changelog", e);
         }
 
         writeUpdatedPom(document, pom);
 
         Path changelogFile = baseDirectory.resolve("CHANGELOG.md");
-        org.commonmark.node.Node node = readMarkdown(log, changelogFile);
+        org.commonmark.node.Node changelog = readMarkdown(log, changelogFile);
         log.debug("Original changelog");
-        MarkdownUtils.printMarkdown(log, node, 0);
+        MarkdownUtils.printMarkdown(log, changelog, 0);
         MarkdownUtils.mergeVersionMarkdownsInChangelog(
                 log,
-                node,
+                changelog,
                 versionNode.getTextContent(),
                 markdownMapping.markdownMap()
                         .getOrDefault(projectArtifact, List.of())
@@ -159,9 +159,19 @@ public final class UpdatePomMojo extends BaseMojo {
                         ))
         );
         log.debug("Updated changelog");
-        MarkdownUtils.printMarkdown(log, node, 0);
+        MarkdownUtils.printMarkdown(log, changelog, 0);
 
         // TODO: Write markdown file
+        if (dryRun) {
+            try (StringWriter writer = new StringWriter()) {
+                MarkdownUtils.writeMarkdown(writer, changelog);
+                getLog().info("Dry-run: new changelog at %s:%n%s".formatted(changelogFile, writer));
+            } catch (IOException e) {
+                throw new MojoExecutionException("Unable to open output stream for writing", e);
+            }
+        } else {
+            MarkdownUtils.writeMarkdownFile(changelogFile, changelog, backupFiles);
+        }
     }
 
     /// Creates a MarkdownMapping instance based on a list of [VersionMarkdown] objects.
@@ -215,7 +225,7 @@ public final class UpdatePomMojo extends BaseMojo {
                 throw new MojoExecutionException("Unable to open output stream for writing", e);
             }
         } else {
-            POMUtils.writePom(document, pom, backupOldPom);
+            POMUtils.writePom(document, pom, backupFiles);
         }
     }
 
