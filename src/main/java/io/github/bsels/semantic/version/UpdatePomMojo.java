@@ -7,6 +7,7 @@ import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.POMUtils;
+import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
@@ -21,10 +22,12 @@ import org.w3c.dom.Node;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static io.github.bsels.semantic.version.utils.MarkdownUtils.readMarkdown;
@@ -78,19 +81,66 @@ public final class UpdatePomMojo extends BaseMojo {
         super();
     }
 
+    /// Executes the main logic for updating Maven POM versions based on the configured update mode.
+    ///
+    /// This method handles different modes of version updates, including
+    /// - Updating the revision property on the root project.
+    /// - Updating the project version for all Maven projects.
+    /// - Updating only the versions of leaf projects without modules.
+    ///
+    /// The method processes version updates by creating a MarkdownMapping instance, determining
+    /// the projects to update, and invoking the appropriate update mechanism based on the selected mode.
+    ///
+    /// Upon successful execution, logs the outcome, indicating whether any changes were made.
+    ///
+    /// @throws MojoExecutionException if an error occurs during the execution process.
+    /// @throws MojoFailureException   if a failure occurs during the version update process.
     @Override
     public void internalExecute() throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
         List<VersionMarkdown> versionMarkdowns = getVersionMarkdowns();
-        MarkdownMapping markdownMapping = getMarkdownMapping(versionMarkdowns);
+        MarkdownMapping mapping = getMarkdownMapping(versionMarkdowns);
 
-        switch (modus) {
-            case REVISION_PROPERTY, SINGLE_PROJECT_VERSION -> handleSingleVersionUpdate(markdownMapping);
-            case MULTI_PROJECT_VERSION ->
-                    log.warn("Versioning mode is set to MULTI_PROJECT_VERSION, skipping execution not yet implemented");
-            case MULTI_PROJECT_VERSION_ONLY_LEAFS ->
-                    log.warn("Versioning mode is set to MULTI_PROJECT_VERSION_ONLY_LEAFS, skipping execution not yet implemented");
+        boolean hasChanges = switch (modus) {
+            case PROJECT_VERSION -> handleProjectVersionUpdates(mapping, Utils.alwaysTrue());
+            case REVISION_PROPERTY -> handleSingleVersionUpdate(mapping, session.getCurrentProject());
+            case PROJECT_VERSION_ONLY_LEAFS -> handleProjectVersionUpdates(mapping, Utils.mavenProjectHasNoModules());
+        };
+        if (hasChanges) {
+            log.info("Version update completed successfully");
+        } else {
+            log.info("No version updates were performed");
         }
+    }
+
+    /// Handles the process of updating project versions for Maven projects filtered based on a specified condition.
+    /// This method identifies relevant projects, determines whether a single or multiple version update process
+    /// should occur, and executes the appropriate update logic.
+    ///
+    /// @param markdownMapping a mapping of Maven artifacts to their corresponding semantic version bumps and version-specific markdown entries
+    /// @param filter          a predicate used to filter Maven projects that should be updated
+    /// @return true if any projects had their versions updated, false otherwise
+    /// @throws MojoExecutionException if an error occurs during the execution of version updates
+    /// @throws MojoFailureException   if a failure occurs in the version update process
+    private boolean handleProjectVersionUpdates(MarkdownMapping markdownMapping, Predicate<MavenProject> filter)
+            throws MojoExecutionException, MojoFailureException {
+        Log log = getLog();
+        List<MavenProject> sortedProjects = session.getResult()
+                .getTopologicallySortedProjects()
+                .stream()
+                .filter(filter)
+                .toList();
+
+        if (sortedProjects.isEmpty()) {
+            log.info("No projects found matching filter");
+            return false;
+        }
+        if (sortedProjects.size() == 1) {
+            log.info("Updating version for single project");
+            return handleSingleVersionUpdate(markdownMapping, sortedProjects.get(0));
+        }
+        log.info("Updating version for multiple projects");
+        return handleMultiVersionUpdate(markdownMapping, sortedProjects);
     }
 
     /// Handles the process of performing a single version update within a Maven project.
@@ -107,17 +157,17 @@ public final class UpdatePomMojo extends BaseMojo {
     /// - Updates the POM version node with the new version.
     /// - Performs a dry-run if enabled, writing the proposed changes to a log instead of modifying the file.
     ///
-    /// @param markdownMapping the markdown version file mappings
+    /// @param markdownMapping the Markdown version file mappings
+    /// @param project         the Maven project for which the version update is being performed
+    /// @return `true` if their where changes, `false` otherwise
     /// @throws MojoExecutionException if the POM cannot be read or written, or it cannot update the version node.
     /// @throws MojoFailureException   if the runtime system fails to initial the XML reader and writer helper classes
-    private void handleSingleVersionUpdate(MarkdownMapping markdownMapping)
+    private boolean handleSingleVersionUpdate(MarkdownMapping markdownMapping, MavenProject project)
             throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
-        MavenProject currentProject = session.getCurrentProject();
-        Path pom = currentProject
-                .getFile()
+        Path pom = project.getFile()
                 .toPath();
-        MavenArtifact projectArtifact = new MavenArtifact(currentProject.getGroupId(), currentProject.getArtifactId());
+        MavenArtifact projectArtifact = new MavenArtifact(project.getGroupId(), project.getArtifactId());
 
         Document document = POMUtils.readPom(pom);
         Node versionNode = POMUtils.getProjectVersionNode(document, modus);
@@ -126,7 +176,7 @@ public final class UpdatePomMojo extends BaseMojo {
         if (!Set.of(projectArtifact).equals(versionBumpMap.keySet())) {
             throw new MojoExecutionException(
                     "Single version update expected to update only the project %s, found: %s".formatted(
-                            currentProject,
+                            project,
                             versionBumpMap.keySet()
                     )
             );
@@ -134,6 +184,10 @@ public final class UpdatePomMojo extends BaseMojo {
 
         SemanticVersionBump semanticVersionBump = getSemanticVersionBump(projectArtifact, versionBumpMap);
         log.info("Updating version with a %s semantic version".formatted(semanticVersionBump));
+        if (SemanticVersionBump.NONE.equals(semanticVersionBump)) {
+            log.info("No version update required");
+            return false;
+        }
         try {
             POMUtils.updateVersion(versionNode, semanticVersionBump);
         } catch (IllegalArgumentException e) {
@@ -142,7 +196,7 @@ public final class UpdatePomMojo extends BaseMojo {
 
         writeUpdatedPom(document, pom);
 
-        Path changelogFile = baseDirectory.resolve("CHANGELOG.md");
+        Path changelogFile = pom.getParent().resolve(CHANGELOG_MD);
         org.commonmark.node.Node changelog = readMarkdown(log, changelogFile);
         log.debug("Original changelog");
         MarkdownUtils.printMarkdown(log, changelog, 0);
@@ -161,17 +215,13 @@ public final class UpdatePomMojo extends BaseMojo {
         log.debug("Updated changelog");
         MarkdownUtils.printMarkdown(log, changelog, 0);
 
-        // TODO: Write markdown file
-        if (dryRun) {
-            try (StringWriter writer = new StringWriter()) {
-                MarkdownUtils.writeMarkdown(writer, changelog);
-                getLog().info("Dry-run: new changelog at %s:%n%s".formatted(changelogFile, writer));
-            } catch (IOException e) {
-                throw new MojoExecutionException("Unable to open output stream for writing", e);
-            }
-        } else {
-            MarkdownUtils.writeMarkdownFile(changelogFile, changelog, backupFiles);
-        }
+        writeUpdatedChangelog(changelog, changelogFile);
+        return true;
+    }
+
+    private boolean handleMultiVersionUpdate(MarkdownMapping markdownMapping, List<MavenProject> projects)
+            throws MojoExecutionException, MojoFailureException {
+        return false; // TODO
     }
 
     /// Creates a MarkdownMapping instance based on a list of [VersionMarkdown] objects.
@@ -226,6 +276,27 @@ public final class UpdatePomMojo extends BaseMojo {
             }
         } else {
             POMUtils.writePom(document, pom, backupFiles);
+        }
+    }
+
+    /// Writes the updated changelog to the specified changelog file.
+    /// If the dry-run mode is enabled, the updated changelog is logged instead of being written to the file.
+    /// Otherwise, the changelog is saved to the specified path, with an optional backup of the existing file.
+    ///
+    /// @param changelog     the commonmark node representing the updated changelog content to be written
+    /// @param changelogFile the path to the file where the updated changelog should be saved
+    /// @throws MojoExecutionException if an I/O error occurs during writing the changelog
+    private void writeUpdatedChangelog(org.commonmark.node.Node changelog, Path changelogFile)
+            throws MojoExecutionException {
+        if (dryRun) {
+            try (StringWriter writer = new StringWriter()) {
+                MarkdownUtils.writeMarkdown(writer, changelog);
+                getLog().info("Dry-run: new changelog at %s:%n%s".formatted(changelogFile, writer));
+            } catch (IOException e) {
+                throw new MojoExecutionException("Unable to open output stream for writing", e);
+            }
+        } else {
+            MarkdownUtils.writeMarkdownFile(changelogFile, changelog, backupFiles && Files.exists(changelogFile));
         }
     }
 

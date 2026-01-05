@@ -1,11 +1,13 @@
 package io.github.bsels.semantic.version.utils;
 
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.project.MavenProject;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.function.Predicate;
 
 /// A utility class containing static constants and methods for various common operations.
 /// This class is final and not intended to be instantiated.
@@ -41,5 +43,20 @@ public final class Utils {
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to backup %s to %s".formatted(file, backupPom), e);
         }
+    }
+
+    /// Returns a predicate that always evaluates to `true`.
+    ///
+    /// @param <T> the type of the input to the predicate
+    /// @return a predicate that evaluates to `true` for any input
+    public static <T> Predicate<T> alwaysTrue() {
+        return ignored -> true;
+    }
+
+    /// Returns a predicate that evaluates to true if the given Maven project has no modules.
+    ///
+    /// @return a predicate that checks whether a Maven project has no modules
+    public static Predicate<MavenProject> mavenProjectHasNoModules() {
+        return project -> project.getModules().isEmpty();
     }
 }

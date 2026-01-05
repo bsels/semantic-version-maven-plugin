@@ -47,18 +47,12 @@ import java.util.stream.Stream;
 /// or a [MojoFailureException] being thrown.
 public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo {
 
-    /// Represents the base directory of the Maven project. This directory is resolved to the "basedir"
-    /// property of the Maven build, typically corresponding to the root directory containing the
-    /// `pom.xml` file.
-    /// This variable is used as a reference point for resolving relative paths in the build process
-    /// and is essential for various plugin operations.
-    /// The value is immutable during execution and must be provided as it is a required parameter.
-    /// Configuration:
-    /// - `readonly`: Ensures the value remains constant throughout the execution.
-    /// - `required`: Denotes that this parameter must be set.
-    /// - `defaultValue`: Defaults to Maven's `${basedir}` property, which refers to the root project directory.
-    @Parameter(readonly = true, required = true, defaultValue = "${basedir}")
-    protected Path baseDirectory;
+    /// A constant string representing the filename of the changelog file, "CHANGELOG.md".
+    ///
+    /// This file typically contains information about the changes, updates, and version history for a project.
+    /// It can be used or referenced in Maven plugin implementations to locate
+    /// or process the changelog file content during build processes.
+    public static final String CHANGELOG_MD = "CHANGELOG.md";
 
     /// Represents the mode in which project versioning is handled within the Maven plugin.
     /// This parameter is used to define the strategy for managing version numbers across single or multi-module projects.
@@ -66,15 +60,15 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
     /// Configuration:
     /// - `property`: "versioning.modus", allows external configuration via Maven plugin properties.
     /// - `required`: This parameter is mandatory and must be explicitly defined during plugin execution.
-    /// - `defaultValue`: Defaults to `SINGLE_PROJECT_VERSION` mode, where versioning is executed for a single project.
+    /// - `defaultValue`: Defaults to `PROJECT_VERSION` mode, where versioning is executed based on the project version.
     ///
     /// Supported Modes:
-    /// - [Modus#SINGLE_PROJECT_VERSION]: Handles versioning for a single project.
+    /// - [Modus#PROJECT_VERSION]: Handles versioning for projects using the project version property.
     /// - [Modus#REVISION_PROPERTY]: Handles versioning for projects using the revision property.
-    /// - [Modus#MULTI_PROJECT_VERSION]: Handles versioning across multiple projects (including intermediary projects).
-    /// - [Modus#MULTI_PROJECT_VERSION_ONLY_LEAFS]: Handles versioning for leaf projects in multi-module setups.
-    @Parameter(property = "versioning.modus", required = true, defaultValue = "SINGLE_PROJECT_VERSION")
-    protected Modus modus = Modus.SINGLE_PROJECT_VERSION;
+    /// - [Modus#PROJECT_VERSION_ONLY_LEAFS]: Handles versioning for projects using the project version property,
+    ///   but only for leaf projects in a multi-module setup.
+    @Parameter(property = "versioning.modus", required = true, defaultValue = "PROJECT_VERSION")
+    protected Modus modus = Modus.PROJECT_VERSION;
 
     /// Represents the current Maven session during the execution of the plugin.
     /// Provides access to details such as the projects being built, current settings,
@@ -116,6 +110,23 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
     /// - `defaultValue`: Defaults to `false`, meaning dry-run mode is disabled by default.
     @Parameter(property = "versioning.dryRun", defaultValue = "false")
     protected boolean dryRun = false;
+
+    /// Represents the directory used for storing versioning-related files during the Maven plugin execution.
+    ///
+    /// This field is a configuration parameter for the plugin,
+    /// allowing users to specify a custom directory in the version-specific Markdown files resides.
+    /// By default, it points to the `.versioning` directory relative to the root project directory.
+    ///
+    /// Key Characteristics:
+    /// - Defined as a `Path` object to represent the directory in a file system-agnostic manner.
+    /// - Configurable via the Maven property `versioning.directory`.
+    /// - Marked as a required field, meaning the plugin execution will fail if it is not set or cannot be resolved.
+    /// - Defaults to the `.versioning` directory, unless explicitly overridden.
+    ///
+    /// This field is commonly used by methods or processes within the containing class to locate
+    /// and operate on files related to versioning functionality.
+    @Parameter(property = "versioning.directory", required = true, defaultValue = ".versioning")
+    protected Path versionDirectory = Path.of(".versioning");
 
     /// Default constructor for the BaseMojo class.
     /// Initializes the instance by invoking the superclass constructor.
@@ -175,7 +186,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
     /// @throws MojoFailureException   if the execution fails due to a recoverable or known issue, such as an invalid configuration.
     protected abstract void internalExecute() throws MojoExecutionException, MojoFailureException;
 
-    /// Reads all Markdown files from the `.versioning` directory within the base directory,
+    /// Reads all Markdown files from the `.versioning` directory within the execution root directory,
     /// parses their content, and converts them into a list of [VersionMarkdown] objects.
     ///
     /// The method recursively iterates through the `.versioning` directory, filtering for files with a `.md` extension,
@@ -186,7 +197,12 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
     /// @throws MojoExecutionException if an I/O error occurs while accessing the `.versioning` directory or its contents, or if there is an error in parsing the Markdown files
     protected final List<VersionMarkdown> getVersionMarkdowns() throws MojoExecutionException {
         Log log = getLog();
-        Path versioningFolder = baseDirectory.resolve(".versioning");
+        Path versioningFolder;
+        if (versionDirectory.isAbsolute()) {
+            versioningFolder = versionDirectory;
+        } else {
+            versioningFolder = Path.of(session.getExecutionRootDirectory()).resolve(versionDirectory);
+        }
         List<VersionMarkdown> versionMarkdowns;
         try (Stream<Path> markdownFileStream = Files.walk(versioningFolder, 1)) {
             List<Path> markdownFiles = markdownFileStream.filter(Files::isRegularFile)

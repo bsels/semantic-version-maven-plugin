@@ -114,8 +114,7 @@ public final class POMUtils {
         Objects.requireNonNull(modus, "`modus` must not be null");
         List<String> versionPropertyPath = switch (modus) {
             case REVISION_PROPERTY -> REVISION_PROPERTY_PATH;
-            case SINGLE_PROJECT_VERSION, MULTI_PROJECT_VERSION, MULTI_PROJECT_VERSION_ONLY_LEAFS ->
-                    VERSION_PROPERTY_PATH;
+            case PROJECT_VERSION, PROJECT_VERSION_ONLY_LEAFS -> VERSION_PROPERTY_PATH;
         };
         try {
             return walk(document, versionPropertyPath, 0);

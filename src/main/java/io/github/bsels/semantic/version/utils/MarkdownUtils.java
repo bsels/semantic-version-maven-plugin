@@ -12,6 +12,7 @@ import io.github.bsels.semantic.version.utils.yaml.front.block.YamlFrontMatterBl
 import io.github.bsels.semantic.version.utils.yaml.front.block.YamlFrontMatterExtension;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
+import org.commonmark.node.Document;
 import org.commonmark.node.Heading;
 import org.commonmark.node.Node;
 import org.commonmark.node.Text;
@@ -53,6 +54,11 @@ public final class MarkdownUtils {
     private static final MapType MAVEN_ARTIFACT_BUMP_MAP_TYPE = TypeFactory.defaultInstance()
             .constructMapType(HashMap.class, MavenArtifact.class, SemanticVersionBump.class);
 
+    /// A static and final [ObjectMapper] instance configured as a [YAMLMapper].
+    /// This variable is intended for parsing and generating YAML content.
+    /// It provides a convenient singleton for YAML operations within the context of the MarkdownUtils utility class.
+    private static final ObjectMapper YAML_MAPPER = new YAMLMapper();
+
     /// A statically defined parser built for processing CommonMark-based Markdown with certain custom configurations.
     /// This parser is configured to:
     /// - Utilize the [YamlFrontMatterExtension], which adds support for recognizing and processing YAML front matter
@@ -65,10 +71,6 @@ public final class MarkdownUtils {
             .extensions(List.of(YamlFrontMatterExtension.create()))
             .includeSourceSpans(IncludeSourceSpans.BLOCKS_AND_INLINES)
             .build();
-    /// A static and final [ObjectMapper] instance configured as a [YAMLMapper].
-    /// This variable is intended for parsing and generating YAML content.
-    /// It provides a convenient singleton for YAML operations within the context of the MarkdownUtils utility class.
-    private static final ObjectMapper YAML_MAPPER = new YAMLMapper();
 
     /// A static, pre-configured instance of the [Renderer] used to process and render Markdown content within
     /// the [MarkdownUtils] utility class.
@@ -84,6 +86,13 @@ public final class MarkdownUtils {
     /// This is a singleton-like static constant to ensure consistent rendering behavior throughout the invocation
     /// of Markdown processing methods.
     private static final Renderer MARKDOWN_RENDERER = MarkdownRenderer.builder().build();
+
+    /// Represents the title "Changelog" used as the top-level heading in Markdown changelogs processed by
+    /// the utility methods of the `MarkdownUtils` class.
+    ///
+    /// This constant is used as a reference to ensure that the changelog Markdown structure
+    /// adheres to the expected format, where the main heading for the document is a single H1 titled
+    private static final String CHANGELOG = "Changelog";
 
     /// Utility class for handling operations related to Markdown processing.
     /// This class contains static methods and is not intended to be instantiated.
@@ -138,6 +147,15 @@ public final class MarkdownUtils {
     public static Node readMarkdown(Log log, Path markdownFile) throws MojoExecutionException {
         Objects.requireNonNull(log, "`log` must not be null");
         Objects.requireNonNull(markdownFile, "`markdownFile` must not be null");
+        if (!Files.exists(markdownFile)) {
+            log.info("No changelog file found at '%s', creating an empty one internally".formatted(markdownFile));
+            Document document = new Document();
+            Heading heading = new Heading();
+            heading.setLevel(1);
+            heading.appendChild(new Text(CHANGELOG));
+            document.appendChild(heading);
+            return document;
+        }
         try (Stream<String> lineStream = Files.lines(markdownFile, StandardCharsets.UTF_8)) {
             List<String> lines = lineStream.toList();
             log.info("Read %d lines from %s".formatted(lines.size(), markdownFile));
@@ -174,7 +192,7 @@ public final class MarkdownUtils {
 
         if (!(changelog.getFirstChild() instanceof Heading heading &&
                 heading.getLevel() == 1 &&
-                heading.getFirstChild() instanceof Text text && "Changelog".equals(text.getLiteral()))) {
+                heading.getFirstChild() instanceof Text text && CHANGELOG.equals(text.getLiteral()))) {
             throw new IllegalArgumentException("Changelog must start with a single H1 heading with the text 'Changelog'");
         }
         Node nextChild = heading.getNext();
@@ -282,6 +300,9 @@ public final class MarkdownUtils {
     /// @param node  the current node in the Markdown structure to be logged; can be null
     /// @param level the indentation level, used to format logged output to represent hierarchy
     public static void printMarkdown(Log log, Node node, int level) {
+        if (!log.isDebugEnabled()) {
+            return;
+        }
         if (node == null) {
             return;
         }
