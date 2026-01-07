@@ -243,6 +243,36 @@ public final class MarkdownUtils {
         MARKDOWN_RENDERER.render(document, output);
     }
 
+    /// Recursively logs the structure of a Markdown document starting from the given node.
+    /// Each node in the document is logged at a specific indentation level to visually
+    /// represent the hierarchy of the Markdown content.
+    ///
+    /// @param log   the logger used for logging the node details; must not be null
+    /// @param node  the current node in the Markdown structure to be logged; can be null
+    /// @param level the indentation level, used to format logged output to represent hierarchy
+    public static void printMarkdown(Log log, Node node, int level) {
+        if (!log.isDebugEnabled()) {
+            return;
+        }
+        if (node == null) {
+            return;
+        }
+        log.debug(node.toString().indent(level).stripTrailing());
+        printMarkdown(log, node.getFirstChild(), level + 2);
+        printMarkdown(log, node.getNext(), level);
+    }
+
+    /// Creates a simple version bump document that indicates a project version has been bumped as a result
+    /// of dependency changes.
+    ///
+    /// @param mavenArtifact the Maven artifact associated with the version bump; must not be null
+    /// @return a [VersionMarkdown] object containing the generated document and a mapping of the Maven artifact to a PATCH semantic version bump
+    public static VersionMarkdown createSimpleVersionBumpDocument(MavenArtifact mavenArtifact) {
+        Document document = new Document();
+        document.appendChild(new Text("Project version bumped as result of dependency bumps"));
+        return new VersionMarkdown(document, Map.of(mavenArtifact, SemanticVersionBump.PATCH));
+    }
+
     /// Merges two [Node] instances by inserting the second node after the first node and returning the second node.
     ///
     /// @return a [BinaryOperator] that takes two [Node] instances, inserts the second node after the first, and returns the second node
@@ -290,24 +320,5 @@ public final class MarkdownUtils {
             nextChild = nextSibling;
         }
         return currentLambda;
-    }
-
-    /// Recursively logs the structure of a Markdown document starting from the given node.
-    /// Each node in the document is logged at a specific indentation level to visually
-    /// represent the hierarchy of the Markdown content.
-    ///
-    /// @param log   the logger used for logging the node details; must not be null
-    /// @param node  the current node in the Markdown structure to be logged; can be null
-    /// @param level the indentation level, used to format logged output to represent hierarchy
-    public static void printMarkdown(Log log, Node node, int level) {
-        if (!log.isDebugEnabled()) {
-            return;
-        }
-        if (node == null) {
-            return;
-        }
-        log.debug(node.toString().indent(level).stripTrailing());
-        printMarkdown(log, node.getFirstChild(), level + 2);
-        printMarkdown(log, node.getNext(), level);
     }
 }

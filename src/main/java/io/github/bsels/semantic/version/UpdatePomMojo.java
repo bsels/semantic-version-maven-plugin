@@ -24,8 +24,14 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -164,64 +170,157 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @throws MojoFailureException   if the runtime system fails to initial the XML reader and writer helper classes
     private boolean handleSingleVersionUpdate(MarkdownMapping markdownMapping, MavenProject project)
             throws MojoExecutionException, MojoFailureException {
-        Log log = getLog();
         Path pom = project.getFile()
                 .toPath();
-        MavenArtifact projectArtifact = new MavenArtifact(project.getGroupId(), project.getArtifactId());
+        MavenArtifact artifact = new MavenArtifact(project.getGroupId(), project.getArtifactId());
 
         Document document = POMUtils.readPom(pom);
-        Node versionNode = POMUtils.getProjectVersionNode(document, modus);
 
+        SemanticVersionBump semanticVersionBump = getSemanticVersionBumpForSingleProject(markdownMapping, artifact);
+        Optional<String> version = updateProjectVersion(semanticVersionBump, document);
+        if (version.isEmpty()) {
+            return false;
+        }
+
+        writeUpdatedPom(document, pom);
+
+        updateMarkdownFile(markdownMapping, artifact, pom, version.get());
+        return true;
+    }
+
+    /// Determines the semantic version bump for a single Maven project based on the provided Markdown mapping.
+    /// Validates that only the specified project artifact is being updated.
+    ///
+    /// @param markdownMapping the mapping that contains information about version bumps for multiple artifacts
+    /// @param projectArtifact the Maven artifact representing the single project whose version bump is to be determined
+    /// @return the semantic version bump for the provided project artifact
+    /// @throws MojoExecutionException if the version bump map contains artifacts other than the provided project artifact
+    private SemanticVersionBump getSemanticVersionBumpForSingleProject(
+            MarkdownMapping markdownMapping,
+            MavenArtifact projectArtifact
+    ) throws MojoExecutionException {
         Map<MavenArtifact, SemanticVersionBump> versionBumpMap = markdownMapping.versionBumpMap();
         if (!Set.of(projectArtifact).equals(versionBumpMap.keySet())) {
             throw new MojoExecutionException(
                     "Single version update expected to update only the project %s, found: %s".formatted(
-                            project,
+                            projectArtifact,
                             versionBumpMap.keySet()
                     )
             );
         }
+        return versionBumpMap.get(projectArtifact);
+    }
 
-        SemanticVersionBump semanticVersionBump = getSemanticVersionBump(projectArtifact, versionBumpMap);
+    private boolean handleMultiVersionUpdate(MarkdownMapping markdownMapping, List<MavenProject> projects)
+            throws MojoExecutionException, MojoFailureException {
+        Map<MavenArtifact, MavenProjectAndDocument> documents = new HashMap<>();
+        for (MavenProject project : projects) {
+            MavenArtifact mavenArtifact = new MavenArtifact(project.getGroupId(), project.getArtifactId());
+            documents.put(
+                    mavenArtifact,
+                    new MavenProjectAndDocument(project, mavenArtifact, POMUtils.readPom(project.getFile().toPath())));
+        }
+        documents = Map.copyOf(documents);
+        Collection<MavenProjectAndDocument> documentsCollection = documents.values();
+        Set<MavenArtifact> reactorArtifacts = documentsCollection.stream()
+                .map(MavenProjectAndDocument::artifact)
+                .collect(Collectors.collectingAndThen(Collectors.toSet(), Set::copyOf));
+        Map<MavenArtifact, List<Node>> updatableDependencies = mergeUpdatableDependencies(
+                documentsCollection,
+                reactorArtifacts
+        );
+        Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifact = createDependencyToProjectArtifactMapping(
+                documentsCollection,
+                reactorArtifacts
+        );
+
+        Set<MavenArtifact> updatedArtifacts = new HashSet<>();
+        for (MavenArtifact artifact : reactorArtifacts) {
+            // TODO
+        }
+
+        return !updatedArtifacts.isEmpty();
+    }
+
+    /// Updates the project version in the provided document by applying the semantic version bump specified in
+    /// the Markdown mapping for the given project artifact.
+    ///
+    /// @param semanticVersionBump the semantic version bump to apply to the project version
+    /// @param document            the XML document representing the project's POM
+    /// @return an [Optional] containing the updated version string if the version is updated, or an empty [Optional] if no update is required
+    /// @throws MojoExecutionException if a semantic version bump cannot be applied, or if the input mapping is invalid for the given project artifact
+    private Optional<String> updateProjectVersion(
+            SemanticVersionBump semanticVersionBump,
+            Document document
+    ) throws MojoExecutionException {
+        Log log = getLog();
+        Node versionNode = POMUtils.getProjectVersionNode(document, modus);
+
         log.info("Updating version with a %s semantic version".formatted(semanticVersionBump));
         if (SemanticVersionBump.NONE.equals(semanticVersionBump)) {
             log.info("No version update required");
-            return false;
+            return Optional.empty();
         }
         try {
             POMUtils.updateVersion(versionNode, semanticVersionBump);
         } catch (IllegalArgumentException e) {
             throw new MojoExecutionException("Unable to update version changelog", e);
         }
-
-        writeUpdatedPom(document, pom);
-
-        Path changelogFile = pom.getParent().resolve(CHANGELOG_MD);
-        org.commonmark.node.Node changelog = readMarkdown(log, changelogFile);
-        log.debug("Original changelog");
-        MarkdownUtils.printMarkdown(log, changelog, 0);
-        MarkdownUtils.mergeVersionMarkdownsInChangelog(
-                log,
-                changelog,
-                versionNode.getTextContent(),
-                markdownMapping.markdownMap()
-                        .getOrDefault(projectArtifact, List.of())
-                        .stream()
-                        .collect(Collectors.groupingBy(
-                                entry -> entry.bumps().get(projectArtifact),
-                                Collectors.mapping(VersionMarkdown::content, Collectors.toList())
-                        ))
-        );
-        log.debug("Updated changelog");
-        MarkdownUtils.printMarkdown(log, changelog, 0);
-
-        writeUpdatedChangelog(changelog, changelogFile);
-        return true;
+        return Optional.of(versionNode.getTextContent());
     }
 
-    private boolean handleMultiVersionUpdate(MarkdownMapping markdownMapping, List<MavenProject> projects)
-            throws MojoExecutionException, MojoFailureException {
-        return false; // TODO
+    /// Creates a mapping between dependency artifacts and project artifacts based on the provided
+    /// Maven project documents and reactor artifacts.
+    /// The method identifies dependencies in the projects that match artifacts in the reactor and associates
+    /// them with their corresponding project artifacts.
+    ///
+    /// @param documents        a collection of [MavenProjectAndDocument] representing the Maven projects and their associated model documents.
+    /// @param reactorArtifacts a set of [MavenArtifact] objects representing the artifacts present in the reactor.
+    /// @return a map where keys are dependency artifacts (from the reactor) and values are lists of project artifacts they are associated with.
+    private Map<MavenArtifact, List<MavenArtifact>> createDependencyToProjectArtifactMapping(
+            Collection<MavenProjectAndDocument> documents,
+            Set<MavenArtifact> reactorArtifacts
+    ) {
+        return documents.stream()
+                .flatMap(
+                        projectAndDocument -> POMUtils.getMavenArtifacts(projectAndDocument.document())
+                                .keySet()
+                                .stream()
+                                .filter(reactorArtifacts::contains)
+                                .map(artifact -> Map.entry(artifact, projectAndDocument.artifact()))
+                )
+                .collect(Utils.groupingByImmutable(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
+                ));
+    }
+
+    /// Merges updatable dependencies from a list of Maven project documents and a set of reactor artifacts.
+    /// Filters and groups Maven artifacts and associated information based on the given reactor artifacts.
+    ///
+    /// @param documents        a collection of [MavenProjectAndDocument] objects representing the Maven projects and their associated documents
+    /// @param reactorArtifacts a set of [MavenArtifact] objects representing the reactor build artifacts to be processed
+    /// @return a map where keys are [MavenArtifact] objects and values are immutable lists of dependency nodes associated with those artifacts
+    private Map<MavenArtifact, List<Node>> mergeUpdatableDependencies(
+            Collection<MavenProjectAndDocument> documents,
+            Set<MavenArtifact> reactorArtifacts
+    ) {
+        return documents.stream()
+                .map(MavenProjectAndDocument::document)
+                .map(POMUtils::getMavenArtifacts)
+                .map(Map::entrySet)
+                .flatMap(Set::stream)
+                .filter(entry -> reactorArtifacts.contains(entry.getKey()))
+                .collect(Utils.groupingByImmutable(
+                        Map.Entry::getKey,
+                        Collectors.mapping(
+                                Map.Entry::getValue,
+                                Utils.asImmutableList(Collectors.reducing(
+                                        new ArrayList<>(),
+                                        Utils.consumerToOperator(List::addAll)
+                                ))
+                        )
+                ));
     }
 
     /// Creates a MarkdownMapping instance based on a list of [VersionMarkdown] objects.
@@ -236,7 +335,7 @@ public final class UpdatePomMojo extends BaseMojo {
                 .map(VersionMarkdown::bumps)
                 .map(Map::entrySet)
                 .flatMap(Set::stream)
-                .collect(Collectors.groupingBy(
+                .collect(Utils.groupingByImmutable(
                         Map.Entry::getKey,
                         Collectors.reducing(SemanticVersionBump.NONE, Map.Entry::getValue, SemanticVersionBump::max)
                 ));
@@ -246,12 +345,9 @@ public final class UpdatePomMojo extends BaseMojo {
                         consumer.accept(Map.entry(artifact, item));
                     }
                 })
-                .collect(Collectors.groupingBy(
+                .collect(Utils.groupingByImmutable(
                         Map.Entry::getKey,
-                        Collectors.mapping(
-                                Map.Entry::getValue,
-                                Collectors.collectingAndThen(Collectors.toList(), List::copyOf)
-                        )
+                        Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
                 ));
         return new MarkdownMapping(versionBumpMap, markdownMap);
     }
@@ -277,6 +373,46 @@ public final class UpdatePomMojo extends BaseMojo {
         } else {
             POMUtils.writePom(document, pom, backupFiles);
         }
+    }
+
+    /// Updates the Markdown file by reading the current changelog, merging version-specific markdown changes,
+    /// and writing the updated changelog to the file system.
+    ///
+    /// @param markdownMapping the mapping between Maven artifacts and their associated Markdown changes
+    /// @param projectArtifact the Maven artifact representing the project for which the Markdown file is being updated
+    /// @param pom             the path to the pom.xml file, used as a reference to locate the Markdown file
+    /// @param newVersion      the version information to be updated in the Markdown file
+    /// @throws MojoExecutionException if an error occurs during the update process
+    private void updateMarkdownFile(
+            MarkdownMapping markdownMapping,
+            MavenArtifact projectArtifact,
+            Path pom,
+            String newVersion
+    ) throws MojoExecutionException {
+        Log log = getLog();
+        Path changelogFile = pom.getParent().resolve(CHANGELOG_MD);
+        org.commonmark.node.Node changelog = readMarkdown(log, changelogFile);
+        log.debug("Original changelog");
+        MarkdownUtils.printMarkdown(log, changelog, 0);
+        MarkdownUtils.mergeVersionMarkdownsInChangelog(
+                log,
+                changelog,
+                newVersion,
+                markdownMapping.markdownMap()
+                        .getOrDefault(
+                                projectArtifact,
+                                List.of(MarkdownUtils.createSimpleVersionBumpDocument(projectArtifact))
+                        )
+                        .stream()
+                        .collect(Utils.groupingByImmutable(
+                                entry -> entry.bumps().get(projectArtifact),
+                                Collectors.mapping(VersionMarkdown::content, Utils.asImmutableList())
+                        ))
+        );
+        log.debug("Updated changelog");
+        MarkdownUtils.printMarkdown(log, changelog, 0);
+
+        writeUpdatedChangelog(changelog, changelogFile);
     }
 
     /// Writes the updated changelog to the specified changelog file.
@@ -316,5 +452,27 @@ public final class UpdatePomMojo extends BaseMojo {
             case MINOR -> SemanticVersionBump.MINOR;
             case PATCH -> SemanticVersionBump.PATCH;
         };
+    }
+
+    /// Represents a combination of a MavenProject and its associated Document.
+    /// This class is a record that holds a Maven project and corresponding document,
+    /// ensuring that both parameters are non-null during instantiation.
+    ///
+    /// @param project  the Maven project must not be null
+    /// @param artifact the Maven artifact must not be null
+    /// @param document the associated document must not be null
+    private record MavenProjectAndDocument(MavenProject project, MavenArtifact artifact, Document document) {
+
+        /// Constructs an instance of MavenProjectAndDocument with the specified Maven project and document.
+        ///
+        /// @param project  the Maven project must not be null
+        /// @param artifact the Maven artifact must not be null
+        /// @param document the associated document must not be null
+        /// @throws NullPointerException if the project or document is null
+        private MavenProjectAndDocument {
+            Objects.requireNonNull(project, "`project` must not be null");
+            Objects.requireNonNull(artifact, "`artifact` must not be null");
+            Objects.requireNonNull(document, "`document` must not be null");
+        }
     }
 }

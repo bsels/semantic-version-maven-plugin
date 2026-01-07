@@ -312,15 +312,9 @@ public final class POMUtils {
                 .map(POMUtils::handleArtifactNode)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                .collect(Collectors.collectingAndThen(
-                        Collectors.groupingBy(
-                                Map.Entry::getKey,
-                                Collectors.mapping(
-                                        Map.Entry::getValue,
-                                        Collectors.collectingAndThen(Collectors.toList(), List::copyOf)
-                                )
-                        ),
-                        Map::copyOf
+                .collect(Utils.groupingByImmutable(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
                 ));
     }
 
