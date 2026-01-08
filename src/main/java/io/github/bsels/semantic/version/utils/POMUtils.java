@@ -323,7 +323,7 @@ public final class POMUtils {
     /// if the current text content matches the old version specified in the version change.
     ///
     /// @param versionChange the version change object containing the old and new version values
-    /// @param node the node whose text content is to be updated
+    /// @param node          the node whose text content is to be updated
     /// @throws NullPointerException if `versionChange` or `node` is null
     public static void updateVersionNodeIfOldVersionMatches(VersionChange versionChange, Node node)
             throws NullPointerException {
