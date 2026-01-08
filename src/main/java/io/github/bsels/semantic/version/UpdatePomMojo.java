@@ -3,6 +3,7 @@ package io.github.bsels.semantic.version;
 import io.github.bsels.semantic.version.models.MarkdownMapping;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.models.VersionChange;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
@@ -24,6 +25,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -177,14 +180,14 @@ public final class UpdatePomMojo extends BaseMojo {
         Document document = POMUtils.readPom(pom);
 
         SemanticVersionBump semanticVersionBump = getSemanticVersionBumpForSingleProject(markdownMapping, artifact);
-        Optional<String> version = updateProjectVersion(semanticVersionBump, document);
+        Optional<VersionChange> version = updateProjectVersion(semanticVersionBump, document);
         if (version.isEmpty()) {
             return false;
         }
 
         writeUpdatedPom(document, pom);
 
-        updateMarkdownFile(markdownMapping, artifact, pom, version.get());
+        updateMarkdownFile(markdownMapping, artifact, pom, version.get().newVersion());
         return true;
     }
 
@@ -208,9 +211,18 @@ public final class UpdatePomMojo extends BaseMojo {
                     )
             );
         }
-        return versionBumpMap.get(projectArtifact);
+        return getSemanticVersionBump(projectArtifact, versionBumpMap);
     }
 
+    /// Handles the update process for multiple versions of Maven projects.
+    /// It updates the project versions, modifies associated dependencies across projects,
+    /// and updates the Markdown and POM files accordingly.
+    ///
+    /// @param markdownMapping the mapping containing version bump information and markdown changes
+    /// @param projects        the list of Maven projects to be processed and updated
+    /// @return `true` if at least one project version was updated, `false` otherwise
+    /// @throws MojoExecutionException if an error occurs during the execution of the update process
+    /// @throws MojoFailureException   if a failure requirement is explicitly triggered during the process
     private boolean handleMultiVersionUpdate(MarkdownMapping markdownMapping, List<MavenProject> projects)
             throws MojoExecutionException, MojoFailureException {
         Map<MavenArtifact, MavenProjectAndDocument> documents = new HashMap<>();
@@ -229,32 +241,61 @@ public final class UpdatePomMojo extends BaseMojo {
                 documentsCollection,
                 reactorArtifacts
         );
-        Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifact = createDependencyToProjectArtifactMapping(
+        Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifacts = createDependencyToProjectArtifactMapping(
                 documentsCollection,
                 reactorArtifacts
         );
 
         Set<MavenArtifact> updatedArtifacts = new HashSet<>();
-        for (MavenArtifact artifact : reactorArtifacts) {
-            // TODO
-        }
+        Queue<MavenArtifact> toBeUpdated = new ArrayDeque<>(markdownMapping.versionBumpMap().keySet());
+        while (!toBeUpdated.isEmpty()) {
+            MavenArtifact artifact = toBeUpdated.poll();
+            toBeUpdated.remove(artifact);
 
+            SemanticVersionBump bump = getSemanticVersionBump(artifact, markdownMapping.versionBumpMap());
+            MavenProjectAndDocument mavenProjectAndDocument = documents.get(artifact);
+            Optional<VersionChange> versionChangeOptional = updateProjectVersion(bump, mavenProjectAndDocument.document());
+            if (versionChangeOptional.isPresent()) {
+                VersionChange versionChange = versionChangeOptional.get();
+                updatedArtifacts.add(artifact);
+                dependencyToProjectArtifacts.getOrDefault(artifact, List.of())
+                        .stream()
+                        .filter(Predicate.not(updatedArtifacts::contains))
+                        .forEach(toBeUpdated::offer);
+                Path pom = mavenProjectAndDocument.project()
+                        .getFile()
+                        .toPath();
+
+                updateMarkdownFile(markdownMapping, artifact, pom, versionChange.newVersion());
+
+                updatableDependencies.getOrDefault(artifact, List.of())
+                        .forEach(node -> POMUtils.updateVersionNodeIfOldVersionMatches(versionChange, node));
+            }
+        }
+        for (MavenArtifact artifact : updatedArtifacts) {
+            MavenProjectAndDocument mavenProjectAndDocument = documents.get(artifact);
+            Path pom = mavenProjectAndDocument.project()
+                    .getFile()
+                    .toPath();
+            writeUpdatedPom(mavenProjectAndDocument.document(), pom);
+        }
         return !updatedArtifacts.isEmpty();
     }
 
-    /// Updates the project version in the provided document by applying the semantic version bump specified in
-    /// the Markdown mapping for the given project artifact.
+    /// Updates the project version based on the specified semantic version bump and document.
+    /// If no version update is required, an empty [Optional] is returned.
     ///
-    /// @param semanticVersionBump the semantic version bump to apply to the project version
-    /// @param document            the XML document representing the project's POM
-    /// @return an [Optional] containing the updated version string if the version is updated, or an empty [Optional] if no update is required
-    /// @throws MojoExecutionException if a semantic version bump cannot be applied, or if the input mapping is invalid for the given project artifact
-    private Optional<String> updateProjectVersion(
+    /// @param semanticVersionBump the type of semantic version change to apply (e.g., major, minor, patch)
+    /// @param document            the XML document representing the project's POM file
+    /// @return an [Optional] containing a [VersionChange] object representing the original and updated version, or an empty [Optional] if no update was performed
+    /// @throws MojoExecutionException if an error occurs while updating the version
+    private Optional<VersionChange> updateProjectVersion(
             SemanticVersionBump semanticVersionBump,
             Document document
     ) throws MojoExecutionException {
         Log log = getLog();
         Node versionNode = POMUtils.getProjectVersionNode(document, modus);
+        String originalVersion = versionNode.getTextContent();
 
         log.info("Updating version with a %s semantic version".formatted(semanticVersionBump));
         if (SemanticVersionBump.NONE.equals(semanticVersionBump)) {
@@ -266,7 +307,7 @@ public final class UpdatePomMojo extends BaseMojo {
         } catch (IllegalArgumentException e) {
             throw new MojoExecutionException("Unable to update version changelog", e);
         }
-        return Optional.of(versionNode.getTextContent());
+        return Optional.of(new VersionChange(originalVersion, versionNode.getTextContent()));
     }
 
     /// Creates a mapping between dependency artifacts and project artifacts based on the provided

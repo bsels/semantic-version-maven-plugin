@@ -3,6 +3,7 @@ package io.github.bsels.semantic.version.utils;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersion;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.models.VersionChange;
 import io.github.bsels.semantic.version.parameters.Modus;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -316,6 +317,22 @@ public final class POMUtils {
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
                 ));
+    }
+
+    /// Updates the text content of the specified node with a new version
+    /// if the current text content matches the old version specified in the version change.
+    ///
+    /// @param versionChange the version change object containing the old and new version values
+    /// @param node the node whose text content is to be updated
+    /// @throws NullPointerException if `versionChange` or `node` is null
+    public static void updateVersionNodeIfOldVersionMatches(VersionChange versionChange, Node node)
+            throws NullPointerException {
+        Objects.requireNonNull(versionChange, "`versionChange` must not be null");
+        Objects.requireNonNull(node, "`node` must not be null");
+        String version = node.getTextContent();
+        if (versionChange.oldVersion().equals(version)) {
+            node.setTextContent(versionChange.newVersion());
+        }
     }
 
     /// Processes a given XML [Node] to extract Maven artifact details such as groupId, artifactId, and version,
