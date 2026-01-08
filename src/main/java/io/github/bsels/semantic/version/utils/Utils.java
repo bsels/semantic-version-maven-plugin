@@ -36,7 +36,9 @@ public final class Utils {
     ///
     /// @param file the path to the file to be backed up; must not be null
     /// @throws MojoExecutionException if an I/O error occurs during the backup operation
-    public static void backupFile(Path file) throws MojoExecutionException {
+    /// @throws NullPointerException if the `file` argument is null
+    public static void backupFile(Path file) throws NullPointerException, MojoExecutionException {
+        Objects.requireNonNull(file, "`file` must not be null");
         String fileName = file.getFileName().toString();
         Path backupPom = file.getParent()
                 .resolve(fileName + BACKUP_SUFFIX);
@@ -124,6 +126,6 @@ public final class Utils {
     /// @return a collector that produces an immutable list of the collected elements
     /// @see [#asImmutableList(Collector)] 
     public static <T> Collector<T, ?, List<T>> asImmutableList() {
-        return Collectors.collectingAndThen(Collectors.toList(), List::copyOf);
+        return asImmutableList(Collectors.toList());
     }
 }
