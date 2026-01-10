@@ -114,7 +114,7 @@ public final class Utils {
     /// @param <E>        the type of elements in the resulting list
     /// @param downstream the downstream collector to accumulate elements
     /// @return a collector that produces an immutable list as the final result
-    /// @see [#asImmutableList()] 
+    /// @see #asImmutableList
     public static <T, E> Collector<T, ?, List<E>> asImmutableList(Collector<T, ?, List<E>> downstream) {
         return Collectors.collectingAndThen(downstream, List::copyOf);
     }
@@ -124,7 +124,7 @@ public final class Utils {
     ///
     /// @param <T> the type of input elements to the collector
     /// @return a collector that produces an immutable list of the collected elements
-    /// @see [#asImmutableList(Collector)] 
+    /// @see #asImmutableList(Collector)
     public static <T> Collector<T, ?, List<T>> asImmutableList() {
         return asImmutableList(Collectors.toList());
     }

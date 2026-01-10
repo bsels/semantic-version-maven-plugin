@@ -8,6 +8,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
+import io.github.bsels.semantic.version.utils.yaml.front.block.MarkdownYamFrontMatterBlockRendererFactory;
 import io.github.bsels.semantic.version.utils.yaml.front.block.YamlFrontMatterBlock;
 import io.github.bsels.semantic.version.utils.yaml.front.block.YamlFrontMatterExtension;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -85,7 +86,9 @@ public final class MarkdownUtils {
     ///
     /// This is a singleton-like static constant to ensure consistent rendering behavior throughout the invocation
     /// of Markdown processing methods.
-    private static final Renderer MARKDOWN_RENDERER = MarkdownRenderer.builder().build();
+    private static final Renderer MARKDOWN_RENDERER = MarkdownRenderer.builder()
+            .nodeRendererFactory(MarkdownYamFrontMatterBlockRendererFactory.getInstance())
+            .build();
 
     /// Represents the title "Changelog" used as the top-level heading in Markdown changelogs processed by
     /// the utility methods of the `MarkdownUtils` class.
