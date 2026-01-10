@@ -28,6 +28,22 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
     ///
     /// This pattern ensures that the input string strictly follows the semantic versioning rules.
     public static final Pattern REGEX = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-[a-zA-Z0-9-.]+)?$");
+    /// A regular expression pattern designed to validate the format of suffixes in semantic versions.
+    ///
+    /// The suffix must:
+    /// - Start with a dash (`-`)
+    /// - Contain only alphanumeric characters, dashes (`-`), or dots (`.`)
+    ///
+    /// This pattern is primarily used to ensure proper validation of optional suffix components in semantic versioning.
+    ///
+    /// Example of valid suffixes:
+    /// - `-alpha`
+    /// - `-1.0.0`
+    /// - `-beta.2`
+    ///
+    /// Example of invalid suffixes:
+    /// - `_alpha` (does not start with a dash)
+    /// - `alpha` (does not start with a dash)
     public static final String SUFFIX_REGEX_PATTERN = "^-[a-zA-Z0-9-.]+$";
 
     /// Constructs a new instance of SemanticVersion with the specified major, minor, patch,
@@ -72,6 +88,17 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
                 Optional.ofNullable(matches.group(4))
                         .filter(Predicate.not(String::isEmpty))
         );
+    }
+
+    /// Validates that the provided suffix matches the expected format.
+    /// The suffix must be alphanumeric, may contain dashes or dots, and cannot begin with a dash.
+    ///
+    /// @param suffix the suffix string to validate; must be in the correct format as defined by the [#SUFFIX_REGEX_PATTERN]
+    /// @throws IllegalArgumentException if the suffix does not match the required format
+    private static void validateSuffix(String suffix) throws IllegalArgumentException {
+        if (!suffix.matches(SUFFIX_REGEX_PATTERN)) {
+            throw new IllegalArgumentException("Suffix must be alphanumeric, dash, or dot, and should not start with a dash");
+        }
     }
 
     /// Returns a string representation of the semantic version in the format "major.minor.patch-suffix",
@@ -123,18 +150,5 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
             return this;
         }
         return new SemanticVersion(major, minor, patch, Optional.of(suffix));
-    }
-
-    /// Validates that the provided suffix matches the expected format.
-    /// The suffix must be alphanumeric, may contain dashes or dots, and cannot begin with a dash.
-    ///
-    /// @param suffix the suffix string to validate; must be in the
-    ///               correct format as defined by the SUFFIX_REGEX_PATTERN
-    /// @throws IllegalArgumentException if the suffix does not match
-    ///                                  the required format
-    private static void validateSuffix(String suffix) {
-        if (!suffix.matches(SUFFIX_REGEX_PATTERN)) {
-            throw new IllegalArgumentException("Suffix must be alphanumeric, dash, or dot, and should not start with a dash");
-        }
     }
 }
