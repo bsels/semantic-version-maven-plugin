@@ -114,10 +114,13 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
     /// The suffix may contain additional information about the version, such as build metadata or pre-release identifiers.
     ///
     /// @param suffix the suffix to associate with the version must not be null
-    /// @return a new `SemanticVersion` instance with the specified suffix
+    /// @return a new `SemanticVersion` instance with the specified suffix, or the same instance if the suffix is already present.
     /// @throws NullPointerException if the `suffix` parameter is null
     public SemanticVersion withSuffix(String suffix) throws NullPointerException {
         Objects.requireNonNull(suffix, "`suffix` must not be null");
+        if (this.suffix.filter(suffix::equals).isPresent()) {
+            return this;
+        }
         return new SemanticVersion(major, minor, patch, Optional.of(suffix));
     }
 }

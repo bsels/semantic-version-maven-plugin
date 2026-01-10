@@ -1,4 +1,4 @@
-package io.github.bsels.semantic.version.utils;
+package io.github.bsels.semantic.version.test.utils;
 
 import org.apache.maven.plugin.logging.Log;
 

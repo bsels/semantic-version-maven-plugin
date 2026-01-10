@@ -12,24 +12,24 @@ import java.util.Objects;
 /// This enum is used to denote which part of a version should be incremented or whether no increment is to occur.
 ///
 /// The enum values are defined as:
-/// - MAJOR: Indicates a major version increment, which may introduce breaking changes.
-/// - MINOR: Indicates a minor version increment, which may add functionality in a backward-compatible manner.
-/// - PATCH: Indicates a patch version increment, which may introduce backward-compatible bug fixes.
 /// - NONE: Indicates that no version increment is to occur.
+/// - PATCH: Indicates a patch version increment, which may introduce backward-compatible bug fixes.
+/// - MINOR: Indicates a minor version increment, which may add functionality in a backward-compatible manner.
+/// - MAJOR: Indicates a major version increment, which may introduce breaking changes.
 public enum SemanticVersionBump {
-    /// Indicates a major version increment in the context of semantic versioning.
-    /// A major increment typically introduces breaking changes, making backward compatibility
-    /// with earlier versions unlikely.
-    MAJOR,
-    /// Indicates a minor version increment in the context of semantic versioning.
-    /// A minor increment is typically used to add new functionality in a backward-compatible manner.
-    MINOR,
+    /// Indicates that no version increment is to occur.
+    /// This value is used in the context of semantic versioning when the version should remain unchanged.
+    NONE,
     /// Indicates a patch version increment in the context of semantic versioning.
     /// A patch increment is typically used to introduce backward-compatible bug fixes.
     PATCH,
-    /// Indicates that no version increment is to occur.
-    /// This value is used in the context of semantic versioning when the version should remain unchanged.
-    NONE;
+    /// Indicates a minor version increment in the context of semantic versioning.
+    /// A minor increment is typically used to add new functionality in a backward-compatible manner.
+    MINOR,
+    /// Indicates a major version increment in the context of semantic versioning.
+    /// A major increment typically introduces breaking changes, making backward compatibility
+    /// with earlier versions unlikely.
+    MAJOR;
 
     /// Converts a string representation of a semantic version bump to its corresponding enum value.
     ///
@@ -40,6 +40,9 @@ public enum SemanticVersionBump {
     /// @throws IllegalArgumentException if the input value does not match any of the valid enum names
     @JsonCreator
     public static SemanticVersionBump fromString(String value) throws IllegalArgumentException {
+        if (value == null) {
+            return NONE;
+        }
         return valueOf(value.toUpperCase());
     }
 
@@ -58,7 +61,7 @@ public enum SemanticVersionBump {
 
     /// Determines the maximum semantic version bump from a collection of [SemanticVersionBump] values.
     /// The bumps are compared based on their natural order, and the highest value is returned.
-    /// If the collection is empty, [#NONE] is returned.
+    /// If the collection is empty or only has null pointers, [#NONE] is returned.
     ///
     /// @param bumps the collection of [SemanticVersionBump] values to evaluate
     /// @return the maximum semantic version bump in the collection, or [#NONE] if the collection is empty
@@ -66,7 +69,8 @@ public enum SemanticVersionBump {
     public static SemanticVersionBump max(Collection<SemanticVersionBump> bumps) throws NullPointerException {
         Objects.requireNonNull(bumps, "`bumps` must not be null");
         return bumps.stream()
-                .min(Comparator.naturalOrder())
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
                 .orElse(NONE);
     }
 }
