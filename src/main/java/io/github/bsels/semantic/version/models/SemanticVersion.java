@@ -28,6 +28,7 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
     ///
     /// This pattern ensures that the input string strictly follows the semantic versioning rules.
     public static final Pattern REGEX = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-[a-zA-Z0-9-.]+)?$");
+    public static final String SUFFIX_REGEX_PATTERN = "^-[a-zA-Z0-9-.]+$";
 
     /// Constructs a new instance of SemanticVersion with the specified major, minor, patch,
     /// and optional suffix components.
@@ -43,10 +44,9 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
         if (major < 0 || minor < 0 || patch < 0) {
             throw new IllegalArgumentException("Version parts must be non-negative");
         }
-        suffix = suffix.filter(Predicate.not(String::isEmpty));
-        if (suffix.isPresent() && !suffix.get().matches("^-[a-zA-Z0-9-.]+$")) {
-            throw new IllegalArgumentException("Suffix must be alphanumeric, dash, or dot, and should not start with a dash");
-        }
+        suffix = Objects.requireNonNullElseGet(suffix, Optional::<String>empty)
+                .filter(Predicate.not(String::isEmpty));
+        suffix.ifPresent(SemanticVersion::validateSuffix);
     }
 
     /// Parses a semantic version string and creates a `SemanticVersion` instance.
@@ -118,9 +118,23 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
     /// @throws NullPointerException if the `suffix` parameter is null
     public SemanticVersion withSuffix(String suffix) throws NullPointerException {
         Objects.requireNonNull(suffix, "`suffix` must not be null");
+        validateSuffix(suffix);
         if (this.suffix.filter(suffix::equals).isPresent()) {
             return this;
         }
         return new SemanticVersion(major, minor, patch, Optional.of(suffix));
+    }
+
+    /// Validates that the provided suffix matches the expected format.
+    /// The suffix must be alphanumeric, may contain dashes or dots, and cannot begin with a dash.
+    ///
+    /// @param suffix the suffix string to validate; must be in the
+    ///               correct format as defined by the SUFFIX_REGEX_PATTERN
+    /// @throws IllegalArgumentException if the suffix does not match
+    ///                                  the required format
+    private static void validateSuffix(String suffix) {
+        if (!suffix.matches(SUFFIX_REGEX_PATTERN)) {
+            throw new IllegalArgumentException("Suffix must be alphanumeric, dash, or dot, and should not start with a dash");
+        }
     }
 }

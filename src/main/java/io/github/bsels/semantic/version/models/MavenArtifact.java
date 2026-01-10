@@ -23,8 +23,8 @@ public record MavenArtifact(String groupId, String artifactId) {
     /// @param artifactId the artifact ID must not be null
     /// @throws NullPointerException if `groupId` or `artifactId` is null
     public MavenArtifact {
-        Objects.requireNonNull(groupId, "`groupId` cannot be null");
-        Objects.requireNonNull(artifactId, "`artifactId` cannot be null");
+        Objects.requireNonNull(groupId, "`groupId` must not be null");
+        Objects.requireNonNull(artifactId, "`artifactId` must not be null");
     }
 
     /// Creates a new `MavenArtifact` instance by parsing a string in the format `<group-id>:<artifact-id>`.
