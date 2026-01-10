@@ -2,7 +2,6 @@ package io.github.bsels.semantic.version.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.github.bsels.semantic.version.models.MavenArtifact;
-import io.github.bsels.semantic.version.models.SemanticVersion;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.test.utils.TestLog;
@@ -26,6 +25,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.util.List;
@@ -46,6 +46,7 @@ public class MarkdownUtilsTest {
     private static final String GROUP_ID = "groupId";
     private static final MavenArtifact MAVEN_ARTIFACT = new MavenArtifact(GROUP_ID, ARTIFACT_ID);
     private static final Path CHANGELOG_PATH = Path.of("project/CHANGELOG.md");
+    private static final Path CHANGELOG_BACKUP_PATH = Path.of("project/CHANGELOG.md.backup");
     private static final String VERSION = "1.0.0";
     private static final LocalDate DATE = LocalDate.of(2025, 1, 1);
     private static final String CHANGE_LINE = "Version bumped with a %s semantic version at index %d";
@@ -206,8 +207,7 @@ public class MarkdownUtilsTest {
         @ParameterizedTest
         @ValueSource(booleans = {true, false})
         void failedToCreateFileWriter_ThrowsMojoExceptionException(boolean backupOld) {
-            try (MockedStatic<Utils> utilsMockedStatic = Mockito.mockStatic(Utils.class);
-                 MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
+            try (MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
                 filesMockedStatic.when(() -> Files.newBufferedWriter(
                                 CHANGELOG_PATH,
                                 StandardCharsets.UTF_8,
@@ -221,7 +221,12 @@ public class MarkdownUtilsTest {
                         .hasRootCauseInstanceOf(IOException.class)
                         .hasRootCauseMessage("Failed to create writer");
 
-                utilsMockedStatic.verify(() -> Utils.backupFile(CHANGELOG_PATH), Mockito.times(backupOld ? 1 : 0));
+                filesMockedStatic.verify(() -> Files.copy(CHANGELOG_PATH,
+                        CHANGELOG_BACKUP_PATH,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.COPY_ATTRIBUTES,
+                        StandardCopyOption.REPLACE_EXISTING
+                ), Mockito.times(backupOld ? 1 : 0));
                 filesMockedStatic.verify(() -> Files.newBufferedWriter(
                         CHANGELOG_PATH,
                         StandardCharsets.UTF_8,
@@ -233,8 +238,7 @@ public class MarkdownUtilsTest {
         @ParameterizedTest
         @ValueSource(booleans = {true, false})
         void happyFlow_CorrectlyWritten(boolean backupOld) {
-            try (MockedStatic<Utils> utilsMockedStatic = Mockito.mockStatic(Utils.class);
-                 MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
+            try (MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
                 StringWriter writer = new StringWriter();
 
                 filesMockedStatic.when(() -> Files.newBufferedWriter(
@@ -253,7 +257,12 @@ public class MarkdownUtilsTest {
                                 Test paragraph
                                 """);
 
-                utilsMockedStatic.verify(() -> Utils.backupFile(CHANGELOG_PATH), Mockito.times(backupOld ? 1 : 0));
+                filesMockedStatic.verify(() -> Files.copy(CHANGELOG_PATH,
+                        CHANGELOG_BACKUP_PATH,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.COPY_ATTRIBUTES,
+                        StandardCopyOption.REPLACE_EXISTING
+                ), Mockito.times(backupOld ? 1 : 0));
                 filesMockedStatic.verify(() -> Files.newBufferedWriter(
                         CHANGELOG_PATH,
                         StandardCharsets.UTF_8,
