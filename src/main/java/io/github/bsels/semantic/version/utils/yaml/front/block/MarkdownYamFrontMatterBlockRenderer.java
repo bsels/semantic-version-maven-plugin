@@ -33,7 +33,7 @@ public class MarkdownYamFrontMatterBlockRenderer implements NodeRenderer {
     ///
     /// @param context the rendering context used to facilitate writing and node processing; must not be null
     /// @throws NullPointerException if the provided context is null
-    public MarkdownYamFrontMatterBlockRenderer(MarkdownNodeRendererContext context) {
+    public MarkdownYamFrontMatterBlockRenderer(MarkdownNodeRendererContext context) throws NullPointerException {
         Objects.requireNonNull(context, "`context` must not be null");
         this.writer = context.getWriter();
     }

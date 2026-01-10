@@ -16,12 +16,10 @@ import java.util.Set;
 /// It provides mechanisms for creating a renderer specific to processing nodes of YAML front matter blocks,
 /// as well as retrieving special characters used by the implementation.
 ///
-///
 /// YAML front matter is a structured block of metadata typically delimited by `---` markers
 /// and placed at the beginning of Markdown documents.
 /// This factory produces renderers, such as [MarkdownYamFrontMatterBlockRenderer],
 /// to handle the production of output for such front matter in accordance with Markdown rendering context requirements.
-///
 ///
 /// The factory interacts with the [MarkdownNodeRendererContext] for rendering configuration,
 /// ensuring seamless integration with the Markdown framework during rendering operations.
@@ -65,7 +63,7 @@ public class MarkdownYamFrontMatterBlockRendererFactory implements MarkdownNodeR
     /// @return a [NodeRenderer] responsible for rendering YAML front matter blocks
     /// @throws NullPointerException if the provided context is null
     @Override
-    public NodeRenderer create(MarkdownNodeRendererContext context) {
+    public NodeRenderer create(MarkdownNodeRendererContext context) throws NullPointerException {
         Objects.requireNonNull(context, "`context` must not be null");
         return new MarkdownYamFrontMatterBlockRenderer(context);
     }

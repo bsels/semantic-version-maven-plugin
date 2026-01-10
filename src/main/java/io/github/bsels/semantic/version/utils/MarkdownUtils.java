@@ -16,6 +16,7 @@ import org.apache.maven.plugin.logging.Log;
 import org.commonmark.node.Document;
 import org.commonmark.node.Heading;
 import org.commonmark.node.Node;
+import org.commonmark.node.Paragraph;
 import org.commonmark.node.Text;
 import org.commonmark.parser.IncludeSourceSpans;
 import org.commonmark.parser.Parser;
@@ -272,7 +273,9 @@ public final class MarkdownUtils {
     /// @return a [VersionMarkdown] object containing the generated document and a mapping of the Maven artifact to a PATCH semantic version bump
     public static VersionMarkdown createSimpleVersionBumpDocument(MavenArtifact mavenArtifact) {
         Document document = new Document();
-        document.appendChild(new Text("Project version bumped as result of dependency bumps"));
+        Paragraph paragraph = new Paragraph();
+        paragraph.appendChild(new Text("Project version bumped as result of dependency bumps"));
+        document.appendChild(paragraph);
         return new VersionMarkdown(document, Map.of(mavenArtifact, SemanticVersionBump.PATCH));
     }
 
