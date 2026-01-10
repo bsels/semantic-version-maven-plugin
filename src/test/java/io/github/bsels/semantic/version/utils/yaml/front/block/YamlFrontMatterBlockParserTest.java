@@ -7,7 +7,6 @@ import org.commonmark.node.ListItem;
 import org.commonmark.node.Node;
 import org.commonmark.node.Paragraph;
 import org.commonmark.node.Text;
-import org.commonmark.node.ThematicBreak;
 import org.commonmark.parser.IncludeSourceSpans;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.Nested;
@@ -15,6 +14,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static io.github.bsels.semantic.version.test.utils.MarkdownDocumentAsserter.assertThatDocument;
+import static io.github.bsels.semantic.version.test.utils.MarkdownDocumentAsserter.hasHeading;
+import static io.github.bsels.semantic.version.test.utils.MarkdownDocumentAsserter.hasParagraph;
+import static io.github.bsels.semantic.version.test.utils.MarkdownDocumentAsserter.hasThematicBreak;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class YamlFrontMatterBlockParserTest {
@@ -36,33 +39,11 @@ public class YamlFrontMatterBlockParserTest {
 
             Node actual = PARSER.parse(markdown);
 
-            assertThat(actual)
-                    .isInstanceOf(Document.class)
-                    .extracting(Node::getFirstChild)
-                    .isNotNull()
-                    .isInstanceOf(Heading.class)
-                    .hasFieldOrPropertyWithValue("level", 1)
-                    .satisfies(
-                            n -> assertThat(n.getFirstChild())
-                                    .isNotNull()
-                                    .isInstanceOf(Text.class)
-                                    .hasFieldOrPropertyWithValue("literal", "No front matter")
-                                    .extracting(Node::getNext)
-                                    .isNull()
-                    )
-                    .extracting(Node::getNext)
-                    .isNotNull()
-                    .isInstanceOf(Paragraph.class)
-                    .satisfies(
-                            n -> assertThat(n.getFirstChild())
-                                    .isNotNull()
-                                    .isInstanceOf(Text.class)
-                                    .hasFieldOrPropertyWithValue("literal", "This is a test")
-                                    .extracting(Node::getNext)
-                                    .isNull()
-                    )
-                    .extracting(Node::getNext)
-                    .isNull();
+            assertThatDocument(
+                    actual,
+                    hasHeading(1, "No front matter"),
+                    hasParagraph("This is a test")
+            );
         }
 
         @Test
@@ -77,35 +58,12 @@ public class YamlFrontMatterBlockParserTest {
 
             Node actual = PARSER.parse(markdown);
 
-            assertThat(actual)
-                    .isInstanceOf(Document.class)
-                    .extracting(Node::getFirstChild)
-                    .isNotNull()
-                    .isInstanceOf(Paragraph.class)
-                    .satisfies(
-                            n -> assertThat(n.getFirstChild())
-                                    .isNotNull()
-                                    .isInstanceOf(Text.class)
-                                    .hasFieldOrPropertyWithValue("literal", "Paragraph 1")
-                                    .extracting(Node::getNext)
-                                    .isNull()
-                    )
-                    .extracting(Node::getNext)
-                    .isNotNull()
-                    .isInstanceOf(ThematicBreak.class)
-                    .extracting(Node::getNext)
-                    .isNotNull()
-                    .isInstanceOf(Paragraph.class)
-                    .satisfies(
-                            n -> assertThat(n.getFirstChild())
-                                    .isNotNull()
-                                    .isInstanceOf(Text.class)
-                                    .hasFieldOrPropertyWithValue("literal", "Paragraph 2")
-                                    .extracting(Node::getNext)
-                                    .isNull()
-                    )
-                    .extracting(Node::getNext)
-                    .isNull();
+            assertThatDocument(
+                    actual,
+                    hasParagraph("Paragraph 1"),
+                    hasThematicBreak(),
+                    hasParagraph("Paragraph 2")
+            );
         }
 
         @Test

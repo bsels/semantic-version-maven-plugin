@@ -30,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,7 +153,7 @@ public final class MarkdownUtils {
         Objects.requireNonNull(log, "`log` must not be null");
         Objects.requireNonNull(markdownFile, "`markdownFile` must not be null");
         if (!Files.exists(markdownFile)) {
-            log.info("No changelog file found at '%s', creating an empty one internally".formatted(markdownFile));
+            log.info("No changelog file found at '%s', creating an empty CHANGELOG internally".formatted(markdownFile));
             Document document = new Document();
             Heading heading = new Heading();
             heading.setLevel(1);
@@ -177,24 +178,25 @@ public final class MarkdownUtils {
     /// grouped by semantic version bump types (e.g., MAJOR, MINOR, PATCH).
     /// The changelog must begin with a single H1 heading titled "Changelog".
     ///
-    /// @param log           the logger used to output informational and debug messages; must not be null
     /// @param changelog     the root Node of the changelog Markdown structure to be updated; must not be null
     /// @param version       the version string to be added to the changelog; must not be null
     /// @param headerToNodes a mapping of SemanticVersionBump types to their associated Markdown nodes; must not be null
-    /// @throws NullPointerException     if any of the parameters `log`, `changelog`, `version`, or `headerToNodes` is null
-    /// @throws IllegalArgumentException if the changelog does not start with a single H1 heading titled "Changelog"
+    /// @throws NullPointerException     if any of the parameters `changelog`, `version`, or `headerToNodes` is null
+    /// @throws IllegalArgumentException if the changelog is not a document or does not start with a single H1 heading titled "Changelog"
+    /// @throws IllegalArgumentException if any of the nodes in the map entries node lists is not a document
     public static void mergeVersionMarkdownsInChangelog(
-            Log log,
             Node changelog,
             String version,
             Map<SemanticVersionBump, List<Node>> headerToNodes
     ) throws NullPointerException, IllegalArgumentException {
-        Objects.requireNonNull(log, "`log` must not be null");
         Objects.requireNonNull(changelog, "`changelog` must not be null");
         Objects.requireNonNull(version, "`version` must not be null");
         Objects.requireNonNull(headerToNodes, "`headerToNodes` must not be null");
 
-        if (!(changelog.getFirstChild() instanceof Heading heading &&
+        if (!(changelog instanceof Document document)) {
+            throw new IllegalArgumentException("`changelog` must be a Document");
+        }
+        if (!(document.getFirstChild() instanceof Heading heading &&
                 heading.getLevel() == 1 &&
                 heading.getFirstChild() instanceof Text text && CHANGELOG.equals(text.getLiteral()))) {
             throw new IllegalArgumentException("Changelog must start with a single H1 heading with the text 'Changelog'");
@@ -206,12 +208,13 @@ public final class MarkdownUtils {
         newVersionHeading.appendChild(new Text("%s - %s".formatted(version, LocalDate.now())));
         heading.insertAfter(newVersionHeading);
 
+        Comparator<Map.Entry<SemanticVersionBump, List<Node>>> comparator = Map.Entry.comparingByKey();
         Node current = headerToNodes.entrySet()
                 .stream()
-                .sorted(Map.Entry.comparingByKey())
+                .sorted(comparator.reversed())
                 .reduce(newVersionHeading, MarkdownUtils::copyVersionMarkdownToChangeset, mergeNodes());
 
-        assert current.getNext().equals(nextChild);
+        assert current.getNext() == nextChild : "Incorrectly inserted nodes into changelog";
     }
 
     /// Writes a Markdown document to a specified file. Optionally creates a backup of the existing file
@@ -223,7 +226,7 @@ public final class MarkdownUtils {
     /// @throws NullPointerException   if `markdownFile` or `document` is null
     /// @throws MojoExecutionException if an error occurs while creating the backup or writing to the file
     public static void writeMarkdownFile(Path markdownFile, Node document, boolean backupOld)
-            throws MojoExecutionException {
+            throws MojoExecutionException, NullPointerException {
         Objects.requireNonNull(markdownFile, "`markdownFile` must not be null");
         Objects.requireNonNull(document, "`document` must not be null");
         if (backupOld) {
@@ -243,7 +246,9 @@ public final class MarkdownUtils {
     /// @param output   the writer to which the rendered Markdown content will be written; must not be null
     /// @param document the node representing the structured Markdown content to be rendered; must not be null
     /// @throws NullPointerException if `output` or `document` is null
-    public static void writeMarkdown(Writer output, Node document) {
+    public static void writeMarkdown(Writer output, Node document) throws NullPointerException {
+        Objects.requireNonNull(output, "`output` must not be null");
+        Objects.requireNonNull(document, "`document` must not be null");
         MARKDOWN_RENDERER.render(document, output);
     }
 
@@ -271,7 +276,10 @@ public final class MarkdownUtils {
     ///
     /// @param mavenArtifact the Maven artifact associated with the version bump; must not be null
     /// @return a [VersionMarkdown] object containing the generated document and a mapping of the Maven artifact to a PATCH semantic version bump
-    public static VersionMarkdown createSimpleVersionBumpDocument(MavenArtifact mavenArtifact) {
+    /// @throws NullPointerException if the `mavenArtifact` parameter is null
+    public static VersionMarkdown createSimpleVersionBumpDocument(MavenArtifact mavenArtifact)
+            throws NullPointerException {
+        Objects.requireNonNull(mavenArtifact, "`mavenArtifact` must not be null");
         Document document = new Document();
         Paragraph paragraph = new Paragraph();
         paragraph.appendChild(new Text("Project version bumped as result of dependency bumps"));
@@ -295,7 +303,9 @@ public final class MarkdownUtils {
     /// @param current the current Node in the Markdown structure to which the bump type heading and its associated nodes will be inserted; must not be null
     /// @param entry   a Map.Entry containing a SemanticVersionBump key representing the bump type (e.g., MAJOR, MINOR, PATCH, NONE) and a List of Nodes associated with that bump type; must not be null
     /// @return the last Node inserted into the Markdown structure, representing the merged result of the operation
-    private static Node copyVersionMarkdownToChangeset(Node current, Map.Entry<SemanticVersionBump, List<Node>> entry) {
+    /// @throws IllegalArgumentException if any of the nodes in the entry node list is not a document
+    private static Node copyVersionMarkdownToChangeset(Node current, Map.Entry<SemanticVersionBump, List<Node>> entry)
+            throws IllegalArgumentException {
         Heading bumpTypeHeading = new Heading();
         bumpTypeHeading.setLevel(3);
         bumpTypeHeading.appendChild(new Text(switch (entry.getKey()) {
@@ -317,9 +327,13 @@ public final class MarkdownUtils {
     /// @param currentLambda the node after which the child nodes will be inserted; must not be null
     /// @param node          the node whose children are to be inserted; must not be null
     /// @return the last child node that was inserted after the current node
-    private static Node insertNodeChilds(Node currentLambda, Node node) {
+    /// @throws IllegalArgumentException if the `node` parameter is not a document
+    private static Node insertNodeChilds(Node currentLambda, Node node) throws IllegalArgumentException {
+        if (!(node instanceof Document document)) {
+            throw new IllegalArgumentException("Node must be a Document");
+        }
         BinaryOperator<Node> binaryOperator = mergeNodes();
-        Node nextChild = node.getFirstChild();
+        Node nextChild = document.getFirstChild();
         while (nextChild != null) {
             Node nextSibling = nextChild.getNext();
             currentLambda = binaryOperator.apply(currentLambda, nextChild);

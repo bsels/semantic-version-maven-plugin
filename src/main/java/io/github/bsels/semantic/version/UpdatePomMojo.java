@@ -436,7 +436,6 @@ public final class UpdatePomMojo extends BaseMojo {
         log.debug("Original changelog");
         MarkdownUtils.printMarkdown(log, changelog, 0);
         MarkdownUtils.mergeVersionMarkdownsInChangelog(
-                log,
                 changelog,
                 newVersion,
                 markdownMapping.markdownMap()
