@@ -125,7 +125,7 @@ public final class UpdatePomMojo extends BaseMojo {
                 .collect(Utils.asImmutableList());
 
         if (projectsInScope.isEmpty()) {
-            log.info("No projects found in scope");
+            log.warn("No projects found in scope");
         } else if (projectsInScope.size() == 1) {
             log.info("Single project in scope");
             handleSingleProject(mapping, projectsInScope.get(0));

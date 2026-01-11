@@ -207,6 +207,11 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
         } else {
             versioningFolder = Path.of(session.getExecutionRootDirectory()).resolve(versionDirectory);
         }
+        if (!Files.exists(versioningFolder)) {
+            log.warn("No versioning files found in %s as folder does not exists".formatted(versioningFolder));
+            return List.of();
+        }
+
         List<VersionMarkdown> versionMarkdowns;
         try (Stream<Path> markdownFileStream = Files.walk(versioningFolder, 1)) {
             List<Path> markdownFiles = markdownFileStream.filter(Files::isRegularFile)
