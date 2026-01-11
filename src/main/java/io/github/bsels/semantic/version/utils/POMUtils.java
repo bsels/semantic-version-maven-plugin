@@ -188,9 +188,9 @@ public final class POMUtils {
     /// @param modus    the mode that specifies the traversal logic for locating the version node; must not be null
     /// @return the XML node representing the project version
     /// @throws NullPointerException  if the document or modus argument is null
-    /// @throws IllegalStateException if the project version node cannot be located in the document
+    /// @throws MojoExecutionException if the project version node cannot be located in the document
     public static Node getProjectVersionNode(Document document, Modus modus)
-            throws NullPointerException, IllegalStateException {
+            throws NullPointerException, MojoExecutionException {
         Objects.requireNonNull(document, "`document` must not be null");
         Objects.requireNonNull(modus, "`modus` must not be null");
         List<String> versionPropertyPath = switch (modus) {
@@ -200,7 +200,7 @@ public final class POMUtils {
         try {
             return walk(document, versionPropertyPath, 0);
         } catch (IllegalStateException e) {
-            throw new IllegalStateException("Unable to find project version on the path: %s".formatted(
+            throw new MojoExecutionException("Unable to find project version on the path: %s".formatted(
                     String.join("->", versionPropertyPath)
             ), e);
         }
@@ -247,7 +247,7 @@ public final class POMUtils {
         try (Writer writer = Files.newBufferedWriter(pomFile, StandardCharsets.UTF_8, StandardOpenOption.CREATE)) {
             writePom(document, writer);
         } catch (IOException e) {
-            throw new MojoExecutionException("Unable to write %s".formatted(pomFile), e);
+            throw new MojoExecutionException("Unable to write to %s".formatted(pomFile), e);
         }
     }
 
@@ -289,7 +289,7 @@ public final class POMUtils {
         Objects.requireNonNull(bump, "`bump` must not be null");
 
         SemanticVersion version = SemanticVersion.of(nodeElement.getTextContent());
-        SemanticVersion updatedVersion = version.bump(bump).stripSuffix();
+        SemanticVersion updatedVersion = version.bump(bump);
         nodeElement.setTextContent(updatedVersion.toString());
     }
 
@@ -299,7 +299,9 @@ public final class POMUtils {
     ///
     /// @param document the XML document representing a Maven POM file
     /// @return a map where the keys are MavenArtifact objects representing the artifacts and the values are lists of XML nodes associated with those artifacts
-    public static Map<MavenArtifact, List<Node>> getMavenArtifacts(Document document) {
+    /// @throws NullPointerException if the `document` argument is null
+    public static Map<MavenArtifact, List<Node>> getMavenArtifacts(Document document) throws NullPointerException {
+        Objects.requireNonNull(document, "`document` must not be null");
         Stream<Node> dependencyNodes = Stream.concat(
                 walkStream(document, DEPENDENCIES_PATH, 0),
                 walkStream(document, DEPENDENCY_MANAGEMENT_DEPENDENCIES_PATH, 0)
@@ -380,7 +382,7 @@ public final class POMUtils {
                 .findFirst()
                 .map(child -> walk(child, path, currentElementIndex + 1))
                 .orElseThrow(() -> new IllegalStateException(
-                        "Unable to find element %s in %s".formatted(result.currentElementName(), parent.getNodeName())
+                        "Unable to find element '%s' in '%s'".formatted(result.currentElementName(), parent.getNodeName())
                 ));
     }
 

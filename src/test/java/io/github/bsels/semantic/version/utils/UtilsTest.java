@@ -51,12 +51,34 @@ public class UtilsTest {
         }
 
         @Test
+        void nonExistingFile_DoNothing() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path file = Path.of("project/pom.xml");
+                files.when(() -> Files.exists(file))
+                        .thenReturn(false);
+
+                assertThatNoException()
+                        .isThrownBy(() -> Utils.backupFile(file));
+
+                files.verify(() -> Files.copy(
+                        Mockito.any(Path.class),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any()
+                ), Mockito.never());
+            }
+        }
+
+        @Test
         void copyFailed_ThrowsMojoExceptionException() {
             try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
                 files.when(() -> Files.copy(Mockito.any(Path.class), Mockito.any(), Mockito.any(CopyOption[].class)))
                         .thenThrow(new IOException("copy failed"));
 
                 Path file = Path.of("project/pom.xml");
+                files.when(() -> Files.exists(file))
+                        .thenReturn(true);
                 Path backupFile = Path.of("project/pom.xml" + Utils.BACKUP_SUFFIX);
                 assertThatThrownBy(() -> Utils.backupFile(file))
                         .isInstanceOf(MojoExecutionException.class)
@@ -82,6 +104,8 @@ public class UtilsTest {
                         .thenReturn(backupFile);
 
                 Path file = Path.of("project/pom.xml");
+                files.when(() -> Files.exists(file))
+                        .thenReturn(true);
                 assertThatNoException()
                         .isThrownBy(() -> Utils.backupFile(file));
 

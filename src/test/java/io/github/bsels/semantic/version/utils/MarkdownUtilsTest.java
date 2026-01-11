@@ -208,6 +208,8 @@ public class MarkdownUtilsTest {
         @ValueSource(booleans = {true, false})
         void failedToCreateFileWriter_ThrowsMojoExceptionException(boolean backupOld) {
             try (MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
+                filesMockedStatic.when(() -> Files.exists(CHANGELOG_PATH))
+                        .thenReturn(true);
                 filesMockedStatic.when(() -> Files.newBufferedWriter(
                                 CHANGELOG_PATH,
                                 StandardCharsets.UTF_8,
@@ -221,7 +223,8 @@ public class MarkdownUtilsTest {
                         .hasRootCauseInstanceOf(IOException.class)
                         .hasRootCauseMessage("Failed to create writer");
 
-                filesMockedStatic.verify(() -> Files.copy(CHANGELOG_PATH,
+                filesMockedStatic.verify(() -> Files.copy(
+                        CHANGELOG_PATH,
                         CHANGELOG_BACKUP_PATH,
                         StandardCopyOption.ATOMIC_MOVE,
                         StandardCopyOption.COPY_ATTRIBUTES,
@@ -240,7 +243,8 @@ public class MarkdownUtilsTest {
         void happyFlow_CorrectlyWritten(boolean backupOld) {
             try (MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
                 StringWriter writer = new StringWriter();
-
+                filesMockedStatic.when(() -> Files.exists(CHANGELOG_PATH))
+                                .thenReturn(true);
                 filesMockedStatic.when(() -> Files.newBufferedWriter(
                                 CHANGELOG_PATH,
                                 StandardCharsets.UTF_8,

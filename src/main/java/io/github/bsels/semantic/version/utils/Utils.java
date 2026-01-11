@@ -42,6 +42,9 @@ public final class Utils {
         String fileName = file.getFileName().toString();
         Path backupPom = file.getParent()
                 .resolve(fileName + BACKUP_SUFFIX);
+        if (!Files.exists(file)) {
+            return;
+        }
         try {
             Files.copy(
                     file,
