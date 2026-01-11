@@ -1,7 +1,9 @@
 package io.github.bsels.semantic.version.test.utils;
 
+import org.apache.maven.execution.BuildSummary;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.project.DependencyResolutionResult;
 import org.apache.maven.project.MavenProject;
 import org.mockito.Mockito;
 import org.w3c.dom.Document;
@@ -18,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -42,23 +45,19 @@ public class ReadMockedMavenSession {
     }
 
     public static MavenSession readMockedMavenSession(Path projectRoot, Path currentModule) {
-        Map<Path, MavenProject> projects = readMavenProjectsAsMap(currentModule);
+        Map<Path, MavenProject> projects = readMavenProjectsAsMap(projectRoot);
 
-        MavenSession mockedSession = Mockito.mock(MavenSession.class);
-        MavenExecutionResult mockedResult = Mockito.mock(MavenExecutionResult.class);
+        MavenSession session = Mockito.mock(MavenSession.class);
 
         Mockito.lenient()
-                .when(mockedSession.getExecutionRootDirectory())
+                .when(session.getExecutionRootDirectory())
                 .thenReturn(projectRoot.toAbsolutePath().toString());
-        Mockito.lenient()
-                .when(mockedSession.getResult())
-                .thenReturn(mockedResult);
         Path normalizeCurrentModule = projectRoot.resolve(currentModule).normalize();
         Mockito.lenient()
-                .when(mockedSession.getCurrentProject())
+                .when(session.getCurrentProject())
                 .thenReturn(projects.get(normalizeCurrentModule));
         Mockito.lenient()
-                .when(mockedSession.getTopLevelProject())
+                .when(session.getTopLevelProject())
                 .thenReturn(projects.get(projectRoot.resolve(".").normalize()));
 
         List<MavenProject> sortedProjects = projects.entrySet()
@@ -67,11 +66,11 @@ public class ReadMockedMavenSession {
                 .filter(entry -> entry.getKey().startsWith(normalizeCurrentModule))
                 .map(Map.Entry::getValue)
                 .toList();
-        Mockito.lenient()
-                .when(mockedResult.getTopologicallySortedProjects())
-                .thenReturn(sortedProjects);
 
-        return mockedSession;
+        Mockito.lenient()
+                .when(session.getResult())
+                .thenReturn(new MavenExecutionResultMock(sortedProjects));
+        return session;
     }
 
     private static Map<Path, MavenProject> readMavenProjectsAsMap(Path projectRoot) {
@@ -81,10 +80,8 @@ public class ReadMockedMavenSession {
 
     private static Stream<Map.Entry<Path, MavenProject>> readMavenProjects(Path path) {
         Path pomFile = path.resolve(POM_FILE).toAbsolutePath();
-        MavenProject mavenProject = Mockito.mock(MavenProject.class);
-        Mockito.lenient()
-                .when(mavenProject.getFile())
-                .thenReturn(pomFile.toFile());
+        MavenProject mavenProject = new MavenProject();
+        mavenProject.setFile(pomFile.toFile());
 
         Document pom = readPom(pomFile);
         String revision = walk(pom, List.of(PROJECT, PROPERTIES, REVISION), 0)
@@ -104,15 +101,9 @@ public class ReadMockedMavenSession {
                 .map(text -> $_REVISION.equals(text) ? revision : text)
                 .orElseThrow();
 
-        Mockito.lenient()
-                .when(mavenProject.getGroupId())
-                .thenReturn(groupId);
-        Mockito.lenient()
-                .when(mavenProject.getArtifactId())
-                .thenReturn(artifactId);
-        Mockito.lenient()
-                .when(mavenProject.getVersion())
-                .thenReturn(version);
+        mavenProject.setGroupId(groupId);
+        mavenProject.setArtifactId(artifactId);
+        mavenProject.setVersion(version);
 
         Optional<Node> modules = walk(pom, List.of(PROJECT, MODULES), 0);
         Stream<Map.Entry<Path, MavenProject>> currentProject = Stream.of(Map.entry(path.normalize(), mavenProject));
@@ -123,9 +114,7 @@ public class ReadMockedMavenSession {
                     .filter(node -> MODULE.equals(node.getNodeName()))
                     .map(Node::getTextContent)
                     .toList();
-            Mockito.lenient()
-                    .when(mavenProject.getModules())
-                    .thenReturn(modulesString);
+            mavenProject.getModules().addAll(modulesString);
             return Stream.concat(
                     currentProject,
                     modulesString.stream()
@@ -133,9 +122,6 @@ public class ReadMockedMavenSession {
                             .flatMap(ReadMockedMavenSession::readMavenProjects)
             );
         } else {
-            Mockito.lenient()
-                    .when(mavenProject.getModules())
-                    .thenReturn(List.of());
             return currentProject;
         }
     }
@@ -170,6 +156,71 @@ public class ReadMockedMavenSession {
             return documentBuilderFactory.newDocumentBuilder();
         } catch (ParserConfigurationException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private record MavenExecutionResultMock(List<MavenProject> topologicallySortedProjects)
+            implements MavenExecutionResult {
+
+        public MavenExecutionResultMock {
+            Objects.requireNonNull(topologicallySortedProjects, "`topologicallySortedProjects` must not be null");
+            topologicallySortedProjects.forEach(Objects::requireNonNull);
+            topologicallySortedProjects = List.copyOf(topologicallySortedProjects);
+        }
+
+        @Override
+        public MavenExecutionResult setProject(MavenProject project) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public MavenProject getProject() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public MavenExecutionResult setTopologicallySortedProjects(List<MavenProject> projects) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<MavenProject> getTopologicallySortedProjects() {
+            return topologicallySortedProjects();
+        }
+
+        @Override
+        public MavenExecutionResult setDependencyResolutionResult(DependencyResolutionResult result) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public DependencyResolutionResult getDependencyResolutionResult() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<Throwable> getExceptions() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public MavenExecutionResult addException(Throwable e) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean hasExceptions() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public BuildSummary getBuildSummary(MavenProject project) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void addBuildSummary(BuildSummary summary) {
+            throw new UnsupportedOperationException();
         }
     }
 }
