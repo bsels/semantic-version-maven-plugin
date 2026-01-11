@@ -41,6 +41,16 @@ import java.util.stream.Collectors;
 
 import static io.github.bsels.semantic.version.utils.MarkdownUtils.readMarkdown;
 
+/// The UpdatePomMojo class provides functionality for updating Maven project POM files during a build process.
+/// It integrates into the Maven lifecycle as a Mojo and enables version updates, dependency management,
+/// and synchronization with supporting Markdown files.
+///
+/// This class supports the following key functionalities:
+/// - Applies semantic versioning to update project versions.
+/// - Processes dependencies and updates related files accordingly.
+/// - Handles single or multiple Maven projects.
+/// - Provides backup capabilities to safeguard original POM files.
+/// - Offers dry-run functionality to preview changes without modifying files.
 @Mojo(name = "update", requiresDependencyResolution = ResolutionScope.RUNTIME)
 @Execute(phase = LifecyclePhase.NONE)
 public final class UpdatePomMojo extends BaseMojo {
