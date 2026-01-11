@@ -10,6 +10,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
@@ -36,7 +37,7 @@ public final class Utils {
     ///
     /// @param file the path to the file to be backed up; must not be null
     /// @throws MojoExecutionException if an I/O error occurs during the backup operation
-    /// @throws NullPointerException if the `file` argument is null
+    /// @throws NullPointerException   if the `file` argument is null
     public static void backupFile(Path file) throws NullPointerException, MojoExecutionException {
         Objects.requireNonNull(file, "`file` must not be null");
         String fileName = file.getFileName().toString();
@@ -130,5 +131,15 @@ public final class Utils {
     /// @see #asImmutableList(Collector)
     public static <T> Collector<T, ?, List<T>> asImmutableList() {
         return asImmutableList(Collectors.toList());
+    }
+
+    /// Returns a collector that accumulates elements into a set and produces an immutable copy of that set as the final
+    /// result.
+    /// The resulting set is unmodifiable and guarantees immutability.
+    ///
+    /// @param <T> the type of input elements to the collector
+    /// @return a collector that produces an immutable set of the collected elements
+    public static <T> Collector<T, ?, Set<T>> asImmutableSet() {
+        return Collectors.collectingAndThen(Collectors.toSet(), Set::copyOf);
     }
 }

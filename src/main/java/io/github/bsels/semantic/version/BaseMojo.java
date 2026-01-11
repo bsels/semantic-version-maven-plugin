@@ -1,8 +1,12 @@
 package io.github.bsels.semantic.version;
 
+import io.github.bsels.semantic.version.models.MarkdownMapping;
+import io.github.bsels.semantic.version.models.MavenArtifact;
+import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
+import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -16,6 +20,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /// Base class for Maven plugin goals, providing foundational functionality for Mojo execution.
@@ -217,5 +224,84 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
             throw new MojoExecutionException("Unable to read versioning folder", e);
         }
         return versionMarkdowns;
+    }
+
+    /// Creates a MarkdownMapping instance based on a list of [VersionMarkdown] objects.
+    ///
+    /// This method processes a list of [VersionMarkdown] entries to generate a mapping
+    /// between Maven artifacts and their respective semantic version bumps.
+    ///
+    /// @param versionMarkdowns the list of [VersionMarkdown] objects representing version updates; must not be null
+    /// @return a MarkdownMapping instance encapsulating the calculated semantic version bumps and an empty Markdown map
+    protected MarkdownMapping getMarkdownMapping(List<VersionMarkdown> versionMarkdowns) {
+        Map<MavenArtifact, SemanticVersionBump> versionBumpMap = versionMarkdowns.stream()
+                .map(VersionMarkdown::bumps)
+                .map(Map::entrySet)
+                .flatMap(Set::stream)
+                .collect(Utils.groupingByImmutable(
+                        Map.Entry::getKey,
+                        Collectors.reducing(SemanticVersionBump.NONE, Map.Entry::getValue, SemanticVersionBump::max)
+                ));
+        Map<MavenArtifact, List<VersionMarkdown>> markdownMap = versionMarkdowns.stream()
+                .<Map.Entry<MavenArtifact, VersionMarkdown>>mapMulti((item, consumer) -> {
+                    for (MavenArtifact artifact : item.bumps().keySet()) {
+                        consumer.accept(Map.entry(artifact, item));
+                    }
+                })
+                .collect(Utils.groupingByImmutable(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
+                ));
+        return new MarkdownMapping(versionBumpMap, markdownMap);
+    }
+
+    /// Validates that the artifacts defined in the MarkdownMapping are present within the scope of the Maven project
+    /// execution.
+    ///
+    /// This method compares the artifacts in the provided MarkdownMapping against the artifacts derived from the Maven
+    /// projects currently in scope.
+    /// If any artifacts in the MarkdownMapping are not present in the project scope,
+    /// a [MojoFailureException] is thrown.
+    ///
+    /// @param markdownMapping the MarkdownMapping object containing the artifacts and their corresponding semantic version bumps; must not be null
+    /// @throws MojoFailureException if any artifacts in the MarkdownMapping are not part of the current Maven project scope
+    protected void validateMarkdowns(MarkdownMapping markdownMapping) throws MojoFailureException {
+        Set<MavenArtifact> artifactsInMarkdown = markdownMapping.versionBumpMap().keySet();
+        Stream<MavenProject> projectsInScope = getProjectsInScope();
+        Set<MavenArtifact> artifacts = projectsInScope.map(project -> new MavenArtifact(project.getGroupId(), project.getArtifactId()))
+                .collect(Utils.asImmutableSet());
+
+        if (!artifacts.containsAll(artifactsInMarkdown)) {
+            String unknownArtifacts = artifactsInMarkdown.stream()
+                    .filter(artifacts::contains)
+                    .map(MavenArtifact::toString)
+                    .collect(Collectors.joining(", "));
+
+            throw new MojoFailureException(
+                    "The following artifacts in the Markdown files are not present in the project scope: %s".formatted(
+                            unknownArtifacts
+                    )
+            );
+        }
+    }
+
+    /// Retrieves a stream of Maven projects that are within the current execution scope.
+    /// The scope varies based on the value of the field `modus`:
+    /// - [Modus#PROJECT_VERSION]: Returns all projects in the session, sorted topologically.
+    /// - [Modus#REVISION_PROPERTY]: Returns only the current project in the session.
+    /// - [Modus#PROJECT_VERSION_ONLY_LEAFS]: Returns only leaf projects in the session, sorted topologically.
+    ///
+    /// @return a [Stream] of [MavenProject] objects representing the projects within the defined execution scope
+    protected Stream<MavenProject> getProjectsInScope() {
+        return switch (modus) {
+            case PROJECT_VERSION -> session.getResult()
+                    .getTopologicallySortedProjects()
+                    .stream();
+            case REVISION_PROPERTY -> Stream.of(session.getCurrentProject());
+            case PROJECT_VERSION_ONLY_LEAFS -> session.getResult()
+                    .getTopologicallySortedProjects()
+                    .stream()
+                    .filter(Utils.mavenProjectHasNoModules());
+        };
     }
 }

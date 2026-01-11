@@ -249,4 +249,42 @@ public class UtilsTest {
                     .isSameAs(list);
         }
     }
+
+    @Nested
+    class AsImmutableSetTest {
+
+        @Test
+        void emptyStream_EmptyAndImmutable() {
+            Set<Integer> set = Stream.<Integer>of()
+                    .collect(Utils.asImmutableSet());
+
+            assertThat(set)
+                    .isEmpty();
+
+            assertThatThrownBy(() -> set.add(1))
+                    .isInstanceOf(UnsupportedOperationException.class);
+            assertThatThrownBy(set::clear)
+                    .isInstanceOf(UnsupportedOperationException.class);
+
+            assertThat(Set.copyOf(set))
+                    .isSameAs(set);
+        }
+
+        @Test
+        void nonEmptyStream_NonEmptyAndImmutable() {
+            Set<Integer> list = Stream.of(1, 2, 3)
+                    .collect(Utils.asImmutableSet());
+
+            assertThat(list)
+                    .containsExactlyInAnyOrder(1, 2, 3);
+
+            assertThatThrownBy(() -> list.add(4))
+                    .isInstanceOf(UnsupportedOperationException.class);
+            assertThatThrownBy(list::clear)
+                    .isInstanceOf(UnsupportedOperationException.class);
+
+            assertThat(Set.copyOf(list))
+                    .isSameAs(list);
+        }
+    }
 }
