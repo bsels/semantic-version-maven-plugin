@@ -158,10 +158,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
     /// @throws MojoFailureException   if the execution fails due to a known configuration or logic failure.
     public final void execute() throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
-        List<MavenProject> topologicallySortedProjects = session.getResult()
-                .getTopologicallySortedProjects();
-        MavenProject rootProject = topologicallySortedProjects
-                .get(0);
+        MavenProject rootProject = session.getTopLevelProject();
         MavenProject currentProject = session.getCurrentProject();
         if (!rootProject.equals(currentProject) && !executeForSubproject) {
             log.info("Skipping execution for subproject %s:%s:%s".formatted(
