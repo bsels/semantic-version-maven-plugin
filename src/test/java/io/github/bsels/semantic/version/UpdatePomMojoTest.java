@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -106,6 +107,13 @@ public class UpdatePomMojoTest {
                 );
     }
 
+    private Path getResourcesPath(String... relativePaths) {
+        return Stream.of(relativePaths)
+                .reduce(getResourcesPath(), Path::resolve, (a, b) -> {
+                    throw new UnsupportedOperationException();
+                });
+    }
+
     private Path getResourcesPath() {
         try {
             return Path.of(
@@ -126,7 +134,7 @@ public class UpdatePomMojoTest {
         @BeforeEach
         void setUp() {
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
-                    getResourcesPath().resolve("single"),
+                    getResourcesPath("single"),
                     Path.of(".")
             );
             classUnderTest.modus = Modus.PROJECT_VERSION;
@@ -151,7 +159,51 @@ public class UpdatePomMojoTest {
                             Optional.of("Execution for project: org.example.itests.single:project:1.0.0")
                     );
 
-            // TODO: Verify
+            String expectedVersion = switch (versionBump) {
+                case FILE_BASED -> throw new AssertionError("Should not be called");
+                case MAJOR -> "2.0.0";
+                case MINOR -> "1.1.0";
+                case PATCH -> "1.0.1";
+            };
+            assertThat(mockedOutputFiles)
+                    .hasSize(2)
+                    .hasEntrySatisfying(
+                            getResourcesPath("single", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.single</groupId>
+                                                <artifactId>project</artifactId>
+                                                <version>%s</version>
+                                            </project>
+                                            """.formatted(expectedVersion)
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("single", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## %s - 2025-01-01
+                                            
+                                            ### Other
+                                            
+                                            Project version bumped as result of dependency bumps
+                                            
+                                            ## 1.0.0 - 2026-01-01
+                                            
+                                            Initial release.
+                                            """.formatted(expectedVersion)
+                                    )
+                    );
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
         }
     }
 }

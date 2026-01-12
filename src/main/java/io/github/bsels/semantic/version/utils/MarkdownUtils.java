@@ -284,7 +284,7 @@ public final class MarkdownUtils {
         Paragraph paragraph = new Paragraph();
         paragraph.appendChild(new Text("Project version bumped as result of dependency bumps"));
         document.appendChild(paragraph);
-        return new VersionMarkdown(document, Map.of(mavenArtifact, SemanticVersionBump.PATCH));
+        return new VersionMarkdown(document, Map.of(mavenArtifact, SemanticVersionBump.NONE));
     }
 
     /// Merges two [Node] instances by inserting the second node after the first node and returning the second node.

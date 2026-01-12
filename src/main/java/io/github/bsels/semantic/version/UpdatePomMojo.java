@@ -23,7 +23,6 @@ import org.w3c.dom.Node;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -202,25 +201,24 @@ public final class UpdatePomMojo extends BaseMojo {
         writeUpdatedProjects(result.updatedArtifacts(), documents);
     }
 
-    /**
-     * Handles Maven projects and their dependencies to update versions and related metadata.
-     * This method processes dependencies and updates the project versions accordingly,
-     * ensuring that affected dependencies and documentation are updated.
-     *
-     * @param markdownMapping              the mapping of Markdown files for recording version changes
-     * @param result                       the object containing artifacts to be updated and those already updated
-     * @param documents                    a mapping of Maven artifacts to their associated project and document representation
-     * @param dependencyToProjectArtifacts a mapping of Maven artifacts to the list of project artifacts depending on them
-     * @param updatableDependencies        a mapping of Maven artifacts to their corresponding updatable dependency nodes in POM files
-     * @throws MojoExecutionException if an error occurs during the execution of the Maven plugin
-     */
+    /// Handles Maven projects and their dependencies to update versions and related metadata.
+    /// This method processes dependencies and updates the project versions accordingly,
+    /// ensuring that affected dependencies and documentation are updated.
+    ///
+    /// @param markdownMapping              the mapping of Markdown files for recording version changes
+    /// @param result                       the object containing artifacts to be updated and those already updated
+    /// @param documents                    a mapping of Maven artifacts to their associated project and document representation
+    /// @param dependencyToProjectArtifacts a mapping of Maven artifacts to the list of project artifacts depending on them
+    /// @param updatableDependencies        a mapping of Maven artifacts to their corresponding updatable dependency nodes in POM files
+    /// @throws MojoExecutionException if an error occurs during the execution of the Maven plugin
+    /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
     private void handleDependencyMavenProjects(
             MarkdownMapping markdownMapping,
             UpdatedAndToUpdateArtifacts result,
             Map<MavenArtifact, MavenProjectAndDocument> documents,
             Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifacts,
             Map<MavenArtifact, List<Node>> updatableDependencies
-    ) throws MojoExecutionException {
+    ) throws MojoExecutionException, MojoFailureException {
         Set<MavenArtifact> updatedArtifacts = result.updatedArtifacts();
         Queue<MavenArtifact> toBeUpdated = result.toBeUpdated();
         while (!toBeUpdated.isEmpty()) {
@@ -256,13 +254,14 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @param updatableDependencies        a mapping of Maven artifacts to lists of dependencies in the form of XML nodes that can be updated in the POM files
     /// @return an object containing the set of updated artifacts and the queue of artifacts to be updated
     /// @throws MojoExecutionException if there is an error during version processing or markdown update
+    /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
     private UpdatedAndToUpdateArtifacts processMarkdownVersions(
             MarkdownMapping markdownMapping,
             Set<MavenArtifact> reactorArtifacts,
             Map<MavenArtifact, MavenProjectAndDocument> documents,
             Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifacts,
             Map<MavenArtifact, List<Node>> updatableDependencies
-    ) throws MojoExecutionException {
+    ) throws MojoExecutionException, MojoFailureException {
         Set<MavenArtifact> updatedArtifacts = new HashSet<>();
         Queue<MavenArtifact> toBeUpdated = new ArrayDeque<>(reactorArtifacts.size());
         for (MavenArtifact artifact : reactorArtifacts) {
@@ -424,12 +423,7 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @throws MojoFailureException   if the operation fails due to an XML parsing or writing error
     private void writeUpdatedPom(Document document, Path pom) throws MojoExecutionException, MojoFailureException {
         if (dryRun) {
-            try (StringWriter writer = new StringWriter()) {
-                POMUtils.writePom(document, writer);
-                getLog().info("Dry-run: new pom at %s:%n%s".formatted(pom, writer));
-            } catch (IOException e) {
-                throw new MojoExecutionException("Unable to open output stream for writing", e);
-            }
+            dryRunWriteFile(writer -> POMUtils.writePom(document, writer), pom, "Dry-run: new pom at %s:%n%s");
         } else {
             POMUtils.writePom(document, pom, backupFiles);
         }
@@ -443,12 +437,13 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @param pom             the path to the pom.xml file, used as a reference to locate the Markdown file
     /// @param newVersion      the version information to be updated in the Markdown file
     /// @throws MojoExecutionException if an error occurs during the update process
+    /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
     private void updateMarkdownFile(
             MarkdownMapping markdownMapping,
             MavenArtifact projectArtifact,
             Path pom,
             String newVersion
-    ) throws MojoExecutionException {
+    ) throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
         Path changelogFile = pom.getParent().resolve(CHANGELOG_MD);
         org.commonmark.node.Node changelog = readMarkdown(log, changelogFile);
@@ -481,17 +476,35 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @param changelog     the commonmark node representing the updated changelog content to be written
     /// @param changelogFile the path to the file where the updated changelog should be saved
     /// @throws MojoExecutionException if an I/O error occurs during writing the changelog
+    /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
     private void writeUpdatedChangelog(org.commonmark.node.Node changelog, Path changelogFile)
-            throws MojoExecutionException {
+            throws MojoExecutionException, MojoFailureException {
         if (dryRun) {
-            try (StringWriter writer = new StringWriter()) {
-                MarkdownUtils.writeMarkdown(writer, changelog);
-                getLog().info("Dry-run: new changelog at %s:%n%s".formatted(changelogFile, writer));
-            } catch (IOException e) {
-                throw new MojoExecutionException("Unable to open output stream for writing", e);
-            }
+            dryRunWriteFile(
+                    writer -> MarkdownUtils.writeMarkdown(writer, changelog),
+                    changelogFile, "Dry-run: new changelog at %s:%n%s"
+            );
         } else {
-            MarkdownUtils.writeMarkdownFile(changelogFile, changelog, backupFiles && Files.exists(changelogFile));
+            MarkdownUtils.writeMarkdownFile(changelogFile, changelog, backupFiles);
+        }
+    }
+
+    /// Simulates writing to a file by using a [StringWriter].
+    /// The provided consumer is responsible for writing content to the [StringWriter].
+    /// Logs the specified logLine upon successful completion.
+    ///
+    /// @param consumer the functional interface used to write content to the [StringWriter]
+    /// @param file     the file path representing the target file for writing (used for logging)
+    /// @param logLine  the log message that will be logged, formatted with the file and written content
+    /// @throws MojoExecutionException if an I/O error occurs while attempting to write
+    /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
+    private void dryRunWriteFile(MojoThrowingConsumer<StringWriter> consumer, Path file, String logLine)
+            throws MojoExecutionException, MojoFailureException {
+        try (StringWriter writer = new StringWriter()) {
+            consumer.accept(writer);
+            getLog().info(logLine.formatted(file, writer));
+        } catch (IOException e) {
+            throw new MojoExecutionException("Unable to open output stream for writing", e);
         }
     }
 
@@ -511,6 +524,20 @@ public final class UpdatePomMojo extends BaseMojo {
             case MINOR -> SemanticVersionBump.MINOR;
             case PATCH -> SemanticVersionBump.PATCH;
         };
+    }
+
+    /// Functional interface that represents an operation that accepts a single input
+    /// and can throw [MojoExecutionException] and [MojoFailureException].
+    ///
+    /// @param <T> the type of the input to the operation
+    private interface MojoThrowingConsumer<T> {
+
+        /// Performs the given operation on the specified input.
+        ///
+        /// @param t the input parameter on which the operation will be performed
+        /// @throws MojoExecutionException if an error occurs during execution
+        /// @throws MojoFailureException   if the operation fails
+        void accept(T t) throws MojoExecutionException, MojoFailureException;
     }
 
     /// Represents a combination of a Maven project artifact, its associated POM file path,

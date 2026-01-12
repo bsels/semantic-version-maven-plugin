@@ -103,7 +103,7 @@ public class MarkdownUtilsTest {
 
             assertThat(actual.bumps())
                     .hasSize(1)
-                    .containsEntry(MAVEN_ARTIFACT, SemanticVersionBump.PATCH);
+                    .containsEntry(MAVEN_ARTIFACT, SemanticVersionBump.NONE);
         }
     }
 
