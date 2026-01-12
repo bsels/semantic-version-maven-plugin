@@ -46,7 +46,31 @@ public class ReadMockedMavenSession {
 
     public static MavenSession readMockedMavenSession(Path projectRoot, Path currentModule) {
         Map<Path, MavenProject> projects = readMavenProjectsAsMap(projectRoot);
+        Path normalizeCurrentModule = projectRoot.resolve(currentModule).normalize();
+        List<MavenProject> sortedProjects = projects.entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .filter(entry -> entry.getKey().startsWith(normalizeCurrentModule))
+                .map(Map.Entry::getValue)
+                .toList();
 
+        return readMockedMavenSession(projects, projectRoot, currentModule, sortedProjects);
+    }
+
+    public static MavenSession readMockedMavenSessionNoTopologicalSortedProjects(
+            Path projectRoot,
+            Path currentModule
+    ) {
+        Map<Path, MavenProject> projects = readMavenProjectsAsMap(projectRoot);
+        return readMockedMavenSession(projects, projectRoot, currentModule, List.of());
+    }
+
+    private static MavenSession readMockedMavenSession(
+            Map<Path, MavenProject> projects,
+            Path projectRoot,
+            Path currentModule,
+            List<MavenProject> topologicallySortedProjects
+    ) {
         MavenSession session = Mockito.mock(MavenSession.class);
 
         Mockito.lenient()
@@ -69,7 +93,7 @@ public class ReadMockedMavenSession {
 
         Mockito.lenient()
                 .when(session.getResult())
-                .thenReturn(new MavenExecutionResultMock(sortedProjects));
+                .thenReturn(new MavenExecutionResultMock(topologicallySortedProjects));
         return session;
     }
 

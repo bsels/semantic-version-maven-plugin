@@ -107,6 +107,50 @@ public class UpdatePomMojoTest {
                 );
     }
 
+    @ParameterizedTest
+    @EnumSource(value = Modus.class, names = {"PROJECT_VERSION", "PROJECT_VERSION_ONLY_LEAFS"})
+    void noProjectsInScope_LogsWarning(Modus modus) {
+        classUnderTest.session = ReadMockedMavenSession.readMockedMavenSessionNoTopologicalSortedProjects(
+                getResourcesPath("single"),
+                Path.of(".")
+        );
+        classUnderTest.modus = modus;
+
+        assertThatNoException()
+                .isThrownBy(classUnderTest::execute);
+
+        assertThat(testLog.getLogRecords())
+                .isNotEmpty()
+                .hasSize(3)
+                .satisfiesExactly(
+                        first -> assertThat(first)
+                                .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.INFO)
+                                .hasFieldOrPropertyWithValue("throwable", Optional.empty())
+                                .hasFieldOrPropertyWithValue(
+                                        "message",
+                                        Optional.of("Execution for project: org.example.itests.single:project:1.0.0")
+                                ),
+                        second -> assertThat(second)
+                                .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.WARN)
+                                .hasFieldOrPropertyWithValue("throwable", Optional.empty())
+                                .hasFieldOrPropertyWithValue(
+                                        "message",
+                                        Optional.of(
+                                                "No versioning files found in %s as folder does not exists".formatted(
+                                                        getResourcesPath("single", ".versioning")
+                                                )
+                                        )
+                                ),
+                        third -> assertThat(third)
+                                .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.WARN)
+                                .hasFieldOrPropertyWithValue("throwable", Optional.empty())
+                                .hasFieldOrPropertyWithValue(
+                                        "message",
+                                        Optional.of("No projects found in scope")
+                                )
+                );
+    }
+
     private Path getResourcesPath(String... relativePaths) {
         return Stream.of(relativePaths)
                 .reduce(getResourcesPath(), Path::resolve, (a, b) -> {
