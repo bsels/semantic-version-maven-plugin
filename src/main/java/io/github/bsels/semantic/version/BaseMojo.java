@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -92,21 +93,6 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
     @Parameter(defaultValue = "${session}", required = true, readonly = true)
     protected MavenSession session;
 
-    /// Determines whether the plugin should execute its logic for subprojects in a multi-module Maven project.
-    ///
-    /// Configuration:
-    /// - `property`: "versioning.executeForSubProject", allows external configuration via Maven plugin properties.
-    /// - `defaultValue`: Defaults to `false`, meaning the plugin will skip its execution for subprojects
-    ///   unless explicitly enabled.
-    ///
-    /// When set to `true`, the plugin will apply its logic to subprojects as well as the root project.
-    /// When set to `false`, it will only apply its logic to the root project.
-    ///
-    /// This parameter is useful in scenarios where selective execution of versioning logic is desired within a
-    /// multi-module project hierarchy.
-    @Parameter(property = "versioning.executeForSubproject", defaultValue = "false")
-    protected boolean executeForSubproject = false;
-
     /// Indicates whether the plugin should execute in dry-run mode.
     /// When set to `true`, the plugin performs all operations and logs outputs
     /// without making actual changes to files or the project configuration.
@@ -160,7 +146,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
         Log log = getLog();
         MavenProject rootProject = session.getTopLevelProject();
         MavenProject currentProject = session.getCurrentProject();
-        if (!rootProject.equals(currentProject) && !executeForSubproject) {
+        if (!rootProject.equals(currentProject)) {
             log.info("Skipping execution for subproject %s:%s:%s".formatted(
                     currentProject.getGroupId(),
                     currentProject.getArtifactId(),
@@ -275,7 +261,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits UpdatePomMojo
 
         if (!artifacts.containsAll(artifactsInMarkdown)) {
             String unknownArtifacts = artifactsInMarkdown.stream()
-                    .filter(artifacts::contains)
+                    .filter(Predicate.not(artifacts::contains))
                     .map(MavenArtifact::toString)
                     .collect(Collectors.joining(", "));
 

@@ -349,11 +349,7 @@ public final class UpdatePomMojo extends BaseMojo {
             log.info("No version update required");
             return Optional.empty();
         }
-        try {
-            POMUtils.updateVersion(versionNode, semanticVersionBump);
-        } catch (IllegalArgumentException e) {
-            throw new MojoExecutionException("Unable to update version changelog", e);
-        }
+        POMUtils.updateVersion(versionNode, semanticVersionBump);
         return Optional.of(new VersionChange(originalVersion, versionNode.getTextContent()));
     }
 
