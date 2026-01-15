@@ -680,6 +680,633 @@ public class UpdatePomMojoTest {
     }
 
     @Nested
+    class RevisionMultiProjectTest {
+
+        @BeforeEach
+        void setUp() {
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
+                    getResourcesPath("revision", "multi"),
+                    Path.of(".")
+            );
+            classUnderTest.modus = Modus.REVISION_PROPERTY;
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        void fixedVersionBump_Valid(VersionBump versionBump) {
+            classUnderTest.versionBump = versionBump;
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(7)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
+                                    getResourcesPath("revision", "multi", ".versioning")
+                            )),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo("Updating version with a %s semantic version".formatted(versionBump)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("revision", "multi", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog")
+                    );
+
+            String expectedVersion = switch (versionBump) {
+                case FILE_BASED -> throw new AssertionError("Should not be called");
+                case MAJOR -> "4.0.0";
+                case MINOR -> "3.1.0";
+                case PATCH -> "3.0.1";
+            };
+            assertThat(mockedOutputFiles)
+                    .hasSize(2)
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.revision.multi</groupId>
+                                                <artifactId>parent</artifactId>
+                                                <version>${revision}</version>
+                                            
+                                                <properties>
+                                                    <revision>%s</revision>
+                                                </properties>
+                                            
+                                                <modules>
+                                                    <module>child1</module>
+                                                    <module>child2</module>
+                                                </modules>
+                                            </project>
+                                            """.formatted(expectedVersion)
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## %s - 2025-01-01
+                                            
+                                            ### Other
+                                            
+                                            Project version bumped as result of dependency bumps
+                                            
+                                            ## 3.0.0 - 2026-01-01
+                                            
+                                            Initial release.
+                                            """.formatted(expectedVersion)
+                                    )
+                    );
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        void fixedVersionBumpWithBackup_Valid(VersionBump versionBump) {
+            classUnderTest.versionBump = versionBump;
+            classUnderTest.backupFiles = true;
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(7)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
+                                    getResourcesPath("revision", "multi", ".versioning")
+                            )),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo("Updating version with a %s semantic version".formatted(versionBump)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("revision", "multi", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog")
+                    );
+
+            String expectedVersion = switch (versionBump) {
+                case FILE_BASED -> throw new AssertionError("Should not be called");
+                case MAJOR -> "4.0.0";
+                case MINOR -> "3.1.0";
+                case PATCH -> "3.0.1";
+            };
+            assertThat(mockedOutputFiles)
+                    .hasSize(2)
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.revision.multi</groupId>
+                                                <artifactId>parent</artifactId>
+                                                <version>${revision}</version>
+                                            
+                                                <properties>
+                                                    <revision>%s</revision>
+                                                </properties>
+                                            
+                                                <modules>
+                                                    <module>child1</module>
+                                                    <module>child2</module>
+                                                </modules>
+                                            </project>
+                                            """.formatted(expectedVersion)
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## %s - 2025-01-01
+                                            
+                                            ### Other
+                                            
+                                            Project version bumped as result of dependency bumps
+                                            
+                                            ## 3.0.0 - 2026-01-01
+                                            
+                                            Initial release.
+                                            """.formatted(expectedVersion)
+                                    )
+                    );
+            assertThat(mockedCopiedFiles)
+                    .isNotEmpty()
+                    .hasSize(2)
+                    .containsExactlyInAnyOrder(
+                            new CopyPath(
+                                    getResourcesPath("revision", "multi", "pom.xml"),
+                                    getResourcesPath("revision", "multi", "pom.xml.backup"),
+                                    List.of(
+                                            StandardCopyOption.ATOMIC_MOVE,
+                                            StandardCopyOption.COPY_ATTRIBUTES,
+                                            StandardCopyOption.REPLACE_EXISTING
+                                    )
+                            ),
+                            new CopyPath(
+                                    getResourcesPath("revision", "multi", "CHANGELOG.md"),
+                                    getResourcesPath("revision", "multi", "CHANGELOG.md.backup"),
+                                    List.of(
+                                            StandardCopyOption.ATOMIC_MOVE,
+                                            StandardCopyOption.COPY_ATTRIBUTES,
+                                            StandardCopyOption.REPLACE_EXISTING
+                                    )
+                            )
+                    );
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        void fixedVersionBumpDryRun_Valid(VersionBump versionBump) {
+            classUnderTest.versionBump = versionBump;
+            classUnderTest.dryRun = true;
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            String expectedVersion = switch (versionBump) {
+                case FILE_BASED -> throw new AssertionError("Should not be called");
+                case MAJOR -> "4.0.0";
+                case MINOR -> "3.1.0";
+                case PATCH -> "3.0.1";
+            };
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(9)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
+                                    getResourcesPath("revision", "multi", ".versioning")
+                            )),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo("Updating version with a %s semantic version".formatted(versionBump)),
+                            validateLogRecordInfo("""
+                                    Dry-run: new pom at %s:
+                                    <?xml version="1.0" encoding="UTF-8"?>
+                                    <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                    http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                        <modelVersion>4.0.0</modelVersion>
+                                        <groupId>org.example.itests.revision.multi</groupId>
+                                        <artifactId>parent</artifactId>
+                                        <version>${revision}</version>
+                                    
+                                        <properties>
+                                            <revision>%s</revision>
+                                        </properties>
+                                    
+                                        <modules>
+                                            <module>child1</module>
+                                            <module>child2</module>
+                                        </modules>
+                                    </project>\
+                                    """.formatted(getResourcesPath("revision", "multi", "pom.xml"), expectedVersion)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("revision", "multi", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog"),
+                            validateLogRecordInfo("""
+                                    Dry-run: new changelog at %s:
+                                    # Changelog
+                                    
+                                    ## %s - 2025-01-01
+                                    
+                                    ### Other
+                                    
+                                    Project version bumped as result of dependency bumps
+                                    
+                                    ## 3.0.0 - 2026-01-01
+                                    
+                                    Initial release.
+                                    """.formatted(getResourcesPath("revision", "multi", "CHANGELOG.md"), expectedVersion))
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .isEmpty();
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        void dryRunStringWriteCloseFailure_ThrowMojoExecutionException(VersionBump versionBump) {
+            classUnderTest.versionBump = versionBump;
+            classUnderTest.dryRun = true;
+
+            IOException ioException = new IOException("Unable to open output stream for writing");
+            try (MockedConstruction<StringWriter> ignored = Mockito.mockConstruction(
+                    StringWriter.class,
+                    (mock, context) -> {
+                        Mockito.doThrow(ioException).when(mock).close();
+                        Mockito.when(mock.toString()).thenReturn("Mock for StringWriter, hashCode: 0");
+                    }
+            )) {
+                assertThatThrownBy(classUnderTest::execute)
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to open output stream for writing")
+                        .hasRootCause(ioException);
+            }
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(5)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
+                                    getResourcesPath("revision", "multi", ".versioning")
+                            )),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo("Updating version with a %s semantic version".formatted(versionBump)),
+                            validateLogRecordInfo("""
+                                    Dry-run: new pom at %s:
+                                    Mock for StringWriter, hashCode: 0\
+                                    """.formatted(getResourcesPath("revision", "multi", "pom.xml")))
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .isEmpty();
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+        }
+
+        @Test
+        void filedBasedWalkFailed_ThrowMojoExecutionException() {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "revision", "multi", "unknown-project");
+            filesMockedStatic.when(() -> Files.walk(Mockito.any(Path.class), Mockito.eq(1)))
+                    .thenThrow(IOException.class);
+
+            assertThatThrownBy(classUnderTest::execute)
+                    .isInstanceOf(MojoExecutionException.class)
+                    .hasMessage("Unable to read versioning folder")
+                    .hasRootCauseInstanceOf(IOException.class);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(1)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0")
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .isEmpty();
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+        }
+
+        @Test
+        void unknownProjectFileBased_ThrowMojoFailureException() {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "revision", "multi", "unknown-project");
+
+
+            assertThatThrownBy(classUnderTest::execute)
+                    .isInstanceOf(MojoFailureException.class)
+                    .hasMessage("""
+                            The following artifacts in the Markdown files are not present in the project scope: \
+                            org.example.itests.single:unknown-project\
+                            """);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(4)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "unknown-project", "versioning.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.single:unknown-project': major\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.single:unknown-project=%s}\
+                                    """.formatted(SemanticVersionBump.MAJOR))
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .isEmpty();
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+        }
+
+        @Test
+        void noSemanticVersionBumpFileBased_NothingChanged() {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "revision", "multi", "none");
+
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(7)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "none", "versioning.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': none\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(SemanticVersionBump.NONE)),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo(
+                                    "Updating version with a %s semantic version".formatted(SemanticVersionBump.NONE)
+                            ),
+                            validateLogRecordInfo("No version update required")
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .isEmpty();
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+        }
+
+        @ParameterizedTest
+        @CsvSource({
+                "major,Major,4.0.0",
+                "minor,Minor,3.1.0",
+                "patch,Patch,3.0.1"
+        })
+        void singleSemanticVersionBumFile_Valid(String folder, String title, String expectedVersion) {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "revision", "multi", folder);
+
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            SemanticVersionBump semanticVersionBump = SemanticVersionBump.fromString(folder);
+            assertThat(testLog.getLogRecords())
+                    .hasSize(9)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", folder, "versioning.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': %s\
+                                    """.formatted(folder)),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(semanticVersionBump)),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo(
+                                    "Updating version with a %s semantic version".formatted(semanticVersionBump)
+                            ),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("revision", "multi", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog")
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(2)
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.revision.multi</groupId>
+                                                <artifactId>parent</artifactId>
+                                                <version>${revision}</version>
+                                            
+                                                <properties>
+                                                    <revision>%s</revision>
+                                                </properties>
+                                            
+                                                <modules>
+                                                    <module>child1</module>
+                                                    <module>child2</module>
+                                                </modules>
+                                            </project>
+                                            """.formatted(expectedVersion)
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## %1$s - 2025-01-01
+                                            
+                                            ### %2$s
+                                            
+                                            %2$s versioning applied.
+                                            
+                                            ## 3.0.0 - 2026-01-01
+                                            
+                                            Initial release.
+                                            """.formatted(expectedVersion, title)
+                                    )
+                    );
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+        }
+
+        @Test
+        void multipleSemanticVersionBumpFiles_Valid() {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "revision", "multi", "multiple");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(18)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "multiple", "major.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': major\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(SemanticVersionBump.MAJOR)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "multiple", "minor.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': minor\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(SemanticVersionBump.MINOR)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "multiple", "none.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': none\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(SemanticVersionBump.NONE)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "multiple", "patch.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': patch\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(SemanticVersionBump.PATCH)),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo(
+                                    "Updating version with a %s semantic version".formatted(SemanticVersionBump.MAJOR)
+                            ),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("revision", "multi", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog")
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(2)
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.revision.multi</groupId>
+                                                <artifactId>parent</artifactId>
+                                                <version>${revision}</version>
+                                            
+                                                <properties>
+                                                    <revision>4.0.0</revision>
+                                                </properties>
+                                            
+                                                <modules>
+                                                    <module>child1</module>
+                                                    <module>child2</module>
+                                                </modules>
+                                            </project>
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 4.0.0 - 2025-01-01
+                                            
+                                            ### Major
+                                            
+                                            Major versioning applied.
+                                            
+                                            ### Minor
+                                            
+                                            Minor versioning applied.
+                                            
+                                            ### Patch
+                                            
+                                            Patch versioning applied.
+                                            
+                                            ### Other
+                                            
+                                            No versioning applied.
+                                            
+                                            ## 3.0.0 - 2026-01-01
+                                            
+                                            Initial release.
+                                            """
+                                    )
+                    );
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+        }
+    }
+
+    @Nested
     class RevisionSingleProjectTest {
 
         @BeforeEach
