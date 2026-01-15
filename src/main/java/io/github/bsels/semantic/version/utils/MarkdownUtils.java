@@ -317,6 +317,7 @@ public final class MarkdownUtils {
         current.insertAfter(bumpTypeHeading);
         return entry.getValue()
                 .stream()
+                .map(MarkdownUtils::cloneNode)
                 .reduce(bumpTypeHeading, MarkdownUtils::insertNodeChilds, mergeNodes());
     }
 
@@ -327,18 +328,26 @@ public final class MarkdownUtils {
     /// @param currentLambda the node after which the child nodes will be inserted; must not be null
     /// @param node          the node whose children are to be inserted; must not be null
     /// @return the last child node that was inserted after the current node
-    /// @throws IllegalArgumentException if the `node` parameter is not a document
     private static Node insertNodeChilds(Node currentLambda, Node node) throws IllegalArgumentException {
-        if (!(node instanceof Document document)) {
-            throw new IllegalArgumentException("Node must be a Document");
-        }
         BinaryOperator<Node> binaryOperator = mergeNodes();
-        Node nextChild = document.getFirstChild();
+        Node nextChild = node.getFirstChild();
         while (nextChild != null) {
             Node nextSibling = nextChild.getNext();
             currentLambda = binaryOperator.apply(currentLambda, nextChild);
             nextChild = nextSibling;
         }
         return currentLambda;
+    }
+
+    /// Creates a deep copy of the given node by parsing its rendered Markdown representation.
+    ///
+    /// @param node the [Node] object to be cloned. Must not be null.
+    /// @return a new [Node] object that represents a deep copy of the input node.
+    /// @throws IllegalArgumentException if the `node` parameter is not a document
+    private static Node cloneNode(Node node) {
+        if (!(node instanceof Document document)) {
+            throw new IllegalArgumentException("Node must be a Document");
+        }
+        return PARSER.parse(MARKDOWN_RENDERER.render(document));
     }
 }
