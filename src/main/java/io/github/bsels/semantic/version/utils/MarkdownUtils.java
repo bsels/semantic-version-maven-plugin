@@ -138,7 +138,7 @@ public final class MarkdownUtils {
         }
         log.debug("Maven artifacts and semantic version bumps:\n%s".formatted(bumps));
         printMarkdown(log, document, 0);
-        return new VersionMarkdown(document, bumps);
+        return new VersionMarkdown(markdownFile, document, bumps);
     }
 
     /// Reads and parses a Markdown file, returning its content as a structured Node object.
@@ -284,7 +284,7 @@ public final class MarkdownUtils {
         Paragraph paragraph = new Paragraph();
         paragraph.appendChild(new Text("Project version bumped as result of dependency bumps"));
         document.appendChild(paragraph);
-        return new VersionMarkdown(document, Map.of(mavenArtifact, SemanticVersionBump.NONE));
+        return new VersionMarkdown(null, document, Map.of(mavenArtifact, SemanticVersionBump.NONE));
     }
 
     /// Merges two [Node] instances by inserting the second node after the first node and returning the second node.

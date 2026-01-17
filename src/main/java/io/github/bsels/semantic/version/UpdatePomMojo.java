@@ -110,6 +110,7 @@ public final class UpdatePomMojo extends BaseMojo {
     ///    - Logs a message if no projects are found.
     ///    - Handles processing for a single project if only one is found.
     ///    - Handles processing for multiple projects if more than one is found.
+    /// 6. If any project is updated based on the files, the version Markdown files are deleted.
     ///
     /// @throws MojoExecutionException if an unexpected problem occurs during execution. This is typically a critical error that causes the Mojo to fail.
     /// @throws MojoFailureException   if a failure condition specific to the plugin occurs. This indicates a detected issue that halts further execution.
@@ -123,14 +124,25 @@ public final class UpdatePomMojo extends BaseMojo {
         List<MavenProject> projectsInScope = getProjectsInScope()
                 .collect(Utils.asImmutableList());
 
+        boolean hasChanges;
         if (projectsInScope.isEmpty()) {
             log.warn("No projects found in scope");
+            hasChanges = false;
         } else if (projectsInScope.size() == 1) {
             log.info("Single project in scope");
-            handleSingleProject(mapping, projectsInScope.get(0));
+            hasChanges = handleSingleProject(mapping, projectsInScope.get(0));
         } else {
             log.info("Multiple projects in scope");
-            handleMultiProjects(mapping, projectsInScope);
+            hasChanges = handleMultiProjects(mapping, projectsInScope);
+        }
+
+        if (hasChanges && VersionBump.FILE_BASED.equals(versionBump)) {
+            Utils.deleteFilesIfExists(
+                    versionMarkdowns.stream()
+                            .map(VersionMarkdown::path)
+                            .filter(Objects::nonNull)
+                            .toList()
+            );
         }
     }
 
@@ -139,9 +151,10 @@ public final class UpdatePomMojo extends BaseMojo {
     ///
     /// @param markdownMapping the mapping that contains the version bump map and markdown file details
     /// @param project         the Maven project to be processed
+    /// @return `true` if a version update was performed, `false` otherwise.
     /// @throws MojoExecutionException if an error occurs during processing the project's POM file
     /// @throws MojoFailureException   if a failure occurs due to semantic version bump or other operations
-    private void handleSingleProject(MarkdownMapping markdownMapping, MavenProject project)
+    private boolean handleSingleProject(MarkdownMapping markdownMapping, MavenProject project)
             throws MojoExecutionException, MojoFailureException {
         Path pom = project.getFile()
                 .toPath();
@@ -158,15 +171,17 @@ public final class UpdatePomMojo extends BaseMojo {
             writeUpdatedPom(document, pom);
             updateMarkdownFile(markdownMapping, artifact, pom, newVersion);
         }
+        return version.isPresent();
     }
 
     /// Handles multiple Maven projects by processing their POM files, dependencies, and versions, updating the projects as necessary.
     ///
     /// @param markdownMapping an instance of [MarkdownMapping] that contains mapping details for Markdown processing.
     /// @param projects        a list of [MavenProject] objects, representing the Maven projects to be processed.
+    /// @return `true` if any projects were updated, `false` otherwise.
     /// @throws MojoExecutionException if there's an execution error while handling the projects.
     /// @throws MojoFailureException   if a failure is encountered during the processing of the projects.
-    private void handleMultiProjects(MarkdownMapping markdownMapping, List<MavenProject> projects)
+    private boolean handleMultiProjects(MarkdownMapping markdownMapping, List<MavenProject> projects)
             throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
         Map<MavenArtifact, MavenProjectAndDocument> documents = readAllPoms(projects);
@@ -199,6 +214,7 @@ public final class UpdatePomMojo extends BaseMojo {
         );
 
         writeUpdatedProjects(result.updatedArtifacts(), documents);
+        return !result.updatedArtifacts().isEmpty();
     }
 
     /// Handles Maven projects and their dependencies to update versions and related metadata.

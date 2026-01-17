@@ -51,6 +51,7 @@ public class UpdatePomMojoTest {
     private TestLog testLog;
     private Map<Path, StringWriter> mockedOutputFiles;
     private List<CopyPath> mockedCopiedFiles;
+    private List<Path> mockedDeletedFiles;
 
     private MockedStatic<Files> filesMockedStatic;
     private MockedStatic<LocalDate> localDateMockedStatic;
@@ -62,6 +63,7 @@ public class UpdatePomMojoTest {
         classUnderTest.setLog(testLog);
         mockedOutputFiles = new HashMap<>();
         mockedCopiedFiles = new ArrayList<>();
+        mockedDeletedFiles = new ArrayList<>();
 
         filesMockedStatic = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS);
         filesMockedStatic.when(() -> Files.newBufferedWriter(Mockito.any(), Mockito.any(), Mockito.any(OpenOption[].class)))
@@ -80,6 +82,10 @@ public class UpdatePomMojoTest {
                     mockedCopiedFiles.add(new CopyPath(original, copy, options));
                     return copy;
                 });
+        filesMockedStatic.when(() -> Files.deleteIfExists(Mockito.any(Path.class)))
+                .thenAnswer(answer -> mockedDeletedFiles.add(answer.getArgument(0)));
+        filesMockedStatic.when(() -> Files.delete(Mockito.any(Path.class)))
+                .thenAnswer(answer -> mockedDeletedFiles.add(answer.getArgument(0)));
 
         localDateMockedStatic = Mockito.mockStatic(LocalDate.class);
         localDateMockedStatic.when(LocalDate::now)
@@ -113,6 +119,13 @@ public class UpdatePomMojoTest {
                 .satisfiesExactly(validateLogRecordInfo(
                         "Skipping execution for subproject org.example.itests.leaves:child-1:5.0.0-child-1"
                 ));
+
+        assertThat(mockedOutputFiles)
+                .isEmpty();
+        assertThat(mockedCopiedFiles)
+                .isEmpty();
+        assertThat(mockedDeletedFiles)
+                .isEmpty();
     }
 
     @ParameterizedTest
@@ -139,6 +152,13 @@ public class UpdatePomMojoTest {
                         ),
                         validateLogRecordWarn("No projects found in scope")
                 );
+
+        assertThat(mockedOutputFiles)
+                .isEmpty();
+        assertThat(mockedCopiedFiles)
+                .isEmpty();
+        assertThat(mockedDeletedFiles)
+                .isEmpty();
     }
 
     private Path getResourcesPath(String... relativePaths) {

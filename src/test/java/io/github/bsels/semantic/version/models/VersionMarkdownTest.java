@@ -15,21 +15,21 @@ public class VersionMarkdownTest {
 
     @Test
     void nullNode_ThrowsNullPointerException() {
-        assertThatThrownBy(() -> new VersionMarkdown(null, Map.of(MAVEN_ARTIFACT, SemanticVersionBump.NONE)))
+        assertThatThrownBy(() -> new VersionMarkdown(null, null, Map.of(MAVEN_ARTIFACT, SemanticVersionBump.NONE)))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("`content` must not be null");
     }
 
     @Test
     void nullBumps_ThrowsNullPointerException() {
-        assertThatThrownBy(() -> new VersionMarkdown(CONTENT, null))
+        assertThatThrownBy(() -> new VersionMarkdown(null, CONTENT, null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("`bumps` must not be null");
     }
 
     @Test
     void emptyBumps_ThrowsIllegalArgumentException() {
-        assertThatThrownBy(() -> new VersionMarkdown(CONTENT, Map.of()))
+        assertThatThrownBy(() -> new VersionMarkdown(null, CONTENT, Map.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("`bumps` must not be empty");
     }
@@ -39,7 +39,7 @@ public class VersionMarkdownTest {
         Map<MavenArtifact, SemanticVersionBump> bumps = new HashMap<>();
         bumps.put(MAVEN_ARTIFACT, SemanticVersionBump.NONE);
 
-        VersionMarkdown markdown = new VersionMarkdown(CONTENT, bumps);
+        VersionMarkdown markdown = new VersionMarkdown(null, CONTENT, bumps);
         assertThat(markdown)
                 .hasFieldOrPropertyWithValue("content", CONTENT)
                 .hasFieldOrPropertyWithValue("bumps", bumps)
@@ -53,7 +53,7 @@ public class VersionMarkdownTest {
     @Test
     void immutableMapInput_KeepsImmutable() {
         Map<MavenArtifact, SemanticVersionBump> bumps = Map.of(MAVEN_ARTIFACT, SemanticVersionBump.NONE);
-        VersionMarkdown markdown = new VersionMarkdown(CONTENT, bumps);
+        VersionMarkdown markdown = new VersionMarkdown(null, CONTENT, bumps);
         assertThat(markdown)
                 .hasFieldOrPropertyWithValue("content", CONTENT)
                 .hasFieldOrPropertyWithValue("bumps", bumps)

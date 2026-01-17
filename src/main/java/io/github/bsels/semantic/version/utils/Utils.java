@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -56,6 +57,43 @@ public final class Utils {
             );
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to backup %s to %s".formatted(file, backupPom), e);
+        }
+    }
+
+    /// Deletes the specified files if they exist.
+    ///
+    /// This method iterates over the collection of file paths, attempting to delete each file
+    /// at the given path.
+    /// If a file does not exist, no action is taken for that file.
+    /// If an I/O error occurs during the deletion process, a [MojoExecutionException] is thrown.
+    /// The collection of paths must not be null.
+    ///
+    /// @param paths the collection of file paths to be deleted; must not be null
+    /// @throws NullPointerException   if the `paths` collection is null
+    /// @throws MojoExecutionException if an I/O error occurs during the deletion process
+    public static void deleteFilesIfExists(Collection<Path> paths) throws NullPointerException, MojoExecutionException {
+        Objects.requireNonNull(paths, "`paths` must not be null");
+        for (Path path : paths) {
+            deleteFileIfExists(path);
+        }
+    }
+
+    /// Deletes the specified file if it exists.
+    ///
+    /// This method attempts to delete the file at the given path.
+    /// If the file does not exist, no action is taken.
+    /// If an I/O error occurs during the deletion process, a [MojoExecutionException] is thrown.
+    /// The path parameter cannot be null.
+    ///
+    /// @param path the path to the file to be deleted; must not be null
+    /// @throws NullPointerException   if the `path` argument is null
+    /// @throws MojoExecutionException if an I/O error occurs during the deletion process
+    public static void deleteFileIfExists(Path path) throws NullPointerException, MojoExecutionException {
+        Objects.requireNonNull(path, "`path` must not be null");
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            throw new MojoExecutionException(e);
         }
     }
 
