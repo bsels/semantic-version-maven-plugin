@@ -121,6 +121,43 @@ public class UtilsTest {
     }
 
     @Nested
+    class CreateTemporaryMarkdownFileTest {
+
+        @Test
+        void createTempFileSuccess_ReturnsPath() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path expectedPath = Path.of("/tmp/versioning-12345.md");
+                files.when(() -> Files.createTempFile("versioning-", ".md"))
+                        .thenReturn(expectedPath);
+
+                assertThatNoException()
+                        .isThrownBy(() -> {
+                            Path actualPath = Utils.createTemporaryMarkdownFile();
+                            assertThat(actualPath).isEqualTo(expectedPath);
+                        });
+
+                files.verify(() -> Files.createTempFile("versioning-", ".md"), Mockito.times(1));
+            }
+        }
+
+        @Test
+        void createTempFileFails_ThrowsMojoExecutionException() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                IOException ioException = new IOException("Unable to create temp file");
+                files.when(() -> Files.createTempFile("versioning-", ".md"))
+                        .thenThrow(ioException);
+
+                assertThatThrownBy(Utils::createTemporaryMarkdownFile)
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Failed to create temporary file")
+                        .hasCause(ioException);
+
+                files.verify(() -> Files.createTempFile("versioning-", ".md"), Mockito.times(1));
+            }
+        }
+    }
+
+    @Nested
     class DeleteFileIfExistsTest {
 
         @Test

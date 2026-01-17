@@ -93,7 +93,22 @@ public final class Utils {
         try {
             Files.deleteIfExists(path);
         } catch (IOException e) {
-            throw new MojoExecutionException(e);
+            throw new MojoExecutionException("Failed to delete file", e);
+        }
+    }
+
+    /// Creates a temporary Markdown file with a predefined prefix and suffix.
+    ///
+    /// The file is created in the default temporary-file directory, using the prefix "versioning-" and the suffix ".md".
+    /// If the operation fails, a [MojoExecutionException] is thrown.
+    ///
+    /// @return the path to the created temporary Markdown file
+    /// @throws MojoExecutionException if an I/O error occurs during the file creation process
+    public static Path createTemporaryMarkdownFile() throws MojoExecutionException {
+        try {
+            return Files.createTempFile("versioning-", ".md");
+        } catch (IOException e) {
+            throw new MojoExecutionException("Failed to create temporary file", e);
         }
     }
 
