@@ -1012,6 +1012,152 @@ public class UpdatePomMojoTest {
     }
 
     @Nested
+    class MultiRecursiveProjectTest {
+
+        @BeforeEach
+        void setUp() {
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
+                    getResourcesPath("multi-recursive"),
+                    Path.of(".")
+            );
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+        }
+
+        @Test
+        void handleMultiRecursiveProjectCorrect_NoErrors() {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "multi-recursive");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(6)
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi-recursive", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 6.1.0-parent - 2025-01-01
+                                            
+                                            ### Minor
+                                            
+                                            Parent update.
+                                            
+                                            ## 6.0.0-parent - 2026-01-01
+                                            
+                                            Initial parent release.
+                                            """)
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi-recursive", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.multi-recursive</groupId>
+                                                <artifactId>parent</artifactId>
+                                                <version>6.1.0-parent</version>
+                                            
+                                                <modules>
+                                                    <module>child-1</module>
+                                                    <module>child-2</module>
+                                                </modules>
+                                            </project>
+                                            """)
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi-recursive", "child-1", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 6.0.1-child-1 - 2025-01-01
+                                            
+                                            ### Other
+                                            
+                                            Project version bumped as result of dependency bumps
+                                            
+                                            ## 6.0.0-child-1 - 2026-01-01
+                                            
+                                            Initial child 1 release.
+                                            """)
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi-recursive", "child-1", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <parent>
+                                                    <groupId>org.example.itests.multi-recursive</groupId>
+                                                    <artifactId>parent</artifactId>
+                                                    <version>6.1.0-parent</version>
+                                                </parent>
+                                            
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <artifactId>child-1</artifactId>
+                                                <version>6.0.1-child-1</version>
+                                            </project>
+                                            """)
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi-recursive", "child-2", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 6.0.1-child-2 - 2025-01-01
+                                            
+                                            ### Other
+                                            
+                                            Project version bumped as result of dependency bumps
+                                            
+                                            ## 6.0.0-child-2 - 2026-01-01
+                                            
+                                            Initial child 2 release.
+                                            """)
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi-recursive", "child-2", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.multi-recursive</groupId>
+                                                <artifactId>child-2</artifactId>
+                                                <version>6.0.1-child-2</version>
+                                            
+                                                <dependencies>
+                                                    <dependency>
+                                                        <groupId>org.example.itests.multi-recursive</groupId>
+                                                        <artifactId>child-1</artifactId>
+                                                        <version>6.0.1-child-1</version>
+                                                    </dependency>
+                                                </dependencies>
+                                            </project>
+                                            """)
+                    );
+
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactly(getResourcesPath("versioning", "multi-recursive", "versioning.md"));
+        }
+    }
+
+    @Nested
     class RevisionMultiProjectTest {
 
         @BeforeEach
