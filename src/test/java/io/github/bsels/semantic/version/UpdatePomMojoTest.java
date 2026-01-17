@@ -718,6 +718,247 @@ public class UpdatePomMojoTest {
     }
 
     @Nested
+    class MultiProjectTest {
+
+        private static String getVersioningMessage(String dependency) {
+            return switch (dependency) {
+                case "dependency" -> "Dependency";
+                case "dependencyManagement" -> "Dependency management";
+                case "plugin" -> "Plugin";
+                case "pluginManagement" -> "Plugin management";
+                case "parent" -> "Parent";
+                default -> throw new IllegalStateException("Unknown dependency type: " + dependency);
+            };
+        }
+
+        private static String folderToMessage(String dependency) {
+            return switch (dependency) {
+                case "dependency" -> "dependency";
+                case "dependencyManagement" -> "dependency-management";
+                case "plugin" -> "plugin";
+                case "pluginManagement" -> "plugin-management";
+                case "parent" -> "parent";
+                default -> throw new IllegalStateException("Unknown dependency type: " + dependency);
+            };
+        }
+
+        @BeforeEach
+        void setUp() {
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
+                    getResourcesPath("multi"),
+                    Path.of(".")
+            );
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+        }
+
+        @ParameterizedTest
+        @CsvSource({
+                "dependency,4.1.0-dependency,4.0.0-dependency-management,4.0.0-plugin,4.0.0-plugin-management,4.0.0-parent",
+                "dependencyManagement,4.0.0-dependency,4.1.0-dependency-management,4.0.0-plugin,4.0.0-plugin-management,4.0.0-parent",
+                "plugin,4.0.0-dependency,4.0.0-dependency-management,4.1.0-plugin,4.0.0-plugin-management,4.0.0-parent",
+                "pluginManagement,4.0.0-dependency,4.0.0-dependency-management,4.0.0-plugin,4.1.0-plugin-management,4.0.0-parent",
+                "parent,4.0.0-dependency,4.0.0-dependency-management,4.0.0-plugin,4.0.0-plugin-management,4.1.0-parent"
+        })
+        void handleDependencyCorrect_NoErrors(
+                String dependency,
+                String dependencyVersion,
+                String dependencyManagementVersion,
+                String pluginVersion,
+                String pluginManagementVersion,
+                String parentVersion
+        ) {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "multi", dependency);
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(4)
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi", "combination", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 4.0.1-combination - 2025-01-01
+                                            
+                                            ### Other
+                                            
+                                            Project version bumped as result of dependency bumps
+                                            
+                                            ## 4.0.0-combination - 2026-01-01
+                                            
+                                            Initial dependency release.
+                                            """)
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi", "combination", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                                    <?xml version="1.0" encoding="UTF-8"?>
+                                                    <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                                    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                                    http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                        <parent>
+                                                            <groupId>org.example.itests.multi</groupId>
+                                                            <artifactId>parent</artifactId>
+                                                            <version>%5$s</version>
+                                                        </parent>
+                                                    
+                                                        <modelVersion>4.0.0</modelVersion>
+                                                        <artifactId>combination</artifactId>
+                                                        <version>4.0.1-combination</version>
+                                                    
+                                                        <dependencies>
+                                                            <dependency>
+                                                                <groupId>org.example.itests.multi</groupId>
+                                                                <artifactId>dependency</artifactId>
+                                                                <version>%1$s</version>
+                                                            </dependency>
+                                                        </dependencies>
+                                                    
+                                                        <dependencyManagement>
+                                                            <dependencies>
+                                                                <dependency>
+                                                                    <groupId>org.example.itests.multi</groupId>
+                                                                    <artifactId>dependency-management</artifactId>
+                                                                    <version>%2$s</version>
+                                                                </dependency>
+                                                            </dependencies>
+                                                        </dependencyManagement>
+                                                    
+                                                        <build>
+                                                            <plugins>
+                                                                <plugin>
+                                                                    <groupId>org.example.itests.multi</groupId>
+                                                                    <artifactId>plugin</artifactId>
+                                                                    <version>%3$s</version>
+                                                                </plugin>
+                                                            </plugins>
+                                                            <pluginManagement>
+                                                                <plugins>
+                                                                    <plugin>
+                                                                        <groupId>org.example.itests.multi</groupId>
+                                                                        <artifactId>plugin-management</artifactId>
+                                                                        <version>%4$s</version>
+                                                                    </plugin>
+                                                                </plugins>
+                                                            </pluginManagement>
+                                                        </build>
+                                                    </project>
+                                                    """.formatted(
+                                                    dependencyVersion,
+                                                    dependencyManagementVersion,
+                                                    pluginVersion,
+                                                    pluginManagementVersion,
+                                                    parentVersion
+                                            )
+                                    )
+                    );
+
+            if ("parent".equals(dependency)) {
+                assertThat(mockedOutputFiles)
+                        .hasEntrySatisfying(
+                                getResourcesPath("multi", "CHANGELOG.md"),
+                                writer -> assertThat(writer.toString())
+                                        .isEqualToIgnoringNewLines("""
+                                                # Changelog
+                                                
+                                                ## 4.1.0-%1$s - 2025-01-01
+                                                
+                                                ### Minor
+                                                
+                                                %2$s update.
+                                                
+                                                ## 4.0.0-%1$s - 2026-01-01
+                                                
+                                                Initial %3$s release.
+                                                """.formatted(
+                                                folderToMessage(dependency),
+                                                getVersioningMessage(dependency),
+                                                getVersioningMessage(dependency).toLowerCase()
+                                        ))
+                        )
+                        .hasEntrySatisfying(
+                                getResourcesPath("multi", "pom.xml"),
+                                writer -> assertThat(writer.toString())
+                                        .isEqualToIgnoringNewLines("""
+                                                <?xml version="1.0" encoding="UTF-8"?>
+                                                <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                                xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                                http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                    <modelVersion>4.0.0</modelVersion>
+                                                    <groupId>org.example.itests.multi</groupId>
+                                                    <artifactId>%1$s</artifactId>
+                                                    <version>4.1.0-%1$s</version>
+                                                
+                                                    <modules>
+                                                        <module>dependency</module>
+                                                        <module>dependencyManagement</module>
+                                                        <module>plugin</module>
+                                                        <module>pluginManagement</module>
+                                                        <module>combination</module>
+                                                        <module>excluded</module>
+                                                    </modules>
+                                                </project>
+                                                """.formatted(folderToMessage(dependency))
+                                        )
+                        );
+            } else {
+                assertThat(mockedOutputFiles)
+                        .hasEntrySatisfying(
+                                getResourcesPath("multi", dependency, "CHANGELOG.md"),
+                                writer -> assertThat(writer.toString())
+                                        .isEqualToIgnoringNewLines("""
+                                                # Changelog
+                                                
+                                                ## 4.1.0-%1$s - 2025-01-01
+                                                
+                                                ### Minor
+                                                
+                                                %2$s update.
+                                                
+                                                ## 4.0.0-%1$s - 2026-01-01
+                                                
+                                                Initial %3$s release.
+                                                """.formatted(
+                                                folderToMessage(dependency),
+                                                getVersioningMessage(dependency),
+                                                getVersioningMessage(dependency).toLowerCase()
+                                        ))
+                        )
+                        .hasEntrySatisfying(
+                                getResourcesPath("multi", dependency, "pom.xml"),
+                                writer -> assertThat(writer.toString())
+                                        .isEqualToIgnoringNewLines("""
+                                                <?xml version="1.0" encoding="UTF-8"?>
+                                                <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                                xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                                http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                    <modelVersion>4.0.0</modelVersion>
+                                                    <groupId>org.example.itests.multi</groupId>
+                                                    <artifactId>%1$s</artifactId>
+                                                    <version>4.1.0-%1$s</version>
+                                                </project>
+                                                """.formatted(folderToMessage(dependency))
+                                        )
+                        );
+            }
+
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactly(getResourcesPath("versioning", "multi", dependency, "versioning.md"));
+        }
+    }
+
+    @Nested
     class RevisionMultiProjectTest {
 
         @BeforeEach
