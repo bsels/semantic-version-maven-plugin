@@ -121,6 +121,126 @@ public class UtilsTest {
     }
 
     @Nested
+    class DeleteFileIfExistsTest {
+
+        @Test
+        void nullInput_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.deleteFileIfExists(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`path` must not be null");
+        }
+
+        @Test
+        void fileDoesNotExist_NoException() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path file = Path.of("project/file.txt");
+                files.when(() -> Files.deleteIfExists(file))
+                        .thenReturn(false);
+
+                assertThatNoException()
+                        .isThrownBy(() -> Utils.deleteFileIfExists(file));
+
+                files.verify(() -> Files.deleteIfExists(file), Mockito.times(1));
+            }
+        }
+
+        @Test
+        void fileExists_DeletesSuccessfully() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path file = Path.of("project/file.txt");
+                files.when(() -> Files.deleteIfExists(file))
+                        .thenReturn(true);
+
+                assertThatNoException()
+                        .isThrownBy(() -> Utils.deleteFileIfExists(file));
+
+                files.verify(() -> Files.deleteIfExists(file), Mockito.times(1));
+            }
+        }
+
+        @Test
+        void deletionFails_ThrowsMojoExecutionException() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path file = Path.of("project/file.txt");
+                IOException ioException = new IOException("deletion failed");
+                files.when(() -> Files.deleteIfExists(file))
+                        .thenThrow(ioException);
+
+                assertThatThrownBy(() -> Utils.deleteFileIfExists(file))
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasCause(ioException);
+
+                files.verify(() -> Files.deleteIfExists(file), Mockito.times(1));
+            }
+        }
+    }
+
+    @Nested
+    class DeleteFilesIfExistsTest {
+
+        @Test
+        void nullInput_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.deleteFilesIfExists(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`paths` must not be null");
+        }
+
+        @Test
+        void emptyCollection_NoException() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                assertThatNoException()
+                        .isThrownBy(() -> Utils.deleteFilesIfExists(List.of()));
+
+                files.verify(() -> Files.deleteIfExists(Mockito.any()), Mockito.never());
+            }
+        }
+
+        @Test
+        void multipleFiles_DeletesAllSuccessfully() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path file1 = Path.of("project/file1.txt");
+                Path file2 = Path.of("project/file2.txt");
+                Path file3 = Path.of("project/file3.txt");
+                List<Path> paths = List.of(file1, file2, file3);
+
+                files.when(() -> Files.deleteIfExists(Mockito.any()))
+                        .thenReturn(true);
+
+                assertThatNoException()
+                        .isThrownBy(() -> Utils.deleteFilesIfExists(paths));
+
+                files.verify(() -> Files.deleteIfExists(file1), Mockito.times(1));
+                files.verify(() -> Files.deleteIfExists(file2), Mockito.times(1));
+                files.verify(() -> Files.deleteIfExists(file3), Mockito.times(1));
+            }
+        }
+
+        @Test
+        void deletionFailsOnSecondFile_ThrowsMojoExecutionException() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path file1 = Path.of("project/file1.txt");
+                Path file2 = Path.of("project/file2.txt");
+                Path file3 = Path.of("project/file3.txt");
+                List<Path> paths = List.of(file1, file2, file3);
+
+                IOException ioException = new IOException("deletion failed");
+                files.when(() -> Files.deleteIfExists(file1))
+                        .thenReturn(true);
+                files.when(() -> Files.deleteIfExists(file2))
+                        .thenThrow(ioException);
+
+                assertThatThrownBy(() -> Utils.deleteFilesIfExists(paths))
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasCause(ioException);
+
+                files.verify(() -> Files.deleteIfExists(file1), Mockito.times(1));
+                files.verify(() -> Files.deleteIfExists(file2), Mockito.times(1));
+                files.verify(() -> Files.deleteIfExists(file3), Mockito.never());
+            }
+        }
+    }
+
+    @Nested
     class AlwaysTrueTest {
 
         @ParameterizedTest
