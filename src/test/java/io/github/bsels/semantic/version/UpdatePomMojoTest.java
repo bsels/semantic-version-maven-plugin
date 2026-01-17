@@ -956,6 +956,59 @@ public class UpdatePomMojoTest {
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "multi", dependency, "versioning.md"));
         }
+
+        @Test
+        void independentProject_NoDependencyUpdates() {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "multi", "excluded");
+
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(2)
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi", "excluded", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 4.1.0-excluded - 2025-01-01
+                                            
+                                            ### Minor
+                                            
+                                            Excluded update.
+                                            
+                                            ## 4.0.0-excluded - 2026-01-01
+                                            
+                                            Initial excluded release.
+                                            """)
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi", "excluded", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.multi</groupId>
+                                                <artifactId>excluded</artifactId>
+                                                <version>4.1.0-excluded</version>
+                                            </project>
+                                            """)
+                    );
+
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactly(getResourcesPath("versioning", "multi", "excluded", "versioning.md"));
+        }
     }
 
     @Nested
