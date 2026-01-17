@@ -309,6 +309,8 @@ public class UpdatePomMojoTest {
             }
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @Test
@@ -351,6 +353,8 @@ public class UpdatePomMojoTest {
             assertThat(mockedOutputFiles)
                     .isEmpty();
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -514,6 +518,11 @@ public class UpdatePomMojoTest {
                     );
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactly(getResourcesPath("versioning", "leaves", "single", "versioning.md"));
         }
 
         @Test
@@ -695,6 +704,15 @@ public class UpdatePomMojoTest {
                     );
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(3)
+                    .containsExactlyInAnyOrder(
+                            getResourcesPath("versioning", "leaves", "multi", "child-1.md"),
+                            getResourcesPath("versioning", "leaves", "multi", "child-2.md"),
+                            getResourcesPath("versioning", "leaves", "multi", "child-3.md")
+                    );
         }
 
     }
@@ -788,6 +806,8 @@ public class UpdatePomMojoTest {
                                     )
                     );
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -891,6 +911,8 @@ public class UpdatePomMojoTest {
                                     )
                             )
                     );
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -965,6 +987,10 @@ public class UpdatePomMojoTest {
                     .isEmpty();
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -1006,6 +1032,10 @@ public class UpdatePomMojoTest {
                     .isEmpty();
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @Test
@@ -1029,6 +1059,8 @@ public class UpdatePomMojoTest {
             assertThat(mockedOutputFiles)
                     .isEmpty();
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -1066,6 +1098,8 @@ public class UpdatePomMojoTest {
                     .isEmpty();
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @Test
@@ -1102,6 +1136,8 @@ public class UpdatePomMojoTest {
             assertThat(mockedOutputFiles)
                     .isEmpty();
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -1194,6 +1230,12 @@ public class UpdatePomMojoTest {
                     );
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactlyInAnyOrder(
+                            getResourcesPath("versioning", "revision", "multi", folder, "versioning.md")
+                    );
         }
 
         @Test
@@ -1323,6 +1365,15 @@ public class UpdatePomMojoTest {
                     );
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(4)
+                    .containsExactlyInAnyOrder(
+                            getResourcesPath("versioning", "revision", "multi", "multiple", "major.md"),
+                            getResourcesPath("versioning", "revision", "multi", "multiple", "minor.md"),
+                            getResourcesPath("versioning", "revision", "multi", "multiple", "patch.md"),
+                            getResourcesPath("versioning", "revision", "multi", "multiple", "none.md")
+                    );
         }
     }
 
@@ -1410,6 +1461,8 @@ public class UpdatePomMojoTest {
                                     )
                     );
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -1508,6 +1561,8 @@ public class UpdatePomMojoTest {
                                     )
                             )
                     );
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -1577,6 +1632,8 @@ public class UpdatePomMojoTest {
                     .isEmpty();
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -1618,6 +1675,8 @@ public class UpdatePomMojoTest {
                     .isEmpty();
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @Test
@@ -1641,6 +1700,8 @@ public class UpdatePomMojoTest {
             assertThat(mockedOutputFiles)
                     .isEmpty();
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -1678,6 +1739,8 @@ public class UpdatePomMojoTest {
                     .isEmpty();
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @Test
@@ -1714,6 +1777,8 @@ public class UpdatePomMojoTest {
             assertThat(mockedOutputFiles)
                     .isEmpty();
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -1801,6 +1866,12 @@ public class UpdatePomMojoTest {
                     );
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactlyInAnyOrder(
+                            getResourcesPath("versioning", "revision", "single", folder, "versioning.md")
+                    );
         }
 
         @Test
@@ -1925,6 +1996,15 @@ public class UpdatePomMojoTest {
                     );
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(4)
+                    .containsExactlyInAnyOrder(
+                            getResourcesPath("versioning", "revision", "single", "multiple", "major.md"),
+                            getResourcesPath("versioning", "revision", "single", "multiple", "minor.md"),
+                            getResourcesPath("versioning", "revision", "single", "multiple", "patch.md"),
+                            getResourcesPath("versioning", "revision", "single", "multiple", "none.md")
+                    );
         }
     }
 
@@ -2008,6 +2088,8 @@ public class UpdatePomMojoTest {
                                     )
                     );
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -2102,6 +2184,8 @@ public class UpdatePomMojoTest {
                                     )
                             )
                     );
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2167,6 +2251,8 @@ public class UpdatePomMojoTest {
                     .isEmpty();
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2208,6 +2294,8 @@ public class UpdatePomMojoTest {
                     .isEmpty();
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @Test
@@ -2231,6 +2319,8 @@ public class UpdatePomMojoTest {
             assertThat(mockedOutputFiles)
                     .isEmpty();
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -2268,6 +2358,8 @@ public class UpdatePomMojoTest {
                     .isEmpty();
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
         }
 
         @Test
@@ -2304,6 +2396,8 @@ public class UpdatePomMojoTest {
             assertThat(mockedOutputFiles)
                     .isEmpty();
             assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
                     .isEmpty();
         }
 
@@ -2387,6 +2481,12 @@ public class UpdatePomMojoTest {
                     );
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactlyInAnyOrder(
+                            getResourcesPath("versioning", "single", folder, "versioning.md")
+                    );
         }
 
         @Test
@@ -2507,6 +2607,15 @@ public class UpdatePomMojoTest {
                     );
             assertThat(mockedCopiedFiles)
                     .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(4)
+                    .containsExactlyInAnyOrder(
+                            getResourcesPath("versioning", "single", "multiple", "major.md"),
+                            getResourcesPath("versioning", "single", "multiple", "minor.md"),
+                            getResourcesPath("versioning", "single", "multiple", "patch.md"),
+                            getResourcesPath("versioning", "single", "multiple", "none.md")
+                    );
         }
     }
 }

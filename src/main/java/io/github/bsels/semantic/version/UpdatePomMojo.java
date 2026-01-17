@@ -136,7 +136,7 @@ public final class UpdatePomMojo extends BaseMojo {
             hasChanges = handleMultiProjects(mapping, projectsInScope);
         }
 
-        if (hasChanges && VersionBump.FILE_BASED.equals(versionBump)) {
+        if (!dryRun && hasChanges && VersionBump.FILE_BASED.equals(versionBump)) {
             Utils.deleteFilesIfExists(
                     versionMarkdowns.stream()
                             .map(VersionMarkdown::path)
