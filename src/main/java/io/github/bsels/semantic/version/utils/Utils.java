@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,20 @@ public final class Utils {
     /// A constant string used as a suffix to represent backup files.
     /// Typically appended to filenames to indicate the file is a backup copy.
     public static final String BACKUP_SUFFIX = ".backup";
+    /// A [DateTimeFormatter] instance used to format or parse date-time values according to the pattern
+    /// `yyyyMMddHHmmssSSS`.
+    /// This formatter ensures that date-time values are represented in a compact string format with the following
+    /// components:
+    /// - Year: 4 digits
+    /// - Month: 2 digits
+    /// - Day: 2 digits
+    /// - Hour: 2 digits (24-hour clock)
+    /// - Minute: 2 digits
+    /// - Second: 2 digits
+    /// - Millisecond: 3 digits
+    ///
+    /// The formatter is thread-safe and can be used in concurrent environments.
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
 
     /// Utility class containing static constants and methods for various common operations.
     /// This class is not designed to be instantiated.
@@ -110,6 +126,18 @@ public final class Utils {
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to create temporary file", e);
         }
+    }
+
+    /// Resolves and returns the path to a versioning file within the specified folder.
+    /// The file is named using the pattern "versioning-<current_datetime>.md",
+    /// where <current_datetime> is formatted according to the predefined date-time formatter.
+    ///
+    /// @param folder the base folder where the versioning file will be resolved; must not be null
+    /// @return the resolved path to the versioning file
+    /// @throws NullPointerException if the `folder` parameter is null
+    public static Path resolveVersioningFile(Path folder) throws NullPointerException {
+        Objects.requireNonNull(folder, "`folder` must not be null");
+        return folder.resolve("versioning-%s.md".formatted(DATE_TIME_FORMATTER.format(LocalDateTime.now())));
     }
 
     /// Returns a predicate that always evaluates to `true`.

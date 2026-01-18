@@ -14,8 +14,10 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.commonmark.node.Node;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -121,6 +123,14 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     @Parameter(property = "versioning.directory", required = true, defaultValue = ".versioning")
     protected Path versionDirectory = Path.of(".versioning");
 
+    /// Indicates whether the original POM file and CHANGELOG file should be backed up before modifying its content.
+    ///
+    /// This parameter is configurable via the Maven property `versioning.backup`.
+    /// When set to `true`, a backup of the POM/CHANGELOG file will be created before any updates are applied.
+    /// The default value for this parameter is `false`, meaning no backup will be created unless explicitly specified.
+    @Parameter(property = "versioning.backup", defaultValue = "false")
+    boolean backupFiles = false;
+
     /// Default constructor for the BaseMojo class.
     /// Initializes the instance by invoking the superclass constructor.
     /// Maven framework typically uses this constructor during the build process.
@@ -187,12 +197,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     /// @throws MojoExecutionException if an I/O error occurs while accessing the `.versioning` directory or its contents, or if there is an error in parsing the Markdown files
     protected final List<VersionMarkdown> getVersionMarkdowns() throws MojoExecutionException {
         Log log = getLog();
-        Path versioningFolder;
-        if (versionDirectory.isAbsolute()) {
-            versioningFolder = versionDirectory;
-        } else {
-            versioningFolder = Path.of(session.getExecutionRootDirectory()).resolve(versionDirectory);
-        }
+        Path versioningFolder = getVersioningFolder();
         if (!Files.exists(versioningFolder)) {
             log.warn("No versioning files found in %s as folder does not exists".formatted(versioningFolder));
             return List.of();
@@ -212,6 +217,21 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
             throw new MojoExecutionException("Unable to read versioning folder", e);
         }
         return versionMarkdowns;
+    }
+
+    /// Determines and retrieves the path to the versioning folder used for storing version-related files.
+    /// If the `versionDirectory` field is configured as an absolute path, it is returned as-is.
+    /// Otherwise, a relative path is resolved against the current Maven execution's root directory.
+    ///
+    /// @return the path to the versioning folder as a [Path] object
+    protected Path getVersioningFolder() {
+        Path versioningFolder;
+        if (versionDirectory.isAbsolute()) {
+            versioningFolder = versionDirectory;
+        } else {
+            versioningFolder = Path.of(session.getExecutionRootDirectory()).resolve(versionDirectory);
+        }
+        return versioningFolder;
     }
 
     /// Creates a MarkdownMapping instance based on a list of [VersionMarkdown] objects.
@@ -292,4 +312,60 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
                     .filter(Utils.mavenProjectHasNoModules());
         };
     }
+
+    /// Writes a changelog to a Markdown file.
+    /// If the dry-run mode is enabled, the method simulates the writing operation
+    /// and logs the result instead of physically creating or modifying the file.
+    /// Otherwise, it directly writes to the specified Markdown file,
+    /// potentially backing up the previous file if required.
+    ///
+    /// @param markdownNode the [Node] representing the changelog content to write; must not be null
+    /// @param markdownFile the [Path] representing the target Markdown file; must not be null
+    /// @throws MojoExecutionException if an unexpected error occurs during execution, such as an I/O issue
+    /// @throws MojoFailureException   if the writing operation fails due to known issues or invalid configuration
+    protected void writeMarkdownFile(Node markdownNode, Path markdownFile)
+            throws MojoExecutionException, MojoFailureException {
+        if (dryRun) {
+            dryRunWriteFile(
+                    writer -> MarkdownUtils.writeMarkdown(writer, markdownNode),
+                    markdownFile, "Dry-run: new markdown file at %s:%n%s"
+            );
+        } else {
+            MarkdownUtils.writeMarkdownFile(markdownFile, markdownNode, backupFiles);
+        }
+    }
+
+    /// Simulates writing to a file by using a [StringWriter].
+    /// The provided consumer is responsible for writing content to the [StringWriter].
+    /// Logs the specified logLine upon successful completion.
+    ///
+    /// @param consumer the functional interface used to write content to the [StringWriter]
+    /// @param file     the file path representing the target file for writing (used for logging)
+    /// @param logLine  the log message that will be logged, formatted with the file and written content
+    /// @throws MojoExecutionException if an I/O error occurs while attempting to write
+    /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
+    protected void dryRunWriteFile(MojoThrowingConsumer<StringWriter> consumer, Path file, String logLine)
+            throws MojoExecutionException, MojoFailureException {
+        try (StringWriter writer = new StringWriter()) {
+            consumer.accept(writer);
+            getLog().info(logLine.formatted(file, writer));
+        } catch (IOException e) {
+            throw new MojoExecutionException("Unable to open output stream for writing", e);
+        }
+    }
+
+    /// Functional interface that represents an operation that accepts a single input
+    /// and can throw [MojoExecutionException] and [MojoFailureException].
+    ///
+    /// @param <T> the type of the input to the operation
+    protected interface MojoThrowingConsumer<T> {
+
+        /// Performs the given operation on the specified input.
+        ///
+        /// @param t the input parameter on which the operation will be performed
+        /// @throws MojoExecutionException if an error occurs during execution
+        /// @throws MojoFailureException   if the operation fails
+        void accept(T t) throws MojoExecutionException, MojoFailureException;
+    }
+
 }

@@ -1,5 +1,5 @@
 ---
-'org.example.itests.multi-recursive:parent': minor
+org.example.itests.multi-recursive:parent: minor
 ---
 
 Parent update.

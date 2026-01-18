@@ -45,7 +45,9 @@ public final class TerminalHelper {
     ///
     /// @param prompt the message to display to the user before starting input; must not be null
     /// @return an [Optional] containing the concatenated multi-line input if provided, or an empty [Optional] if the input was blank
-    public static Optional<String> readMultiLineInput(String prompt) {
+    /// @throws NullPointerException if the `prompt` parameter is null
+    public static Optional<String> readMultiLineInput(String prompt) throws NullPointerException {
+        Objects.requireNonNull(prompt, "`prompt` must not be null");
         System.out.println(prompt);
         Scanner scanner = new Scanner(System.in);
         StringBuilder builder = new StringBuilder();

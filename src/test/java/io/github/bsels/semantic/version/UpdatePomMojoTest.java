@@ -1408,7 +1408,7 @@ public class UpdatePomMojoTest {
                             validateLogRecordDebug("Original changelog"),
                             validateLogRecordDebug("Updated changelog"),
                             validateLogRecordInfo("""
-                                    Dry-run: new changelog at %s:
+                                    Dry-run: new markdown file at %s:
                                     # Changelog
                                     
                                     ## %s - 2025-01-01
@@ -2053,7 +2053,7 @@ public class UpdatePomMojoTest {
                             validateLogRecordDebug("Original changelog"),
                             validateLogRecordDebug("Updated changelog"),
                             validateLogRecordInfo("""
-                                    Dry-run: new changelog at %s:
+                                    Dry-run: new markdown file at %s:
                                     # Changelog
                                     
                                     ## %s - 2025-01-01
@@ -2672,7 +2672,7 @@ public class UpdatePomMojoTest {
                             validateLogRecordDebug("Original changelog"),
                             validateLogRecordDebug("Updated changelog"),
                             validateLogRecordInfo("""
-                                    Dry-run: new changelog at %s:
+                                    Dry-run: new markdown file at %s:
                                     # Changelog
                                     
                                     ## %s - 2025-01-01

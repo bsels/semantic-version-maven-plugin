@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.MapType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
@@ -60,7 +61,8 @@ public final class MarkdownUtils {
     /// A static and final [ObjectMapper] instance configured as a [YAMLMapper].
     /// This variable is intended for parsing and generating YAML content.
     /// It provides a convenient singleton for YAML operations within the context of the MarkdownUtils utility class.
-    private static final ObjectMapper YAML_MAPPER = new YAMLMapper();
+    private static final ObjectMapper YAML_MAPPER = new YAMLMapper()
+            .configure(YAMLGenerator.Feature.WRITE_DOC_START_MARKER, false);
 
     /// A statically defined parser built for processing CommonMark-based Markdown with certain custom configurations.
     /// This parser is configured to:
@@ -164,10 +166,20 @@ public final class MarkdownUtils {
         try (Stream<String> lineStream = Files.lines(markdownFile, StandardCharsets.UTF_8)) {
             List<String> lines = lineStream.toList();
             log.info("Read %d lines from %s".formatted(lines.size(), markdownFile));
-            return PARSER.parse(String.join("\n", lines));
+            return parseMarkdown(String.join("\n", lines));
         } catch (IOException e) {
             throw new MojoExecutionException("Unable to read '%s' file".formatted(markdownFile), e);
         }
+    }
+
+    /// Parses the given Markdown text and returns a Node representing the structured content of the Markdown document.
+    ///
+    /// @param markdown the Markdown text to parse, provided as a String
+    /// @return a Node object representing the parsed structure of the Markdown document
+    /// @throws NullPointerException if the `markdown` parameter is null
+    public static Node parseMarkdown(String markdown) throws NullPointerException {
+        Objects.requireNonNull(markdown, "`markdown` must not be null");
+        return PARSER.parse(markdown);
     }
 
     /// Merges version-specific Markdown content into a changelog Node structure.
@@ -285,6 +297,27 @@ public final class MarkdownUtils {
         paragraph.appendChild(new Text("Project version bumped as result of dependency bumps"));
         document.appendChild(paragraph);
         return new VersionMarkdown(null, document, Map.of(mavenArtifact, SemanticVersionBump.NONE));
+    }
+
+    /// Creates a YAML front matter block containing version bump information for Maven artifacts.
+    ///
+    /// @param log   the logger used for logging the YAML representation; must not be null
+    /// @param bumps a map where each key is a Maven artifact and the value is its corresponding semantic version bump. Must not be null.
+    /// @return a [YamlFrontMatterBlock] containing the YAML representation of the version bump information.
+    /// @throws NullPointerException   if the provided map is null.
+    /// @throws MojoExecutionException if an error occurs while constructing the YAML representation.
+    public static YamlFrontMatterBlock createVersionBumpsHeader(
+            Log log, Map<MavenArtifact, SemanticVersionBump> bumps
+    ) throws NullPointerException, MojoExecutionException {
+        Objects.requireNonNull(bumps, "`bumps` must not be null");
+        String yaml;
+        try {
+            yaml = YAML_MAPPER.writeValueAsString(bumps);
+            log.debug("Version bumps YAML:\n%s\n".formatted(yaml.indent(4).stripTrailing()));
+        } catch (JsonProcessingException e) {
+            throw new MojoExecutionException("Unable to construct version bump YAML", e);
+        }
+        return new YamlFrontMatterBlock(yaml);
     }
 
     /// Merges two [Node] instances by inserting the second node after the first node and returning the second node.

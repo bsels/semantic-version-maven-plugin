@@ -21,8 +21,6 @@ import org.apache.maven.project.MavenProject;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
-import java.io.IOException;
-import java.io.StringWriter;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -74,14 +72,6 @@ public final class UpdatePomMojo extends BaseMojo {
     ///   used for backward-compatible bug fixes.
     @Parameter(property = "versioning.bump", required = true, defaultValue = "FILE_BASED")
     VersionBump versionBump = VersionBump.FILE_BASED;
-
-    /// Indicates whether the original POM file and CHANGELOG file should be backed up before modifying its content.
-    ///
-    /// This parameter is configurable via the Maven property `versioning.backup`.
-    /// When set to `true`, a backup of the POM/CHANGELOG file will be created before any updates are applied.
-    /// The default value for this parameter is `false`, meaning no backup will be created unless explicitly specified.
-    @Parameter(property = "versioning.backup", defaultValue = "false")
-    boolean backupFiles = false;
 
     /// Default constructor for the UpdatePomMojo class.
     ///
@@ -491,33 +481,7 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
     private void writeUpdatedChangelog(org.commonmark.node.Node changelog, Path changelogFile)
             throws MojoExecutionException, MojoFailureException {
-        if (dryRun) {
-            dryRunWriteFile(
-                    writer -> MarkdownUtils.writeMarkdown(writer, changelog),
-                    changelogFile, "Dry-run: new changelog at %s:%n%s"
-            );
-        } else {
-            MarkdownUtils.writeMarkdownFile(changelogFile, changelog, backupFiles);
-        }
-    }
-
-    /// Simulates writing to a file by using a [StringWriter].
-    /// The provided consumer is responsible for writing content to the [StringWriter].
-    /// Logs the specified logLine upon successful completion.
-    ///
-    /// @param consumer the functional interface used to write content to the [StringWriter]
-    /// @param file     the file path representing the target file for writing (used for logging)
-    /// @param logLine  the log message that will be logged, formatted with the file and written content
-    /// @throws MojoExecutionException if an I/O error occurs while attempting to write
-    /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
-    private void dryRunWriteFile(MojoThrowingConsumer<StringWriter> consumer, Path file, String logLine)
-            throws MojoExecutionException, MojoFailureException {
-        try (StringWriter writer = new StringWriter()) {
-            consumer.accept(writer);
-            getLog().info(logLine.formatted(file, writer));
-        } catch (IOException e) {
-            throw new MojoExecutionException("Unable to open output stream for writing", e);
-        }
+        writeMarkdownFile(changelog, changelogFile);
     }
 
     /// Determines the semantic version bump for a given Maven artifact based on the provided map of version bumps
@@ -536,20 +500,6 @@ public final class UpdatePomMojo extends BaseMojo {
             case MINOR -> SemanticVersionBump.MINOR;
             case PATCH -> SemanticVersionBump.PATCH;
         };
-    }
-
-    /// Functional interface that represents an operation that accepts a single input
-    /// and can throw [MojoExecutionException] and [MojoFailureException].
-    ///
-    /// @param <T> the type of the input to the operation
-    private interface MojoThrowingConsumer<T> {
-
-        /// Performs the given operation on the specified input.
-        ///
-        /// @param t the input parameter on which the operation will be performed
-        /// @throws MojoExecutionException if an error occurs during execution
-        /// @throws MojoFailureException   if the operation fails
-        void accept(T t) throws MojoExecutionException, MojoFailureException;
     }
 
     /// Represents a combination of a Maven project artifact, its associated POM file path,
