@@ -81,4 +81,38 @@ public class MavenArtifactTest {
                     .isEqualTo("%s:%s".formatted(GROUP_ID, ARTIFACT_ID));
         }
     }
+
+    @Nested
+    class CompareToTest {
+
+        @Test
+        void sameArtifact_ReturnsZero() {
+            MavenArtifact artifact1 = new MavenArtifact(GROUP_ID, ARTIFACT_ID);
+            MavenArtifact artifact2 = new MavenArtifact(GROUP_ID, ARTIFACT_ID);
+            assertThat(artifact1.compareTo(artifact2))
+                    .isEqualTo(0);
+        }
+
+        @Test
+        void differentGroupId_ReturnCorrectValue() {
+            MavenArtifact artifact1 = new MavenArtifact(GROUP_ID, ARTIFACT_ID);
+            MavenArtifact artifact2 = new MavenArtifact("groupId2", ARTIFACT_ID);
+
+            assertThat(artifact1.compareTo(artifact2))
+                    .isLessThan(0);
+            assertThat(artifact2.compareTo(artifact1))
+                    .isGreaterThan(0);
+        }
+
+        @Test
+        void differentArtifactId_ReturnCorrectValue() {
+            MavenArtifact artifact1 = new MavenArtifact(GROUP_ID, ARTIFACT_ID);
+            MavenArtifact artifact2 = new MavenArtifact(GROUP_ID, "artifactId2");
+
+            assertThat(artifact1.compareTo(artifact2))
+                    .isLessThan(0);
+            assertThat(artifact2.compareTo(artifact1))
+                    .isGreaterThan(0);
+        }
+    }
 }
