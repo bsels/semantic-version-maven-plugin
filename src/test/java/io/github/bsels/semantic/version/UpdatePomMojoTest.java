@@ -23,7 +23,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.net.URISyntaxException;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
@@ -34,18 +33,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(MockitoExtension.class)
-public class UpdatePomMojoTest {
+public class UpdatePomMojoTest extends AbstractBaseMojoTest {
     private static final LocalDate DATE = LocalDate.of(2025, 1, 1);
     private UpdatePomMojo classUnderTest;
     private TestLog testLog;
@@ -159,47 +154,6 @@ public class UpdatePomMojoTest {
                 .isEmpty();
         assertThat(mockedDeletedFiles)
                 .isEmpty();
-    }
-
-    private Path getResourcesPath(String... relativePaths) {
-        return Stream.of(relativePaths)
-                .reduce(getResourcesPath(), Path::resolve, (a, b) -> {
-                    throw new UnsupportedOperationException();
-                });
-    }
-
-    private Path getResourcesPath() {
-        try {
-            return Path.of(
-                    Objects.requireNonNull(UpdatePomMojoTest.class.getResource("/itests/"))
-                            .toURI()
-            );
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private Consumer<TestLog.LogRecord> validateLogRecordDebug(String message) {
-        return validateLogRecord(TestLog.LogLevel.DEBUG, message);
-    }
-
-    private Consumer<TestLog.LogRecord> validateLogRecordInfo(String message) {
-        return validateLogRecord(TestLog.LogLevel.INFO, message);
-    }
-
-    private Consumer<TestLog.LogRecord> validateLogRecordWarn(String message) {
-        return validateLogRecord(TestLog.LogLevel.WARN, message);
-    }
-
-    private Consumer<TestLog.LogRecord> validateLogRecord(TestLog.LogLevel level, String message) {
-        return record -> assertThat(record)
-                .hasFieldOrPropertyWithValue("level", level)
-                .hasFieldOrPropertyWithValue("throwable", Optional.empty())
-                .hasFieldOrPropertyWithValue("message", Optional.of(message));
-    }
-
-
-    private record CopyPath(Path original, Path copy, List<CopyOption> options) {
     }
 
     @Nested

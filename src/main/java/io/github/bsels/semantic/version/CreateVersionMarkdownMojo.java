@@ -90,7 +90,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
             return;
         }
         Map<MavenArtifact, SemanticVersionBump> selectedProjects = determineVersionBumps(projects);
-        if (selectedProjects == null) {
+        if (!selectedProjects.isEmpty()) {
             log.warn("No projects selected");
             return;
         }
@@ -156,7 +156,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
             List<MavenArtifact> projectSelections = TerminalHelper.multiChoice("Select projects:", "project", projects);
             if (projectSelections.isEmpty()) {
                 getLog().warn("No projects selected");
-                return null;
+                return Map.of();
             }
             System.out.printf("Selected projects: %s%n", projectSelections.stream().map(MavenArtifact::toString).collect(Collectors.joining(", ")));
             for (MavenArtifact mavenArtifact : projectSelections) {
@@ -176,7 +176,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
                         .map(entry -> "'%s': %s".formatted(entry.getKey(), entry.getValue()))
                         .collect(Collectors.joining(", "))
         );
-        return selectedProjects;
+        return Map.copyOf(selectedProjects);
     }
 
     /// Creates a Markdown file in an external editor, processes and returns its content as a [Node] object.
