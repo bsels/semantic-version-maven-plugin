@@ -63,7 +63,7 @@ public final class TerminalHelper {
             lastLineEmpty = line.isBlank();
             line = scanner.nextLine();
         }
-        return Optional.of(builder.toString());
+        return Optional.of(builder.toString().stripTrailing());
     }
 
     /// Displays a list of choices to the user and allows selection of a single option
@@ -111,9 +111,6 @@ public final class TerminalHelper {
     public static <T> List<T> multiChoice(String choiceHeader, String promptObject, List<T> choices)
             throws NullPointerException, IllegalArgumentException {
         validateChoiceMethodHeader(choiceHeader, promptObject, choices);
-        if (choices.isEmpty()) {
-            return List.of();
-        }
         boolean isEnum = Enum.class.isAssignableFrom(choices.get(0).getClass());
         Scanner scanner = new Scanner(System.in);
         List<T> selectedChoices = null;
@@ -131,6 +128,9 @@ public final class TerminalHelper {
             if (!line.isBlank()) {
                 List<T> currentSelection = new ArrayList<>(choices.size());
                 for (String choice : MULTI_CHOICE_SEPARATOR.split(line)) {
+                    if (choice.isBlank()) {
+                        continue;
+                    }
                     Optional<T> item = parseIndexOrEnum(choice, choices);
                     if (item.isPresent()) {
                         currentSelection.add(item.get());
