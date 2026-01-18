@@ -184,7 +184,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
         try {
             boolean valid = ProcessUtils.executeEditor(temporaryMarkdownFile);
             if (!valid) {
-                throw new MojoFailureException("Unable to create a new Markdown file");
+                throw new MojoFailureException("Unable to create a new Markdown file in external editor.");
             }
             return MarkdownUtils.readMarkdown(getLog(), temporaryMarkdownFile);
         } finally {

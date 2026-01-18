@@ -5,6 +5,7 @@ import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.test.utils.ReadMockedMavenSession;
 import io.github.bsels.semantic.version.test.utils.TestLog;
 import io.github.bsels.semantic.version.utils.Utils;
+import org.apache.maven.plugin.MojoFailureException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -38,6 +39,7 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(MockitoExtension.class)
 public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
@@ -204,6 +206,9 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                               7: org.example.itests.multi:plugin-management
                             Enter project numbers separated by spaces, commas or semicolons: \
                             """);
+
+            assertThat(mockedOutputFiles)
+                    .isEmpty();
         }
 
         // TODO
@@ -226,7 +231,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
         void dryRunInlineEditor_Valid(SemanticVersionBump bump) {
             classUnderTest.dryRun = true;
 
-            try (MockedConstruction<Scanner> scannerMockedConstruction = Mockito.mockConstruction(
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
                     Scanner.class, (mock, context) -> {
                         Mockito.when(mock.hasNextLine()).thenReturn(true, false);
                         if (context.getCount() == 1) {
@@ -239,7 +244,6 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                 assertThatNoException()
                         .isThrownBy(classUnderTest::execute);
             }
-
 
             assertThat(testLog.getLogRecords())
                     .isNotEmpty()
@@ -258,8 +262,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                                     ---
                                     
                                     Testing
-                                    """.formatted(getResourcesPath("single", ".versioning",
-                                    "versioning-%s.md".formatted(Utils.DATE_TIME_FORMATTER.format(DATE_TIME))), bump))
+                                    """.formatted(getSingleVersioningMarkdown(), bump))
                     );
 
             assertThat(outputStream.toString())
@@ -274,8 +277,122 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                             Please type the changelog entry here (enter empty line to open external editor, \
                             two empty lines after your input to end):
                             """.formatted(bump));
+
+            assertThat(mockedOutputFiles)
+                    .isEmpty();
         }
 
-        //         validateLogRecordInfo("Read 1 lines from %s".formatted(TEMP_FILE)),
+        @Test
+        void externalEditorFails_ThrowsMojoFailureException() throws InterruptedException {
+            Mockito.when(processMock.waitFor())
+                    .thenReturn(1);
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
+                    Scanner.class, (mock, context) -> {
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.hasNextLine()).thenReturn(true, false);
+                            Mockito.when(mock.nextLine()).thenReturn("minor");
+                        } else {
+                            Mockito.when(mock.hasNextLine()).thenReturn( false);
+                        }
+                    }
+            )) {
+                assertThatThrownBy(classUnderTest::execute)
+                        .isInstanceOf(MojoFailureException.class)
+                        .hasMessage("Unable to create a new Markdown file in external editor.");
+            }
+
+            assertThat(testLog.getLogRecords())
+                    .isNotEmpty()
+                    .hasSize(2)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.single:project:1.0.0"),
+                            validateLogRecordDebug("""
+                                    Version bumps YAML:
+                                        org.example.itests.single:project: "MINOR"
+                                    """)
+                    );
+
+            assertThat(outputStream.toString())
+                    .isEqualTo("""
+                            Project org.example.itests.single:project
+                            Select semantic version bump:\s
+                              1: PATCH
+                              2: MINOR
+                              3: MAJOR
+                            Enter semantic version name or number: \
+                            Version bumps: 'org.example.itests.single:project': MINOR
+                            Please type the changelog entry here (enter empty line to open external editor, \
+                            two empty lines after your input to end):
+                            """);
+
+            assertThat(mockedOutputFiles)
+                    .isEmpty();
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = SemanticVersionBump.class, names = {"MAJOR", "MINOR", "PATCH"})
+        void externalEditor_Valid(SemanticVersionBump bump) {
+            classUnderTest.dryRun = false;
+
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
+                    Scanner.class, (mock, context) -> {
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.hasNextLine()).thenReturn(true, false);
+                            Mockito.when(mock.nextLine()).thenReturn(bump.name());
+                        } else {
+                            Mockito.when(mock.hasNextLine()).thenReturn( false);
+                        }
+                    }
+            )) {
+                assertThatNoException()
+                        .isThrownBy(classUnderTest::execute);
+            }
+
+            assertThat(testLog.getLogRecords())
+                    .isNotEmpty()
+                    .hasSize(3)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.single:project:1.0.0"),
+                            validateLogRecordDebug("""
+                                    Version bumps YAML:
+                                        org.example.itests.single:project: "%s"
+                                    """.formatted(bump)),
+                            validateLogRecordInfo("Read 1 lines from %s".formatted(TEMP_FILE))
+                    );
+
+            assertThat(outputStream.toString())
+                    .isEqualTo("""
+                            Project org.example.itests.single:project
+                            Select semantic version bump:\s
+                              1: PATCH
+                              2: MINOR
+                              3: MAJOR
+                            Enter semantic version name or number: \
+                            Version bumps: 'org.example.itests.single:project': %S
+                            Please type the changelog entry here (enter empty line to open external editor, \
+                            two empty lines after your input to end):
+                            """.formatted(bump));
+
+            assertThat(mockedOutputFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .hasEntrySatisfying(
+                            getSingleVersioningMarkdown(),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualTo("""
+                                            ---
+                                            org.example.itests.single:project: "%s"
+                                            
+                                            ---
+                                            
+                                            Testing external
+                                            """.formatted(bump))
+                    );
+        }
+
+        private Path getSingleVersioningMarkdown() {
+            return getResourcesPath("single", ".versioning",
+                    "versioning-%s.md".formatted(Utils.DATE_TIME_FORMATTER.format(DATE_TIME)));
+        }
     }
 }
