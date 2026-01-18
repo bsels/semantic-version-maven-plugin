@@ -2,6 +2,7 @@ package io.github.bsels.semantic.version.models;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
+import java.util.Comparator;
 import java.util.Objects;
 
 /// Represents a Maven artifact consisting of a group ID and an artifact ID.
@@ -14,7 +15,16 @@ import java.util.Objects;
 ///
 /// @param groupId    the group ID of the Maven artifact; must not be null
 /// @param artifactId the artifact ID of the Maven artifact; must not be null
-public record MavenArtifact(String groupId, String artifactId) {
+public record MavenArtifact(String groupId, String artifactId)
+        implements Comparable<MavenArtifact> {
+    /// A comparator used to define the natural ordering of `MavenArtifact` instances.
+    /// This comparator first compares Maven artifacts by their `groupId` and, if they are equal,
+    /// it proceeds to compare them by their `artifactId`.
+    ///
+    /// The comparison ensures a consistent and logical sorting order for `MavenArtifact` objects
+    /// based on their group and artifact identifiers.
+    public static final Comparator<MavenArtifact> COMPARATOR = Comparator.comparing(MavenArtifact::groupId)
+            .thenComparing(MavenArtifact::artifactId);
 
     /// Constructs a new instance of `MavenArtifact` with the specified group ID and artifact ID.
     /// Validates that neither the group ID nor the artifact ID are null.
@@ -34,7 +44,7 @@ public record MavenArtifact(String groupId, String artifactId) {
     /// @param colonSeparatedString the string representing the Maven artifact in the format `<group-id>:<artifact-id>`
     /// @return a new `MavenArtifact` instance constructed using the parsed group ID and artifact ID
     /// @throws IllegalArgumentException if the input string does not conform to the expected format
-    /// @throws NullPointerException if the `colonSeparatedString` parameter is null
+    /// @throws NullPointerException     if the `colonSeparatedString` parameter is null
     @JsonCreator
     public static MavenArtifact of(String colonSeparatedString) {
         String[] parts = Objects.requireNonNull(colonSeparatedString, "`colonSeparatedString` must not be null")
@@ -55,5 +65,16 @@ public record MavenArtifact(String groupId, String artifactId) {
     @Override
     public String toString() {
         return "%s:%s".formatted(groupId, artifactId);
+    }
+
+    /// Compares this MavenArtifact instance with the specified MavenArtifact for order.
+    /// The comparison is based on the string representations of the MavenArtifact instances,
+    /// which are formatted as "groupId:artifactId".
+    ///
+    /// @param other the MavenArtifact to be compared with this instance
+    /// @return a negative integer, zero, or a positive integer as the string representation of this MavenArtifact is less than, equal to, or greater than the string representation of the specified MavenArtifact
+    @Override
+    public int compareTo(MavenArtifact other) {
+        return COMPARATOR.compare(this, other);
     }
 }

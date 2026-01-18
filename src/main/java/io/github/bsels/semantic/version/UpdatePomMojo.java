@@ -50,7 +50,7 @@ import static io.github.bsels.semantic.version.utils.MarkdownUtils.readMarkdown;
 /// - Handles single or multiple Maven projects.
 /// - Provides backup capabilities to safeguard original POM files.
 /// - Offers dry-run functionality to preview changes without modifying files.
-@Mojo(name = "update", requiresDependencyResolution = ResolutionScope.RUNTIME)
+@Mojo(name = "update", aggregator = true, requiresDependencyResolution = ResolutionScope.NONE)
 @Execute(phase = LifecyclePhase.NONE)
 public final class UpdatePomMojo extends BaseMojo {
 

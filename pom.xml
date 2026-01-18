@@ -83,7 +83,7 @@
                                     <version>${maven.plugin.api.version}</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
-                                    <version>&gt;=25.0.0</version>
+                                    <version>&gt;=17.0.0</version>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>
