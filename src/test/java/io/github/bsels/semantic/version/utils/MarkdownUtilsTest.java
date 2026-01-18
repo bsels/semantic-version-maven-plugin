@@ -1,11 +1,14 @@
 package io.github.bsels.semantic.version.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.test.utils.TestLog;
+import io.github.bsels.semantic.version.utils.yaml.front.block.YamlFrontMatterBlock;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.commonmark.node.Document;
 import org.commonmark.node.Heading;
 import org.commonmark.node.Node;
@@ -28,6 +31,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -244,7 +248,7 @@ public class MarkdownUtilsTest {
             try (MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
                 StringWriter writer = new StringWriter();
                 filesMockedStatic.when(() -> Files.exists(CHANGELOG_PATH))
-                                .thenReturn(true);
+                        .thenReturn(true);
                 filesMockedStatic.when(() -> Files.newBufferedWriter(
                                 CHANGELOG_PATH,
                                 StandardCharsets.UTF_8,
@@ -777,6 +781,83 @@ public class MarkdownUtilsTest {
                                             """))
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty())
                     );
+        }
+    }
+
+    @Nested
+    class CreateVersionBumpHeaderTest {
+
+        @Test
+        void logIsNull_ThrowNullPointerException() {
+            assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(null, Map.of()))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`log` must not be null");
+        }
+
+        @Test
+        void bumpsIsNull_ThrowNullPointerException() {
+            assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(new TestLog(TestLog.LogLevel.DEBUG), null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`bumps` must not be null");
+        }
+
+        @Test
+        void nullKey_ThrowMojoExecutionException() {
+            TestLog log = new TestLog(TestLog.LogLevel.DEBUG);
+            Map<MavenArtifact, SemanticVersionBump> bumps = new HashMap<>();
+            bumps.put(null, SemanticVersionBump.PATCH);
+            assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(log, bumps))
+                    .isInstanceOf(MojoExecutionException.class)
+                    .hasMessage("Unable to construct version bump YAML")
+                    .hasRootCauseInstanceOf(JsonMappingException.class)
+                    .hasRootCauseMessage("""
+                            Null key for a Map not allowed in JSON (use a converting NullKeySerializer?) \
+                            (through reference chain: java.util.HashMap["null"])\
+                            """);
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = SemanticVersionBump.class, names = {"MAJOR", "MINOR", "PATCH"})
+        void singleEntry_Valid(SemanticVersionBump bump) throws MojoExecutionException {
+            TestLog log = new TestLog(TestLog.LogLevel.NONE);
+            Map<MavenArtifact, SemanticVersionBump> bumps = Map.of(
+                    new MavenArtifact("group", "artifact"), bump
+            );
+            YamlFrontMatterBlock block = MarkdownUtils.createVersionBumpsHeader(log, bumps);
+            assertThat(block)
+                    .isNotNull()
+                    .hasFieldOrPropertyWithValue("yaml", """
+                            group:artifact: "%s"
+                            """.formatted(bump));
+
+            assertThat(log.getLogRecords())
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .satisfiesExactly(
+                            line -> assertThat(line)
+                                    .returns("""
+                                            Version bumps YAML:
+                                                group:artifact: "%s"
+                                            """.formatted(bump), l -> l.message().orElseThrow())
+                    );
+        }
+
+        @Test
+        void multipleEntries_Valid() throws MojoExecutionException {
+            TestLog log = new TestLog(TestLog.LogLevel.NONE);
+            Map<MavenArtifact, SemanticVersionBump> bumps = Map.of(
+                    new MavenArtifact("group-1", "major"), SemanticVersionBump.MAJOR,
+                    new MavenArtifact("group-2", "minor"), SemanticVersionBump.MINOR,
+                    new MavenArtifact("group-3", "patch"), SemanticVersionBump.PATCH
+            );
+            YamlFrontMatterBlock block = MarkdownUtils.createVersionBumpsHeader(log, bumps);
+            assertThat(block)
+                    .isNotNull()
+                    .extracting(YamlFrontMatterBlock::getYaml)
+                    .asInstanceOf(InstanceOfAssertFactories.STRING)
+                    .contains("group-1:major: \"MAJOR\"")
+                    .contains("group-2:minor: \"MINOR\"")
+                    .contains("group-3:patch: \"PATCH\"");
         }
     }
 }

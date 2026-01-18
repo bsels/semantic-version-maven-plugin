@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.DayOfWeek;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -442,6 +443,30 @@ public class UtilsTest {
 
             assertThat(Set.copyOf(list))
                     .isSameAs(list);
+        }
+    }
+
+    @Nested
+    class ResolveVersioningFileTest {
+
+        @Test
+        void nullProject_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.resolveVersioningFile(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`folder` must not be null");
+        }
+
+        @Test
+        void resolveNewVersioningFile_ValidPath() {
+            Path folder = Path.of("project");
+            LocalDateTime localDateTime = LocalDateTime.of(2023, 1, 1, 12, 0, 8);
+            try (MockedStatic<LocalDateTime> localDateTimeMock = Mockito.mockStatic(LocalDateTime.class)) {
+                localDateTimeMock.when(LocalDateTime::now)
+                        .thenReturn(localDateTime);
+                Path expectedPath = Path.of("project/versioning-20230101120008.md");
+                assertThat(Utils.resolveVersioningFile(folder))
+                        .isEqualTo(expectedPath);
+            }
         }
     }
 }

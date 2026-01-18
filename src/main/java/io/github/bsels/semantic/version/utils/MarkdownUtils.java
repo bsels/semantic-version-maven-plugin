@@ -304,11 +304,12 @@ public final class MarkdownUtils {
     /// @param log   the logger used for logging the YAML representation; must not be null
     /// @param bumps a map where each key is a Maven artifact and the value is its corresponding semantic version bump. Must not be null.
     /// @return a [YamlFrontMatterBlock] containing the YAML representation of the version bump information.
-    /// @throws NullPointerException   if the provided map is null.
+    /// @throws NullPointerException   if the provided map and log is null.
     /// @throws MojoExecutionException if an error occurs while constructing the YAML representation.
     public static YamlFrontMatterBlock createVersionBumpsHeader(
             Log log, Map<MavenArtifact, SemanticVersionBump> bumps
     ) throws NullPointerException, MojoExecutionException {
+        Objects.requireNonNull(log, "`log` must not be null");
         Objects.requireNonNull(bumps, "`bumps` must not be null");
         String yaml;
         try {
