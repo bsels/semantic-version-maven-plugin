@@ -28,7 +28,7 @@ public final class Utils {
     /// Typically appended to filenames to indicate the file is a backup copy.
     public static final String BACKUP_SUFFIX = ".backup";
     /// A [DateTimeFormatter] instance used to format or parse date-time values according to the pattern
-    /// `yyyyMMddHHmmssSSS`.
+    /// `yyyyMMddHHmmss`.
     /// This formatter ensures that date-time values are represented in a compact string format with the following
     /// components:
     /// - Year: 4 digits
@@ -37,10 +37,9 @@ public final class Utils {
     /// - Hour: 2 digits (24-hour clock)
     /// - Minute: 2 digits
     /// - Second: 2 digits
-    /// - Millisecond: 3 digits
     ///
     /// The formatter is thread-safe and can be used in concurrent environments.
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     /// Utility class containing static constants and methods for various common operations.
     /// This class is not designed to be instantiated.
