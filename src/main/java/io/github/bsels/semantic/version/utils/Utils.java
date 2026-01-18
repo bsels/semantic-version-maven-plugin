@@ -39,7 +39,7 @@ public final class Utils {
     /// - Second: 2 digits
     ///
     /// The formatter is thread-safe and can be used in concurrent environments.
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     /// Utility class containing static constants and methods for various common operations.
     /// This class is not designed to be instantiated.
@@ -124,6 +124,26 @@ public final class Utils {
             return Files.createTempFile("versioning-", ".md");
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to create temporary file", e);
+        }
+    }
+
+    /// Creates a directory at the specified path if it does not already exist.
+    ///
+    /// This method ensures that the directory structure for the given path is created,
+    /// including any necessary but nonexistent parent directories.
+    /// If the directory cannot be created due to an I/O error, a [MojoExecutionException] will be thrown.
+    ///
+    /// @param path the path of the directory to create; must not be null
+    /// @throws NullPointerException   if the `path` parameter is null
+    /// @throws MojoExecutionException if an I/O error occurs while attempting to create the directory
+    public static void createDirectoryIfNotExists(Path path) throws NullPointerException, MojoExecutionException {
+        Objects.requireNonNull(path, "`path` must not be null");
+        if (!Files.exists(path)) {
+            try {
+                Files.createDirectories(path);
+            } catch (IOException e) {
+                throw new MojoExecutionException("Failed to create directory", e);
+            }
         }
     }
 

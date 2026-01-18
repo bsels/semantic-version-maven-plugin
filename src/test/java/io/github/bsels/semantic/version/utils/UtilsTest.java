@@ -279,6 +279,64 @@ public class UtilsTest {
     }
 
     @Nested
+    class CreateDirectoryIfNotExistsTest {
+
+        @Test
+        void nullPath_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.createDirectoryIfNotExists(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`path` must not be null");
+        }
+
+        @Test
+        void directoryExists_NoException() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path directory = Path.of("project/directory");
+                files.when(() -> Files.exists(directory))
+                        .thenReturn(true);
+
+                assertThatNoException()
+                        .isThrownBy(() -> Utils.createDirectoryIfNotExists(directory));
+
+                files.verify(() -> Files.createDirectories(directory), Mockito.never());
+            }
+        }
+
+        @Test
+        void directoryDoesNotExist_CreatesSuccessfully() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path directory = Path.of("project/directory");
+                files.when(() -> Files.exists(directory))
+                        .thenReturn(false);
+
+                assertThatNoException()
+                        .isThrownBy(() -> Utils.createDirectoryIfNotExists(directory));
+
+                files.verify(() -> Files.createDirectories(directory), Mockito.times(1));
+            }
+        }
+
+        @Test
+        void creationFails_ThrowsMojoExecutionException() {
+            try (MockedStatic<Files> files = Mockito.mockStatic(Files.class)) {
+                Path directory = Path.of("project/directory");
+                IOException ioException = new IOException("creation failed");
+                files.when(() -> Files.exists(directory))
+                        .thenReturn(false);
+                files.when(() -> Files.createDirectories(directory))
+                        .thenThrow(ioException);
+
+                assertThatThrownBy(() -> Utils.createDirectoryIfNotExists(directory))
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Failed to create directory")
+                        .hasCause(ioException);
+
+                files.verify(() -> Files.createDirectories(directory), Mockito.times(1));
+            }
+        }
+    }
+
+    @Nested
     class AlwaysTrueTest {
 
         @ParameterizedTest

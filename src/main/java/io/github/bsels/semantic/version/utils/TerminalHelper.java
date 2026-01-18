@@ -51,17 +51,17 @@ public final class TerminalHelper {
         System.out.println(prompt);
         Scanner scanner = new Scanner(System.in);
         StringBuilder builder = new StringBuilder();
-        String line = scanner.nextLine();
+        String line = getLineOrEmpty(scanner);
         if (line.isBlank()) {
             return Optional.empty();
         }
         builder.append(line).append("\n");
         boolean lastLineEmpty = line.isBlank();
-        line = scanner.nextLine();
+        line = getLineOrEmpty(scanner);
         while (!line.isBlank() || !lastLineEmpty) {
             builder.append(line).append("\n");
             lastLineEmpty = line.isBlank();
-            line = scanner.nextLine();
+            line = getLineOrEmpty(scanner);
         }
         return Optional.of(builder.toString().stripTrailing());
     }
@@ -124,26 +124,52 @@ public final class TerminalHelper {
             } else {
                 System.out.printf("Enter %s numbers separated by spaces, commas or semicolons: ", promptObject);
             }
+            if (!scanner.hasNextLine()) {
+                selectedChoices = List.of();
+                break;
+            }
             String line = scanner.nextLine();
             if (!line.isBlank()) {
-                List<T> currentSelection = new ArrayList<>(choices.size());
-                for (String choice : MULTI_CHOICE_SEPARATOR.split(line)) {
-                    if (choice.isBlank()) {
-                        continue;
-                    }
-                    Optional<T> item = parseIndexOrEnum(choice, choices);
-                    if (item.isPresent()) {
-                        currentSelection.add(item.get());
-                    } else {
-                        System.out.printf("Invalid %s: %s%n", promptObject, choice);
-                        currentSelection = null;
-                        break;
-                    }
-                }
-                selectedChoices = currentSelection;
+                selectedChoices = getSelection(promptObject, choices, line);
             }
         }
         return selectedChoices;
+    }
+
+    /// Retrieves the next line of input from the provided [Scanner] or returns an empty string if no line is available.
+    ///
+    /// @param scanner the [Scanner] from which to read the input; must not be null
+    /// @return the next line of input as a String if available, or an empty String if no line exists
+    private static String getLineOrEmpty(Scanner scanner) {
+        return scanner.hasNextLine() ? scanner.nextLine() : "";
+    }
+
+    /// Parses a provided input string to determine a selection from a list of available choices.
+    /// The input string may contain multiple tokens separated by a predefined separator,
+    /// with each token being either an index or an enum name.
+    /// Valid selections are added to the result list,
+    /// while invalid tokens cause the method to print an error message and return null.
+    ///
+    /// @param <T>          the type of items in the list of choices
+    /// @param promptObject a string describing the type of objects being selected, used for error messages; must not be null
+    /// @param choices      a list of selectable options; must not be null or empty
+    /// @param line         a string containing the user's input, with tokens separated by the defined separator; must not be null
+    /// @return a list of selected items from the choices, or null if any token is invalid
+    private static <T> List<T> getSelection(String promptObject, List<T> choices, String line) {
+        List<T> currentSelection = new ArrayList<>(choices.size());
+        for (String choice : MULTI_CHOICE_SEPARATOR.split(line)) {
+            if (choice.isBlank()) {
+                continue;
+            }
+            Optional<T> item = parseIndexOrEnum(choice, choices);
+            if (item.isPresent()) {
+                currentSelection.add(item.get());
+            } else {
+                System.out.printf("Invalid %s: %s%n", promptObject, choice);
+                return null;
+            }
+        }
+        return currentSelection;
     }
 
     /// Validates the parameters for choice-related methods to ensure all required inputs are provided and not null.

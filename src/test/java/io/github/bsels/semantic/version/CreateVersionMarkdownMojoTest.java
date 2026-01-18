@@ -1,18 +1,30 @@
 package io.github.bsels.semantic.version;
 
+import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.test.utils.ReadMockedMavenSession;
 import io.github.bsels.semantic.version.test.utils.TestLog;
+import io.github.bsels.semantic.version.utils.Utils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.Mock;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
@@ -20,20 +32,29 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
+@ExtendWith(MockitoExtension.class)
 public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
     private static final LocalDateTime DATE_TIME = LocalDateTime.of(2023, 1, 1, 12, 0, 8);
+    private static final Path TEMP_FILE = Path.of("/tmp", "target", "test-output.md");
+    private final InputStream originalSystemIn = System.in;
+    private final PrintStream originalSystemOut = System.out;
+    @Mock
+    Process processMock;
     private CreateVersionMarkdownMojo classUnderTest;
     private TestLog testLog;
     private Map<Path, StringWriter> mockedOutputFiles;
     private Set<Path> mockedCreatedDirectories;
-
     private MockedStatic<Files> filesMockedStatic;
     private MockedStatic<LocalDateTime> localDateTimeMockedStatic;
+    private MockedConstruction<ProcessBuilder> mockedProcessBuilderConstruction;
+    private ByteArrayOutputStream outputStream;
 
     @BeforeEach
     public void setUp() {
@@ -52,21 +73,49 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                     return new BufferedWriter(mockedOutputFiles.get(path));
                 });
         filesMockedStatic.when(() -> Files.createDirectories(Mockito.any()))
-                .thenAnswer(answer -> mockedCreatedDirectories.add(answer.getArgument(0)));
+                .thenAnswer(answer -> {
+                    Path argument = answer.getArgument(0);
+                    mockedCreatedDirectories.add(argument);
+                    return argument;
+                });
+        filesMockedStatic.when(() -> Files.createTempFile(Mockito.any(), Mockito.any()))
+                .thenReturn(TEMP_FILE);
+        filesMockedStatic.when(() -> Files.exists(TEMP_FILE))
+                .thenReturn(true);
+        filesMockedStatic.when(() -> Files.deleteIfExists(TEMP_FILE))
+                .thenReturn(true);
+        filesMockedStatic.when(() -> Files.lines(TEMP_FILE, StandardCharsets.UTF_8))
+                .thenReturn(Stream.of("Testing external"));
 
         localDateTimeMockedStatic = Mockito.mockStatic(LocalDateTime.class);
         localDateTimeMockedStatic.when(LocalDateTime::now)
                 .thenReturn(DATE_TIME);
+
+        mockedProcessBuilderConstruction = Mockito.mockConstruction(ProcessBuilder.class, (mock, context) -> {
+            Mockito.when(mock.inheritIO()).thenReturn(mock);
+            Mockito.when(mock.start()).thenReturn(processMock);
+        });
+
+        outputStream = new ByteArrayOutputStream();
+        System.setIn(new ByteArrayInputStream(new byte[0]));
+        System.setOut(new PrintStream(outputStream));
     }
 
     @AfterEach
     public void tearDown() {
+        System.setIn(originalSystemIn);
+        System.setOut(originalSystemOut);
         filesMockedStatic.close();
         localDateTimeMockedStatic.close();
+        mockedProcessBuilderConstruction.close();
+    }
+
+    private void setSystemIn(String input) {
+        System.setIn(new ByteArrayInputStream(input.getBytes()));
     }
 
     @Test
-    void noExecutionOnSubProjectIfDisabled() {
+    void noExecutionOnSubProjectIfDisabled_SkipExecution() {
         classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
                 getResourcesPath().resolve("leaves"),
                 Path.of("child-1")
@@ -115,5 +164,118 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                 .isEmpty();
     }
 
+    @Nested
+    class MultiProjectExecutionTest {
 
+        @BeforeEach
+        void setUp() {
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
+                    getResourcesPath("multi"),
+                    Path.of(".")
+            );
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+        }
+
+        @Test
+        void noProjectsSelected_LogWarning() {
+            setSystemIn("");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .isNotEmpty()
+                    .hasSize(3)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.multi:parent:4.0.0-parent"),
+                            validateLogRecordDebug("No projects selected"),
+                            validateLogRecordWarn("No projects selected")
+                    );
+
+            assertThat(outputStream.toString())
+                    .isEqualTo("""
+                            Select projects:
+                              1: org.example.itests.multi:parent
+                              2: org.example.itests.multi:combination
+                              3: org.example.itests.multi:dependency
+                              4: org.example.itests.multi:dependency-management
+                              5: org.example.itests.multi:excluded
+                              6: org.example.itests.multi:plugin
+                              7: org.example.itests.multi:plugin-management
+                            Enter project numbers separated by spaces, commas or semicolons: \
+                            """);
+        }
+
+        // TODO
+    }
+
+    @Nested
+    class SingleProjectExecutionTest {
+
+        @BeforeEach
+        void setUp() {
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
+                    getResourcesPath("single"),
+                    Path.of(".")
+            );
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = SemanticVersionBump.class, names = {"MAJOR", "MINOR", "PATCH"})
+        void dryRunInlineEditor_Valid(SemanticVersionBump bump) {
+            classUnderTest.dryRun = true;
+
+            try (MockedConstruction<Scanner> scannerMockedConstruction = Mockito.mockConstruction(
+                    Scanner.class, (mock, context) -> {
+                        Mockito.when(mock.hasNextLine()).thenReturn(true, false);
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.nextLine()).thenReturn(bump.name());
+                        } else {
+                            Mockito.when(mock.nextLine()).thenReturn("Testing");
+                        }
+                    }
+            )) {
+                assertThatNoException()
+                        .isThrownBy(classUnderTest::execute);
+            }
+
+
+            assertThat(testLog.getLogRecords())
+                    .isNotEmpty()
+                    .hasSize(3)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.single:project:1.0.0"),
+                            validateLogRecordDebug("""
+                                    Version bumps YAML:
+                                        org.example.itests.single:project: "%s"
+                                    """.formatted(bump)),
+                            validateLogRecordInfo("""
+                                    Dry-run: new markdown file at %s:
+                                    ---
+                                    org.example.itests.single:project: "%s"
+                                    
+                                    ---
+                                    
+                                    Testing
+                                    """.formatted(getResourcesPath("single", ".versioning",
+                                    "versioning-%s.md".formatted(Utils.DATE_TIME_FORMATTER.format(DATE_TIME))), bump))
+                    );
+
+            assertThat(outputStream.toString())
+                    .isEqualTo("""
+                            Project org.example.itests.single:project
+                            Select semantic version bump:\s
+                              1: PATCH
+                              2: MINOR
+                              3: MAJOR
+                            Enter semantic version name or number: \
+                            Version bumps: 'org.example.itests.single:project': %S
+                            Please type the changelog entry here (enter empty line to open external editor, \
+                            two empty lines after your input to end):
+                            """.formatted(bump));
+        }
+
+        //         validateLogRecordInfo("Read 1 lines from %s".formatted(TEMP_FILE)),
+    }
 }

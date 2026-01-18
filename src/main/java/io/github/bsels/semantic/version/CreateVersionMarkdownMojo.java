@@ -16,8 +16,6 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.commonmark.node.Node;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
@@ -90,7 +88,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
             return;
         }
         Map<MavenArtifact, SemanticVersionBump> selectedProjects = determineVersionBumps(projects);
-        if (!selectedProjects.isEmpty()) {
+        if (selectedProjects.isEmpty()) {
             log.warn("No projects selected");
             return;
         }
@@ -100,13 +98,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
         inputMarkdown.prependChild(versionBumpHeader);
 
         Path versioningFolder = getVersioningFolder();
-        if (!Files.exists(versioningFolder)) {
-            try {
-                Files.createDirectories(versioningFolder);
-            } catch (IOException e) {
-                throw new MojoExecutionException("Unable to create versioning folder", e);
-            }
-        }
+        Utils.createDirectoryIfNotExists(versioningFolder);
         Path versioningFile = Utils.resolveVersioningFile(versioningFolder);
         writeMarkdownFile(inputMarkdown, versioningFile);
     }
@@ -155,7 +147,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
         } else {
             List<MavenArtifact> projectSelections = TerminalHelper.multiChoice("Select projects:", "project", projects);
             if (projectSelections.isEmpty()) {
-                getLog().warn("No projects selected");
+                getLog().debug("No projects selected");
                 return Map.of();
             }
             System.out.printf("Selected projects: %s%n", projectSelections.stream().map(MavenArtifact::toString).collect(Collectors.joining(", ")));

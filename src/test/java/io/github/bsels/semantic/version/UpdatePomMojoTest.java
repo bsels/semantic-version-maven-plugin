@@ -94,7 +94,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
     }
 
     @Test
-    void noExecutionOnSubProjectIfDisabled() {
+    void noExecutionOnSubProjectIfDisabled_SkipExecution() {
         classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
                 getResourcesPath().resolve("leaves"),
                 Path.of("child-1")
