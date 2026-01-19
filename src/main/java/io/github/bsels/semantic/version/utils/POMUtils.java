@@ -244,7 +244,8 @@ public final class POMUtils {
         if (backupOld) {
             Utils.backupFile(pomFile);
         }
-        try (Writer writer = Files.newBufferedWriter(pomFile, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+        try (Writer writer = Files.newBufferedWriter(pomFile, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
             writePom(document, writer);
         } catch (IOException e) {
             throw new MojoExecutionException("Unable to write to %s".formatted(pomFile), e);

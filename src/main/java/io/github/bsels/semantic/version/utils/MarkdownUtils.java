@@ -244,7 +244,8 @@ public final class MarkdownUtils {
         if (backupOld) {
             Utils.backupFile(markdownFile);
         }
-        try (Writer writer = Files.newBufferedWriter(markdownFile, StandardCharsets.UTF_8, StandardOpenOption.CREATE)) {
+        try (Writer writer = Files.newBufferedWriter(markdownFile, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
             writeMarkdown(writer, document);
         } catch (IOException e) {
             throw new MojoExecutionException("Unable to write %s".formatted(markdownFile), e);

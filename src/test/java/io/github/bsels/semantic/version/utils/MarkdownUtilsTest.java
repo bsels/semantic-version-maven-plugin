@@ -217,7 +217,9 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.when(() -> Files.newBufferedWriter(
                                 CHANGELOG_PATH,
                                 StandardCharsets.UTF_8,
-                                StandardOpenOption.CREATE
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.WRITE,
+                                StandardOpenOption.TRUNCATE_EXISTING
                         ))
                         .thenThrow(new IOException("Failed to create writer"));
 
@@ -237,7 +239,9 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.verify(() -> Files.newBufferedWriter(
                         CHANGELOG_PATH,
                         StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.WRITE,
+                        StandardOpenOption.TRUNCATE_EXISTING
                 ), Mockito.times(1));
             }
         }
@@ -252,7 +256,9 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.when(() -> Files.newBufferedWriter(
                                 CHANGELOG_PATH,
                                 StandardCharsets.UTF_8,
-                                StandardOpenOption.CREATE
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.WRITE,
+                                StandardOpenOption.TRUNCATE_EXISTING
                         ))
                         .thenReturn(new BufferedWriter(writer));
 
@@ -274,7 +280,9 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.verify(() -> Files.newBufferedWriter(
                         CHANGELOG_PATH,
                         StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.WRITE,
+                        StandardOpenOption.TRUNCATE_EXISTING
                 ), Mockito.times(1));
             }
         }

@@ -702,9 +702,13 @@ public class POMUtilsTest {
                 try (MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
                     filesMockedStatic.when(() -> Files.exists(POM_FILE))
                             .thenReturn(backup);
-                    filesMockedStatic.when(() -> Files.newBufferedWriter(POM_FILE, StandardCharsets.UTF_8,
-                                    StandardOpenOption.CREATE, StandardOpenOption.WRITE))
-                            .thenThrow(new IOException("Unable to open writer"));
+                    filesMockedStatic.when(() -> Files.newBufferedWriter(
+                            POM_FILE,
+                            StandardCharsets.UTF_8,
+                            StandardOpenOption.CREATE,
+                            StandardOpenOption.WRITE,
+                            StandardOpenOption.TRUNCATE_EXISTING
+                    )).thenThrow(new IOException("Unable to open writer"));
 
                     assertThatThrownBy(() -> POMUtils.writePom(pom, POM_FILE, backup))
                             .isInstanceOf(MojoExecutionException.class)
@@ -732,9 +736,13 @@ public class POMUtilsTest {
                     StringWriter writer = new StringWriter();
                     BufferedWriter bufferedWriter = new BufferedWriter(writer);
 
-                    filesMockedStatic.when(() -> Files.newBufferedWriter(POM_FILE, StandardCharsets.UTF_8,
-                                    StandardOpenOption.CREATE, StandardOpenOption.WRITE))
-                            .thenReturn(bufferedWriter);
+                    filesMockedStatic.when(() -> Files.newBufferedWriter(
+                            POM_FILE,
+                            StandardCharsets.UTF_8,
+                            StandardOpenOption.CREATE,
+                            StandardOpenOption.WRITE,
+                            StandardOpenOption.TRUNCATE_EXISTING
+                    )).thenReturn(bufferedWriter);
 
                     assertThatNoException()
                             .isThrownBy(() -> POMUtils.writePom(pom, POM_FILE, backup));
