@@ -9,7 +9,11 @@
     <version>0.0.1</version>
     <packaging>maven-plugin</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
-    <description>TODO</description>
+    <description>
+        A Maven plugin that automates semantic versioning with markdown‑based changelog management.
+        Provides two standalone goals: create generates interactive version spec files; update applies those specs,
+        bumps project versions, and merges CHANGELOG entries.
+    </description>
     <url>https://github.com/bsels/semantic-version-maven-plugin</url>
 
     <licenses>
