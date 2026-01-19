@@ -6,6 +6,7 @@ import io.github.bsels.semantic.version.test.utils.ReadMockedMavenSession;
 import io.github.bsels.semantic.version.test.utils.TestLog;
 import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.plugin.MojoFailureException;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -33,6 +34,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -211,7 +213,161 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
         }
 
-        // TODO
+        @ParameterizedTest
+        @EnumSource(value = SemanticVersionBump.class, names = {"MAJOR", "MINOR", "PATCH"})
+        void selectSingleProject_Valid(SemanticVersionBump bump) {
+            classUnderTest.dryRun = false;
+
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
+                    Scanner.class, (mock, context) -> {
+                        Mockito.when(mock.hasNextLine()).thenReturn(true, false);
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.nextLine()).thenReturn("1");
+                        } else if (context.getCount() == 2) {
+                            Mockito.when(mock.nextLine()).thenReturn(bump.name().toLowerCase());
+                        } else {
+                            Mockito.when(mock.nextLine()).thenReturn("Testing");
+                        }
+                    }
+            )) {
+                assertThatNoException()
+                        .isThrownBy(classUnderTest::execute);
+            }
+
+            assertThat(testLog.getLogRecords())
+                    .isNotEmpty()
+                    .hasSize(2)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.multi:parent:4.0.0-parent"),
+                            validateLogRecordDebug("""
+                                    Version bumps YAML:
+                                        org.example.itests.multi:parent: "%s"
+                                    """.formatted(bump))
+                    );
+
+            assertThat(outputStream.toString())
+                    .isEqualTo("""
+                            Select projects:
+                              1: org.example.itests.multi:parent
+                              2: org.example.itests.multi:combination
+                              3: org.example.itests.multi:dependency
+                              4: org.example.itests.multi:dependency-management
+                              5: org.example.itests.multi:excluded
+                              6: org.example.itests.multi:plugin
+                              7: org.example.itests.multi:plugin-management
+                            Enter project numbers separated by spaces, commas or semicolons: Selected projects: org.example.itests.multi:parent
+                            Select semantic version bump for org.example.itests.multi:parent:\s
+                              1: PATCH
+                              2: MINOR
+                              3: MAJOR
+                            Enter semantic version name or number: Version bumps: 'org.example.itests.multi:parent': %s
+                            Please type the changelog entry here (enter empty line to open external editor, two empty lines after your input to end):
+                            """.formatted(bump));
+
+            assertThat(mockedOutputFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .hasEntrySatisfying(
+                            getVersioningMarkdown(),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualTo("""
+                                            ---
+                                            org.example.itests.multi:parent: "%s"
+                                            
+                                            ---
+                                            
+                                            Testing
+                                            """.formatted(bump))
+                    );
+        }
+
+        @Test
+        void selectMultipleProjects_Valid() {
+            classUnderTest.dryRun = false;
+
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
+                    Scanner.class, (mock, context) -> {
+                        Mockito.when(mock.hasNextLine()).thenReturn(true, false);
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.nextLine()).thenReturn("1,3,6");
+                        } else if (context.getCount() >= 2 && context.getCount() <= 4) {
+                            Mockito.when(mock.nextLine()).thenReturn(
+                                    SemanticVersionBump.values()[context.getCount() - 1].name().toLowerCase()
+                            );
+                        } else {
+                            Mockito.when(mock.nextLine()).thenReturn("Testing");
+                        }
+                    }
+            )) {
+                assertThatNoException()
+                        .isThrownBy(classUnderTest::execute);
+            }
+
+            assertThat(testLog.getLogRecords())
+                    .isNotEmpty()
+                    .hasSize(2)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.multi:parent:4.0.0-parent"),
+                            record -> assertThat(record)
+                                    .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.DEBUG)
+                                    .hasFieldOrPropertyWithValue("throwable", Optional.empty())
+                                    .extracting(TestLog.LogRecord::message)
+                                    .asInstanceOf(InstanceOfAssertFactories.optional(String.class))
+                                    .isPresent()
+                                    .get()
+                                    .asInstanceOf(InstanceOfAssertFactories.STRING)
+                                    .startsWith("Version bumps YAML:\n")
+                                    .contains("    org.example.itests.multi:parent: \"PATCH\"\n")
+                                    .contains("    org.example.itests.multi:dependency: \"MINOR\"\n")
+                                    .contains("    org.example.itests.multi:plugin: \"MAJOR\"\n")
+                    );
+
+            assertThat(outputStream.toString())
+                    .isEqualTo("""
+                            Select projects:
+                              1: org.example.itests.multi:parent
+                              2: org.example.itests.multi:combination
+                              3: org.example.itests.multi:dependency
+                              4: org.example.itests.multi:dependency-management
+                              5: org.example.itests.multi:excluded
+                              6: org.example.itests.multi:plugin
+                              7: org.example.itests.multi:plugin-management
+                            Enter project numbers separated by spaces, commas or semicolons: Selected projects: org.example.itests.multi:parent, org.example.itests.multi:dependency, org.example.itests.multi:plugin
+                            Select semantic version bump for org.example.itests.multi:parent:\s
+                              1: PATCH
+                              2: MINOR
+                              3: MAJOR
+                            Enter semantic version name or number: Select semantic version bump for org.example.itests.multi:dependency:\s
+                              1: PATCH
+                              2: MINOR
+                              3: MAJOR
+                            Enter semantic version name or number: Select semantic version bump for org.example.itests.multi:plugin:\s
+                              1: PATCH
+                              2: MINOR
+                              3: MAJOR
+                            Enter semantic version name or number: Version bumps: 'org.example.itests.multi:dependency': MINOR, 'org.example.itests.multi:parent': PATCH, 'org.example.itests.multi:plugin': MAJOR
+                            Please type the changelog entry here (enter empty line to open external editor, two empty lines after your input to end):
+                            """);
+
+            assertThat(mockedOutputFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .hasEntrySatisfying(
+                            getVersioningMarkdown(),
+                            writer -> assertThat(writer.toString())
+                                    .startsWith("---\n")
+                                    .contains("org.example.itests.multi:parent: \"PATCH\"\n")
+                                    .contains("org.example.itests.multi:dependency: \"MINOR\"\n")
+                                    .contains("org.example.itests.multi:plugin: \"MAJOR\"\n")
+                                    .contains("---\n")
+                                    .contains("Testing")
+                    );
+        }
+
+        private Path getVersioningMarkdown() {
+            return getResourcesPath("multi", ".versioning",
+                    "versioning-%s.md".formatted(Utils.DATE_TIME_FORMATTER.format(DATE_TIME)));
+        }
     }
 
     @Nested
@@ -292,7 +448,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                             Mockito.when(mock.hasNextLine()).thenReturn(true, false);
                             Mockito.when(mock.nextLine()).thenReturn("minor");
                         } else {
-                            Mockito.when(mock.hasNextLine()).thenReturn( false);
+                            Mockito.when(mock.hasNextLine()).thenReturn(false);
                         }
                     }
             )) {
@@ -340,7 +496,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                             Mockito.when(mock.hasNextLine()).thenReturn(true, false);
                             Mockito.when(mock.nextLine()).thenReturn(bump.name());
                         } else {
-                            Mockito.when(mock.hasNextLine()).thenReturn( false);
+                            Mockito.when(mock.hasNextLine()).thenReturn(false);
                         }
                     }
             )) {
