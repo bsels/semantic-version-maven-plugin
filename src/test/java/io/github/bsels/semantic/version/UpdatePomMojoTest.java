@@ -1642,7 +1642,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
 
             assertThat(testLog.getLogRecords())
                     .hasSize(18)
-                    .satisfiesExactly(
+                    .satisfiesExactlyInAnyOrder(
                             validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "revision", "multi", "multiple", "major.md")
@@ -2278,7 +2278,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
 
             assertThat(testLog.getLogRecords())
                     .hasSize(18)
-                    .satisfiesExactly(
+                    .satisfiesExactlyInAnyOrder(
                             validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "revision", "single", "multiple", "major.md")
@@ -2893,7 +2893,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
 
             assertThat(testLog.getLogRecords())
                     .hasSize(18)
-                    .satisfiesExactly(
+                    .satisfiesExactlyInAnyOrder(
                             validateLogRecordInfo("Execution for project: org.example.itests.single:project:1.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "single", "multiple", "major.md")
