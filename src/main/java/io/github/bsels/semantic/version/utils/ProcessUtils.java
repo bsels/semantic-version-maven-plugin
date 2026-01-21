@@ -71,7 +71,7 @@ public final class ProcessUtils {
             throw new IllegalArgumentException("`files` must not be empty");
         }
         List<String> command = Stream.concat(
-                Stream.of("git", "add ."),
+                Stream.of("git", "add"),
                 files.stream().map(Path::toString)
         ).toList();
         executeGitCommand(command, "Unable to add files to Git stash");

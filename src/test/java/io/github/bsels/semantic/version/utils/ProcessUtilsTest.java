@@ -14,8 +14,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(MockitoExtension.class)
@@ -353,6 +357,245 @@ public class ProcessUtilsTest {
                     .first()
                     .asInstanceOf(InstanceOfAssertFactories.array(String[].class))
                     .containsExactly(editor, file.toString());
+        }
+    }
+
+    @Nested
+    class GitCommitTest {
+
+        @Test
+        void nullMessage_ThrowNullPointerException() {
+            assertThatThrownBy(() -> ProcessUtils.gitCommit(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`message` must not be null");
+        }
+
+        @Test
+        void processCreationFailed_ThrowsMojoExecutionException() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start())
+                                .thenThrow(IOException.class);
+                    }
+            )) {
+                assertThatThrownBy(() -> ProcessUtils.gitCommit("Test commit"))
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to commit changes")
+                        .hasRootCauseInstanceOf(IOException.class);
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "commit", "-m", "Test commit");
+        }
+
+        @Test
+        void processInterrupted_ThrowsMojoExecutionException() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                        Mockito.when(process.waitFor())
+                                .thenThrow(InterruptedException.class);
+                    }
+            )) {
+                assertThatThrownBy(() -> ProcessUtils.gitCommit("Test commit 2"))
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to commit changes")
+                        .hasRootCauseInstanceOf(InterruptedException.class);
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "commit", "-m", "Test commit 2");
+        }
+
+        @Test
+        void processNonZeroExit_ThrowsMojoExecutionException() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                        Mockito.when(process.waitFor())
+                                .thenReturn(1);
+                    }
+            )) {
+                assertThatThrownBy(() -> ProcessUtils.gitCommit("Test commit 3"))
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to commit changes");
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "commit", "-m", "Test commit 3");
+        }
+
+        @Test
+        void processZeroExit_Success() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                        Mockito.when(process.waitFor())
+                                .thenReturn(0);
+                    }
+            )) {
+                assertThatNoException()
+                        .isThrownBy(() -> ProcessUtils.gitCommit("Test commit 4"));
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "commit", "-m", "Test commit 4");
+        }
+    }
+
+    @Nested
+    class GitStashFilesTest {
+        private static final Path TEST_POM = Path.of("pom.xml");
+        private static final Path TEST_CHANGELOG = Path.of("CHANGELOG.md");
+
+        @Test
+        void nullFiles_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> ProcessUtils.gitStashFiles(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`files` must not be null");
+        }
+
+        @Test
+        void emptyFiles_ThrowsIllegalArgumentException() {
+            assertThatThrownBy(() -> ProcessUtils.gitStashFiles(List.of()))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("`files` must not be empty");
+        }
+
+        @Test
+        void nullFileInFiles_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> ProcessUtils.gitStashFiles(Collections.singletonList(null)))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`file` in `files` must not be null");
+        }
+
+        @Test
+        void processCreationFailed_ThrowsMojoExecutionException() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start())
+                                .thenThrow(IOException.class);
+                    }
+            )) {
+                assertThatThrownBy(() -> ProcessUtils.gitStashFiles(List.of(TEST_POM)))
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to add files to Git stash")
+                        .hasRootCauseInstanceOf(IOException.class);
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "add", TEST_POM.toString());
+        }
+
+        @Test
+        void processInterrupted_ThrowsMojoExecutionException() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+
+                        Mockito.when(process.waitFor())
+                                .thenThrow(InterruptedException.class);
+                    }
+            )) {
+                assertThatThrownBy(() -> ProcessUtils.gitStashFiles(List.of(TEST_CHANGELOG)))
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to add files to Git stash")
+                        .hasRootCauseInstanceOf(InterruptedException.class);
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "add", TEST_CHANGELOG.toString());
+        }
+
+        @Test
+        void processNonZeroExit_ThrowsMojoExecutionException() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                        Mockito.when(process.waitFor())
+                                .thenReturn(1);
+                    }
+            )) {
+                assertThatThrownBy(() -> ProcessUtils.gitStashFiles(List.of(TEST_POM, TEST_CHANGELOG)))
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to add files to Git stash");
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "add", TEST_POM.toString(), TEST_CHANGELOG.toString());
+        }
+
+        @Test
+        void processZeroExit_Success() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                        Mockito.when(process.waitFor())
+                                .thenReturn(0);
+                    }
+            )) {
+                assertThatNoException()
+                        .isThrownBy(() -> ProcessUtils.gitStashFiles(List.of(TEST_CHANGELOG, TEST_POM)));
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "add", TEST_CHANGELOG.toString(), TEST_POM.toString());
         }
     }
 }
