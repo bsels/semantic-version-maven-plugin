@@ -73,6 +73,22 @@ public final class UpdatePomMojo extends BaseMojo {
     @Parameter(property = "versioning.bump", required = true, defaultValue = "FILE_BASED")
     VersionBump versionBump = VersionBump.FILE_BASED;
 
+    /// Represents the commit message template used during version updates.
+    /// This variable is essential for customizing the commit message applied when updating project versions.
+    ///
+    /// The placeholder `"%d"` is used to dynamically insert the number of project versions updated into the message.
+    ///
+    /// Attributes:
+    /// - property: Specifies the configuration property key to override this value.
+    /// - required: Signifies that this parameter is mandatory.
+    /// - defaultValue: If not explicitly specified, defaults to `"Updated %d project version(s) [skip ci]"`.
+    @Parameter(
+            property = "versioning.commit.message.update",
+            required = true,
+            defaultValue = "Updated %d project version(s) [skip ci]"
+    )
+    String commitMessage = "Updated %d project version(s) [skip ci]";
+
     /// Default constructor for the UpdatePomMojo class.
     ///
     /// Initializes an instance of the UpdatePomMojo class by invoking the superclass constructor.
@@ -160,6 +176,7 @@ public final class UpdatePomMojo extends BaseMojo {
 
             writeUpdatedPom(document, pom);
             updateMarkdownFile(markdownMapping, artifact, pom, newVersion);
+            commit(commitMessage.formatted(1));
         }
         return version.isPresent();
     }
@@ -204,6 +221,7 @@ public final class UpdatePomMojo extends BaseMojo {
         );
 
         writeUpdatedProjects(result.updatedArtifacts(), documents);
+        commit(commitMessage.formatted(result.updatedArtifacts().size()));
         return !result.updatedArtifacts().isEmpty();
     }
 
@@ -429,6 +447,7 @@ public final class UpdatePomMojo extends BaseMojo {
         } else {
             POMUtils.writePom(document, pom, backupFiles);
         }
+        stashFiles(List.of(pom));
     }
 
     /// Updates the Markdown file by reading the current changelog, merging version-specific markdown changes,

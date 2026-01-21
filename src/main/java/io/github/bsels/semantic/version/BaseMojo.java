@@ -7,6 +7,7 @@ import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
+import io.github.bsels.semantic.version.utils.ProcessUtils;
 import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
@@ -344,6 +345,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
         } else {
             MarkdownUtils.writeMarkdownFile(markdownFile, markdownNode, backupFiles);
         }
+        stashFiles(List.of(markdownFile));
     }
 
     /// Simulates writing to a file by using a [StringWriter].
@@ -362,6 +364,29 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
             getLog().info(logLine.formatted(file, writer));
         } catch (IOException e) {
             throw new MojoExecutionException("Unable to open output stream for writing", e);
+        }
+    }
+
+    /// Stashes the provided list of file paths using Git if stashing is enabled and not in dry-run mode.
+    ///
+    /// @param files the list of file paths to be stashed
+    /// @throws MojoExecutionException if an error occurs during the stashing process
+    protected void stashFiles(List<Path> files) throws MojoExecutionException {
+        if (git.isStash() && !dryRun) {
+            ProcessUtils.gitStashFiles(files);
+        }
+    }
+
+    /// Commits changes to a Git repository if specific conditions are met.
+    /// The commit operation will only be performed when:
+    /// - Git commit mode is enabled ([Git#isCommit] returns true)
+    /// - Dry-run mode is disabled (dryRun is false)
+    ///
+    /// @param message The commit message to use for the commit operation.
+    /// @throws MojoExecutionException If the commit operation fails.
+    protected void commit(String message) throws MojoExecutionException {
+        if (git.isCommit() && !dryRun) {
+            ProcessUtils.gitCommit(message);
         }
     }
 
