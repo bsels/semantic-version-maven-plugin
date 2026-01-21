@@ -4,6 +4,7 @@ import io.github.bsels.semantic.version.models.MarkdownMapping;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
+import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.Utils;
@@ -122,6 +123,16 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     /// and operate on files related to versioning functionality.
     @Parameter(property = "versioning.directory", required = true, defaultValue = ".versioning")
     protected Path versionDirectory = Path.of(".versioning");
+
+    /// Represents the Git version control system configuration for the Maven plugin.
+    /// Used to manage versioning-related operations specific to Git.
+    ///
+    /// By default, the value is set to [Git#NO_GIT],
+    /// indicating that no Git-specific actions will be performed unless explicitly configured.
+    ///
+    /// This field can be overridden by specifying the Maven property `versioning.git`.
+    @Parameter(property = "versioning.git", defaultValue = "NO_GIT")
+    protected Git git = Git.NO_GIT;
 
     /// Indicates whether the original POM file and CHANGELOG file should be backed up before modifying its content.
     ///

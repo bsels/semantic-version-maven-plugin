@@ -4,9 +4,11 @@ import org.apache.maven.plugin.MojoExecutionException;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /// Utility class providing methods for handling processes and editors.
 /// This class is not intended to be instantiated.
@@ -51,6 +53,64 @@ public final class ProcessUtils {
                 .map(String::strip)
                 .filter(Predicate.not(String::isBlank))
                 .orElseGet(ProcessUtils::fallbackOsEditor);
+    }
+
+    /// Stages the specified files for a Git stash operation.
+    /// This method ensures the given list of files is non-null, non-empty, and contains no null elements.
+    /// It executes a Git command to add the provided files to staging.
+    ///
+    /// @param files the list of file paths to be stashed; must not be null, empty, or contain null elements
+    /// @throws NullPointerException     if the `files` list or any element within the list is null
+    /// @throws IllegalArgumentException if the `files` list is empty
+    /// @throws MojoExecutionException   if the Git command execution fails
+    public static void gitStashFiles(List<Path> files)
+            throws IllegalArgumentException, NullPointerException, MojoExecutionException {
+        Objects.requireNonNull(files, "`files` must not be null");
+        files.forEach(file -> Objects.requireNonNull(file, "`file` in `files` must not be null"));
+        if (files.isEmpty()) {
+            throw new IllegalArgumentException("`files` must not be empty");
+        }
+        List<String> command = Stream.concat(
+                Stream.of("git", "add ."),
+                files.stream().map(Path::toString)
+        ).toList();
+        executeGitCommand(command, "Unable to add files to Git stash");
+    }
+
+    /// Commits staged changes in a Git repository with the given commit message.
+    /// This method constructs a Git commit command using the provided message and executes it as a system process.
+    ///
+    /// @param message the commit message to be used for the Git commit; must not be null
+    /// @throws NullPointerException   if the `message` is null
+    /// @throws MojoExecutionException if the Git command execution fails
+    public static void gitCommit(String message) throws NullPointerException, MojoExecutionException {
+        Objects.requireNonNull(message, "`message` must not be null");
+        executeGitCommand(
+                List.of("git", "commit", "-m", message),
+                "Unable to commit changes"
+        );
+    }
+
+    /// Executes the specified Git command as a system process and monitors its exit status.
+    /// This method blocks until the process completes
+    /// and throws an exception if the process exits with a non-zero status code.
+    ///
+    /// @param command            the list of strings representing the Git command and its arguments; must not be null
+    /// @param processExitNonZero the error message to throw if the process exits with a non-zero status code; must not be null
+    /// @throws MojoExecutionException if an I/O error, process interruption, or non-zero exit status occurs
+    private static void executeGitCommand(List<String> command, String processExitNonZero)
+            throws MojoExecutionException {
+        try {
+            Process process = new ProcessBuilder()
+                    .command(command)
+                    .inheritIO()
+                    .start();
+            if (process.waitFor() != 0) {
+                throw new MojoExecutionException(processExitNonZero);
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new MojoExecutionException(processExitNonZero, e);
+        }
     }
 
     /// Determines the fallback text editor based on the operating system.
