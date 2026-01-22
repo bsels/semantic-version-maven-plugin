@@ -1,6 +1,7 @@
 package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.test.utils.ReadMockedMavenSession;
 import io.github.bsels.semantic.version.test.utils.TestLog;
@@ -31,8 +32,10 @@ import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Scanner;
@@ -55,6 +58,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
     private TestLog testLog;
     private Map<Path, StringWriter> mockedOutputFiles;
     private Set<Path> mockedCreatedDirectories;
+    private List<List<String>> mockedExecutedProcesses;
     private MockedStatic<Files> filesMockedStatic;
     private MockedStatic<LocalDateTime> localDateTimeMockedStatic;
     private MockedConstruction<ProcessBuilder> mockedProcessBuilderConstruction;
@@ -68,6 +72,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
 
         mockedOutputFiles = new HashMap<>();
         mockedCreatedDirectories = new HashSet<>();
+        mockedExecutedProcesses = new ArrayList<>();
 
         filesMockedStatic = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS);
         filesMockedStatic.when(() -> Files.newBufferedWriter(Mockito.any(), Mockito.any(), Mockito.any(OpenOption[].class)))
@@ -96,6 +101,17 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                 .thenReturn(DATE_TIME);
 
         mockedProcessBuilderConstruction = Mockito.mockConstruction(ProcessBuilder.class, (mock, context) -> {
+            if (!context.arguments().isEmpty()) {
+                List<String> command = List.of((String[]) context.arguments().get(0));
+                if (!command.isEmpty()) {
+                    mockedExecutedProcesses.add(command);
+                }
+            }
+            Mockito.when(mock.command(Mockito.anyList()))
+                    .thenAnswer(invocation -> {
+                        mockedExecutedProcesses.add(invocation.getArgument(0));
+                        return mock;
+                    });
             Mockito.when(mock.inheritIO()).thenReturn(mock);
             Mockito.when(mock.start()).thenReturn(processMock);
         });
@@ -141,6 +157,8 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                 ));
 
         assertThat(mockedOutputFiles)
+                .isEmpty();
+        assertThat(mockedExecutedProcesses)
                 .isEmpty();
     }
 
@@ -211,6 +229,8 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
 
             assertThat(mockedOutputFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -279,11 +299,15 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                                             Testing
                                             """.formatted(bump))
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
-        @Test
-        void selectMultipleProjects_Valid() {
+        @ParameterizedTest
+        @EnumSource(value = Git.class)
+        void selectMultipleProjects_Valid(Git gitMode) {
             classUnderTest.dryRun = false;
+            classUnderTest.git = gitMode;
 
             try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
                     Scanner.class, (mock, context) -> {
@@ -362,6 +386,22 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                                     .contains("---\n")
                                     .contains("Testing")
                     );
+
+            if (Git.NO_GIT == gitMode) {
+                assertThat(mockedExecutedProcesses)
+                        .isEmpty();
+            } else if (Git.STASH == gitMode) {
+                assertThat(mockedExecutedProcesses)
+                        .hasSize(1)
+                        .containsExactly(List.of("git", "add", getVersioningMarkdown().toString()));
+            } else {
+                assertThat(mockedExecutedProcesses)
+                        .hasSize(2)
+                        .containsExactly(
+                                List.of("git", "add", getVersioningMarkdown().toString()),
+                                List.of("git", "commit", "-m", "Created version Markdown file for 3 project(s)")
+                        );
+            }
         }
 
         private Path getVersioningMarkdown() {
@@ -436,6 +476,8 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
 
             assertThat(mockedOutputFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -483,6 +525,11 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
 
             assertThat(mockedOutputFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .hasSize(1)
+                    .containsExactly(
+                            List.of("vi", TEMP_FILE.toString())
+                    );
         }
 
         @ParameterizedTest
@@ -544,6 +591,48 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                                             Testing external
                                             """.formatted(bump))
                     );
+            assertThat(mockedExecutedProcesses)
+                    .hasSize(1)
+                    .containsExactly(
+                            List.of("vi", TEMP_FILE.toString())
+                    );
+        }
+
+        @ParameterizedTest
+        @EnumSource(Git.class)
+        void inlineEditorGitIntegration_Valid(Git gitMode) {
+            classUnderTest.dryRun = false;
+            classUnderTest.git = gitMode;
+
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
+                    Scanner.class, (mock, context) -> {
+                        Mockito.when(mock.hasNextLine()).thenReturn(true, false);
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.nextLine()).thenReturn(SemanticVersionBump.MAJOR.name());
+                        } else {
+                            Mockito.when(mock.nextLine()).thenReturn("Testing");
+                        }
+                    }
+            )) {
+                assertThatNoException()
+                        .isThrownBy(classUnderTest::execute);
+            }
+
+            if (Git.NO_GIT == gitMode) {
+                assertThat(mockedExecutedProcesses)
+                        .isEmpty();
+            } else if (Git.STASH == gitMode) {
+                assertThat(mockedExecutedProcesses)
+                        .hasSize(1)
+                        .containsExactly(List.of("git", "add", getSingleVersioningMarkdown().toString()));
+            } else {
+                assertThat(mockedExecutedProcesses)
+                        .hasSize(2)
+                        .containsExactly(
+                                List.of("git", "add", getSingleVersioningMarkdown().toString()),
+                                List.of("git", "commit", "-m", "Created version Markdown file for 1 project(s)")
+                        );
+            }
         }
 
         private Path getSingleVersioningMarkdown() {

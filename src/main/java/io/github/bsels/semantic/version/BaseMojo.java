@@ -372,7 +372,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     /// @param files the list of file paths to be stashed
     /// @throws MojoExecutionException if an error occurs during the stashing process
     protected void stashFiles(List<Path> files) throws MojoExecutionException {
-        if (git.isStash() && !dryRun) {
+        if (!dryRun && git.isStash()) {
             ProcessUtils.gitStashFiles(files);
         }
     }
@@ -385,7 +385,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     /// @param message The commit message to use for the commit operation.
     /// @throws MojoExecutionException If the commit operation fails.
     protected void commit(String message) throws MojoExecutionException {
-        if (git.isCommit() && !dryRun) {
+        if (!dryRun && git.isCommit()) {
             ProcessUtils.gitCommit(message);
         }
     }

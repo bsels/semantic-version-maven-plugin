@@ -1,6 +1,7 @@
 package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.test.utils.ReadMockedMavenSession;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -42,14 +44,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ExtendWith(MockitoExtension.class)
 public class UpdatePomMojoTest extends AbstractBaseMojoTest {
     private static final LocalDate DATE = LocalDate.of(2025, 1, 1);
+    @Mock
+    Process processMock;
     private UpdatePomMojo classUnderTest;
     private TestLog testLog;
     private Map<Path, StringWriter> mockedOutputFiles;
     private List<CopyPath> mockedCopiedFiles;
     private List<Path> mockedDeletedFiles;
-
+    private List<List<String>> mockedExecutedProcesses;
     private MockedStatic<Files> filesMockedStatic;
     private MockedStatic<LocalDate> localDateMockedStatic;
+    private MockedConstruction<ProcessBuilder> mockedProcessBuilderConstruction;
 
     @BeforeEach
     void setUp() {
@@ -59,6 +64,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         mockedOutputFiles = new HashMap<>();
         mockedCopiedFiles = new ArrayList<>();
         mockedDeletedFiles = new ArrayList<>();
+        mockedExecutedProcesses = new ArrayList<>();
 
         filesMockedStatic = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS);
         filesMockedStatic.when(() -> Files.newBufferedWriter(Mockito.any(), Mockito.any(), Mockito.any(OpenOption[].class)))
@@ -85,12 +91,29 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         localDateMockedStatic = Mockito.mockStatic(LocalDate.class);
         localDateMockedStatic.when(LocalDate::now)
                 .thenReturn(DATE);
+
+        mockedProcessBuilderConstruction = Mockito.mockConstruction(ProcessBuilder.class, (mock, context) -> {
+            if (!context.arguments().isEmpty()) {
+                List<String> command = List.of((String[]) context.arguments().get(0));
+                if (!command.isEmpty()) {
+                    mockedExecutedProcesses.add(command);
+                }
+            }
+            Mockito.when(mock.command(Mockito.anyList()))
+                    .thenAnswer(invocation -> {
+                        mockedExecutedProcesses.add(invocation.getArgument(0));
+                        return mock;
+                    });
+            Mockito.when(mock.inheritIO()).thenReturn(mock);
+            Mockito.when(mock.start()).thenReturn(processMock);
+        });
     }
 
     @AfterEach
     void tearDown() {
         filesMockedStatic.close();
         localDateMockedStatic.close();
+        mockedProcessBuilderConstruction.close();
     }
 
     @Test
@@ -120,6 +143,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         assertThat(mockedCopiedFiles)
                 .isEmpty();
         assertThat(mockedDeletedFiles)
+                .isEmpty();
+        assertThat(mockedExecutedProcesses)
                 .isEmpty();
     }
 
@@ -153,6 +178,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         assertThat(mockedCopiedFiles)
                 .isEmpty();
         assertThat(mockedDeletedFiles)
+                .isEmpty();
+        assertThat(mockedExecutedProcesses)
                 .isEmpty();
     }
 
@@ -265,6 +292,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -309,6 +338,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -477,11 +508,15 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isNotEmpty()
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "leaves", "single", "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
-        @Test
-        void multiFileBased_Valid() {
+        @ParameterizedTest
+        @EnumSource(Git.class)
+        void multiFileBased_Valid(Git gitMode) {
             classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.git = gitMode;
             classUnderTest.versionDirectory = getResourcesPath("versioning", "leaves", "multi");
 
             assertThatNoException()
@@ -667,6 +702,55 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                             getResourcesPath("versioning", "leaves", "multi", "child-2.md"),
                             getResourcesPath("versioning", "leaves", "multi", "child-3.md")
                     );
+            if (Git.NO_GIT == gitMode) {
+                assertThat(mockedExecutedProcesses)
+                        .isEmpty();
+            } else if (Git.STASH == gitMode) {
+                assertThat(mockedExecutedProcesses)
+                        .hasSize(7)
+                        .contains(
+                                List.of("git", "add", getResourcesPath("leaves", "child-1", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "child-1", "CHANGELOG.md").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md").toString())
+                        )
+                        .anySatisfy(
+                                command -> assertThat(command)
+                                        .startsWith("git", "add")
+                                        .containsExactlyInAnyOrder(
+                                                "git",
+                                                "add",
+                                                getResourcesPath("versioning", "leaves", "multi", "child-1.md").toString(),
+                                                getResourcesPath("versioning", "leaves", "multi", "child-2.md").toString(),
+                                                getResourcesPath("versioning", "leaves", "multi", "child-3.md").toString()
+                                        )
+                        );
+            } else {
+                assertThat(mockedExecutedProcesses)
+                        .hasSize(8)
+                        .contains(
+                                List.of("git", "add", getResourcesPath("leaves", "child-1", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "child-1", "CHANGELOG.md").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md").toString()),
+                                List.of("git", "commit", "-m", "Updated 3 project version(s) [skip ci]")
+                        )
+                        .anySatisfy(
+                                command -> assertThat(command)
+                                        .startsWith("git", "add")
+                                        .containsExactlyInAnyOrder(
+                                                "git",
+                                                "add",
+                                                getResourcesPath("versioning", "leaves", "multi", "child-1.md").toString(),
+                                                getResourcesPath("versioning", "leaves", "multi", "child-2.md").toString(),
+                                                getResourcesPath("versioning", "leaves", "multi", "child-3.md").toString()
+                                        )
+                        );
+            }
         }
 
     }
@@ -909,6 +993,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isNotEmpty()
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "multi", dependency, "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -962,6 +1048,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isNotEmpty()
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "multi", "excluded", "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
     }
 
@@ -1108,6 +1196,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isNotEmpty()
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "multi-recursive", "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
     }
 
@@ -1202,6 +1292,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -1307,6 +1399,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     );
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -1385,6 +1479,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -1430,6 +1526,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -1455,6 +1553,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -1494,6 +1594,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -1532,6 +1634,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -1630,6 +1734,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .containsExactlyInAnyOrder(
                             getResourcesPath("versioning", "revision", "multi", folder, "versioning.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -1768,6 +1874,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                             getResourcesPath("versioning", "revision", "multi", "multiple", "patch.md"),
                             getResourcesPath("versioning", "revision", "multi", "multiple", "none.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
     }
 
@@ -1857,6 +1965,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -1957,6 +2067,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     );
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2028,6 +2140,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2071,6 +2185,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2096,6 +2212,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2135,6 +2253,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2173,6 +2293,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2266,6 +2388,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .containsExactlyInAnyOrder(
                             getResourcesPath("versioning", "revision", "single", folder, "versioning.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2399,6 +2523,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                             getResourcesPath("versioning", "revision", "single", "multiple", "patch.md"),
                             getResourcesPath("versioning", "revision", "single", "multiple", "none.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
     }
 
@@ -2484,6 +2610,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2580,6 +2708,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     );
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2647,6 +2777,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2690,6 +2822,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2715,6 +2849,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2754,6 +2890,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2792,6 +2930,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2881,6 +3021,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .containsExactlyInAnyOrder(
                             getResourcesPath("versioning", "single", folder, "versioning.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -3010,6 +3152,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                             getResourcesPath("versioning", "single", "multiple", "patch.md"),
                             getResourcesPath("versioning", "single", "multiple", "none.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
     }
 }
