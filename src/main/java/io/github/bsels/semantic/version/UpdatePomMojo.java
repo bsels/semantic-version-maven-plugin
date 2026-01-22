@@ -151,12 +151,12 @@ public final class UpdatePomMojo extends BaseMojo {
         }
 
         if (!dryRun && changedProjects > 0 && VersionBump.FILE_BASED.equals(versionBump)) {
-            Utils.deleteFilesIfExists(
-                    versionMarkdowns.stream()
-                            .map(VersionMarkdown::path)
-                            .filter(Objects::nonNull)
-                            .toList()
-            );
+            List<Path> paths = versionMarkdowns.stream()
+                    .map(VersionMarkdown::path)
+                    .filter(Objects::nonNull)
+                    .toList();
+            Utils.deleteFilesIfExists(paths);
+            stashFiles(paths);
         }
         commit(commitMessage.formatted(changedProjects));
     }
