@@ -1,6 +1,7 @@
 package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.ProcessUtils;
@@ -60,19 +61,20 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
     /// Represents the commit message for creating a version Markdown file.
     /// This variable is essential for customizing the commit message applied when creating a version Markdown file.
     ///
-    /// The placeholder `"%d"` is used to dynamically insert the number of projects for which the version file
-    /// was created into the message.
+    /// The placeholder `"{numberOfProjects}"` is used to dynamically insert the number of projects for which
+    /// the version file was created into the message.
     ///
     /// Attributes:
     /// - property: Specifies the configuration property key to override this value.
     /// - required: Signifies that this parameter is mandatory.
-    /// - defaultValue: If not explicitly specified, defaults to `"Created version Markdown file for %d project(s)"`.
+    /// - defaultValue: If not explicitly specified,
+    ///   defaults to `"Created version Markdown file for {numberOfProjects} project(s)"`.
     @Parameter(
             property = "versioning.commit.message.create",
             required = true,
-            defaultValue = "Created version Markdown file for %d project(s)"
+            defaultValue = "Created version Markdown file for {numberOfProjects} project(s)"
     )
-    String commitMessage = "Created version Markdown file for %d project(s)";
+    String commitMessage = "Created version Markdown file for {numberOfProjects} project(s)";
 
     /// Default constructor for the CreateVersionMarkdownMojo class.
     /// Invokes the superclass constructor to initialize the instance.
@@ -97,6 +99,11 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
     /// @throws MojoFailureException   if the operation to process or create the version Markdown file fails.
     @Override
     protected void internalExecute() throws MojoExecutionException, MojoFailureException {
+        commitMessage = Utils.prepareFormatString(
+                commitMessage,
+                List.of(new PlaceHolderWithType("numberOfProjects", "d"))
+        );
+
         Log log = getLog();
         List<MavenArtifact> projects = getProjectsInScope()
                 .map(mavenProject -> new MavenArtifact(mavenProject.getGroupId(), mavenProject.getArtifactId()))

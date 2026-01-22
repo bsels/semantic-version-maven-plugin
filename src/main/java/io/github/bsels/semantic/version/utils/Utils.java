@@ -1,5 +1,6 @@
 package io.github.bsels.semantic.version.utils;
 
+import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.project.MavenProject;
 
@@ -157,6 +158,28 @@ public final class Utils {
     public static Path resolveVersioningFile(Path folder) throws NullPointerException {
         Objects.requireNonNull(folder, "`folder` must not be null");
         return folder.resolve("versioning-%s.md".formatted(DATE_TIME_FORMATTER.format(LocalDateTime.now())));
+    }
+
+    /// Prepares a format string by replacing placeholders defined in the given list of keys with formatted substitution
+    /// placeholders using their formatType and position.
+    ///
+    /// @param formatString the string containing placeholders to be replaced. Must not be null.
+    /// @param keys         a list of `PlaceHolderWithType` objects representing placeholders and their types. Each item in the list must not be null, and the list itself must also not be null.
+    /// @return a string with all placeholders replaced by formatted substitution placeholders.
+    /// @throws NullPointerException if `formatString`, `keys`, or any element in `keys` is null.
+    public static String prepareFormatString(String formatString, List<PlaceHolderWithType> keys)
+            throws NullPointerException {
+        Objects.requireNonNull(formatString, "`formatString` must not be null");
+        Objects.requireNonNull(keys, "`keys` must not be null");
+        keys.forEach(key -> Objects.requireNonNull(key, "All keys must not be null"));
+        for (int i = 0; i < keys.size(); i++) {
+            PlaceHolderWithType currentKey = keys.get(i);
+            formatString = formatString.replace(
+                    "{" + currentKey.placeholder() + "}",
+                    "%" + (i + 1) + "$" + currentKey.formatType()
+            );
+        }
+        return formatString;
     }
 
     /// Returns a predicate that always evaluates to `true`.

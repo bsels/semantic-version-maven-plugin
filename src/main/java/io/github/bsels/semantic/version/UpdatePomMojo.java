@@ -2,6 +2,7 @@ package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.MarkdownMapping;
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionChange;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
@@ -76,18 +77,20 @@ public final class UpdatePomMojo extends BaseMojo {
     /// Represents the commit message template used during version updates.
     /// This variable is essential for customizing the commit message applied when updating project versions.
     ///
-    /// The placeholder `"%d"` is used to dynamically insert the number of project versions updated into the message.
+    /// The placeholder `"{numberOfProjects}"` is used to dynamically insert the number of project versions updated into
+    /// the message.
     ///
     /// Attributes:
     /// - property: Specifies the configuration property key to override this value.
     /// - required: Signifies that this parameter is mandatory.
-    /// - defaultValue: If not explicitly specified, defaults to `"Updated %d project version(s) [skip ci]"`.
+    /// - defaultValue: If not explicitly specified,
+    ///   defaults to `"Updated {numberOfProjects} project version(s)[skip ci]"`.
     @Parameter(
             property = "versioning.commit.message.update",
             required = true,
-            defaultValue = "Updated %d project version(s) [skip ci]"
+            defaultValue = "Updated {numberOfProjects} project version(s) [skip ci]"
     )
-    String commitMessage = "Updated %d project version(s) [skip ci]";
+    String commitMessage = "Updated {numberOfProjects} project version(s) [skip ci]";
 
     /// Default constructor for the UpdatePomMojo class.
     ///
@@ -122,6 +125,11 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @throws MojoFailureException   if a failure condition specific to the plugin occurs. This indicates a detected issue that halts further execution.
     @Override
     public void internalExecute() throws MojoExecutionException, MojoFailureException {
+        commitMessage = Utils.prepareFormatString(
+                commitMessage,
+                List.of(new PlaceHolderWithType("numberOfProjects", "d"))
+        );
+
         Log log = getLog();
         List<VersionMarkdown> versionMarkdowns = getVersionMarkdowns();
         MarkdownMapping mapping = getMarkdownMapping(versionMarkdowns);
@@ -130,19 +138,19 @@ public final class UpdatePomMojo extends BaseMojo {
         List<MavenProject> projectsInScope = getProjectsInScope()
                 .collect(Utils.asImmutableList());
 
-        boolean hasChanges;
+        int changedProjects;
         if (projectsInScope.isEmpty()) {
             log.warn("No projects found in scope");
-            hasChanges = false;
+            changedProjects = 0;
         } else if (projectsInScope.size() == 1) {
             log.info("Single project in scope");
-            hasChanges = handleSingleProject(mapping, projectsInScope.get(0));
+            changedProjects = handleSingleProject(mapping, projectsInScope.get(0));
         } else {
             log.info("Multiple projects in scope");
-            hasChanges = handleMultiProjects(mapping, projectsInScope);
+            changedProjects = handleMultiProjects(mapping, projectsInScope);
         }
 
-        if (!dryRun && hasChanges && VersionBump.FILE_BASED.equals(versionBump)) {
+        if (!dryRun && changedProjects > 0 && VersionBump.FILE_BASED.equals(versionBump)) {
             Utils.deleteFilesIfExists(
                     versionMarkdowns.stream()
                             .map(VersionMarkdown::path)
@@ -150,6 +158,7 @@ public final class UpdatePomMojo extends BaseMojo {
                             .toList()
             );
         }
+        commit(commitMessage.formatted(changedProjects));
     }
 
     /// Handles the processing of a single Maven project by determining the semantic version bump,
@@ -157,10 +166,10 @@ public final class UpdatePomMojo extends BaseMojo {
     ///
     /// @param markdownMapping the mapping that contains the version bump map and markdown file details
     /// @param project         the Maven project to be processed
-    /// @return `true` if a version update was performed, `false` otherwise.
+    /// @return `1` if a version update was performed, `0` otherwise.
     /// @throws MojoExecutionException if an error occurs during processing the project's POM file
     /// @throws MojoFailureException   if a failure occurs due to semantic version bump or other operations
-    private boolean handleSingleProject(MarkdownMapping markdownMapping, MavenProject project)
+    private int handleSingleProject(MarkdownMapping markdownMapping, MavenProject project)
             throws MojoExecutionException, MojoFailureException {
         Path pom = project.getFile()
                 .toPath();
@@ -176,19 +185,18 @@ public final class UpdatePomMojo extends BaseMojo {
 
             writeUpdatedPom(document, pom);
             updateMarkdownFile(markdownMapping, artifact, pom, newVersion);
-            commit(commitMessage.formatted(1));
         }
-        return version.isPresent();
+        return version.isPresent() ? 1 : 0;
     }
 
     /// Handles multiple Maven projects by processing their POM files, dependencies, and versions, updating the projects as necessary.
     ///
     /// @param markdownMapping an instance of [MarkdownMapping] that contains mapping details for Markdown processing.
     /// @param projects        a list of [MavenProject] objects, representing the Maven projects to be processed.
-    /// @return `true` if any projects were updated, `false` otherwise.
+    /// @return the number of projects that were updated based on the version changes.
     /// @throws MojoExecutionException if there's an execution error while handling the projects.
     /// @throws MojoFailureException   if a failure is encountered during the processing of the projects.
-    private boolean handleMultiProjects(MarkdownMapping markdownMapping, List<MavenProject> projects)
+    private int handleMultiProjects(MarkdownMapping markdownMapping, List<MavenProject> projects)
             throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
         Map<MavenArtifact, MavenProjectAndDocument> documents = readAllPoms(projects);
@@ -221,8 +229,7 @@ public final class UpdatePomMojo extends BaseMojo {
         );
 
         writeUpdatedProjects(result.updatedArtifacts(), documents);
-        commit(commitMessage.formatted(result.updatedArtifacts().size()));
-        return !result.updatedArtifacts().isEmpty();
+        return result.updatedArtifacts().size();
     }
 
     /// Handles Maven projects and their dependencies to update versions and related metadata.
