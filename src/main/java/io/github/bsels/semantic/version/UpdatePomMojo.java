@@ -9,6 +9,7 @@ import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.POMUtils;
+import io.github.bsels.semantic.version.utils.ProcessUtils;
 import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -95,13 +96,13 @@ public final class UpdatePomMojo extends BaseMojo {
     String commitMessage = "Updated {numberOfProjects} project version(s) [skip ci]";
 
     /// Specifies the scripts or paths to the scripts used in versioning updates.
-    /// These scripts can be used to manage or modify version-related data or configuration during the build process.
+    /// These scripts can be used to manage or modify version-related data or configuration during the build process in
+    /// the working directory of each processed module.
     /// The scripts will be executed in the order they are specified.
     ///
     /// The scripts will be called with the following environment variables:
     /// - `CURRENT_VERSION`: The current version of the project.
     /// - `NEW_VERSION`: The new version of the project after the update.
-    /// - `PROJECT_PATH`: The path to the project directory.
     /// - `DRY_RUN`: A flag indicating whether the script is being executed in dry-run mode (true) or not (false).
     /// - `GIT_STASH`: A flag indicating whether the script should stash the files or not (true) or not (false).
     /// - `EXECUTION_DATE`: The date and time when the script was executed formatted as ISO 8601: `YYYY-MM-DD`.
@@ -216,6 +217,7 @@ public final class UpdatePomMojo extends BaseMojo {
 
             writeUpdatedPom(document, pom);
             updateMarkdownFile(markdownMapping, artifact, pom, newVersion);
+            executeScripts(pom.getParent(), version.get());
         }
         return version.isPresent() ? 1 : 0;
     }
@@ -263,6 +265,27 @@ public final class UpdatePomMojo extends BaseMojo {
         return result.updatedArtifacts().size();
     }
 
+    /// Executes a series of scripts provided in the [#scriptPaths] collection.
+    ///
+    /// This method iterates over the available script paths
+    /// and invokes the `ProcessUtils.executeScripts` method for each script,
+    /// passing the required parameters for execution.
+    ///
+    /// @param projectPath   the base path of the project where scripts will be executed
+    /// @param versionChange the object representing the version change details for the script execution
+    /// @throws MojoExecutionException if an error occurs during script execution
+    private void executeScripts(Path projectPath, VersionChange versionChange) throws MojoExecutionException {
+        for (Path scriptPath : scriptPaths) {
+            ProcessUtils.executeScripts(
+                    scriptPath,
+                    projectPath,
+                    versionChange,
+                    dryRun,
+                    git.isStash()
+            );
+        }
+    }
+
     /// Handles Maven projects and their dependencies to update versions and related metadata.
     /// This method processes dependencies and updates the project versions accordingly,
     /// ensuring that affected dependencies and documentation are updated.
@@ -300,6 +323,7 @@ public final class UpdatePomMojo extends BaseMojo {
                     .forEach(toBeUpdated::offer);
 
             updateMarkdownFile(markdownMapping, artifact, mavenProjectAndDocument.pomFile(), change.newVersion());
+            executeScripts(mavenProjectAndDocument.pomFile().getParent(), change);
 
             updatableDependencies.getOrDefault(artifact, List.of())
                     .forEach(node -> POMUtils.updateVersionNodeIfOldVersionMatches(change, node));
@@ -343,6 +367,7 @@ public final class UpdatePomMojo extends BaseMojo {
 
                 updatableDependencies.getOrDefault(artifact, List.of())
                         .forEach(node -> POMUtils.updateVersionNodeIfOldVersionMatches(change, node));
+                executeScripts(mavenProjectAndDocument.pomFile().getParent(), change);
             }
         }
         return new UpdatedAndToUpdateArtifacts(updatedArtifacts, toBeUpdated);
