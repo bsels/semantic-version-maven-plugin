@@ -22,9 +22,11 @@ import org.apache.maven.project.MavenProject;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -92,6 +94,29 @@ public final class UpdatePomMojo extends BaseMojo {
     )
     String commitMessage = "Updated {numberOfProjects} project version(s) [skip ci]";
 
+    /// Specifies the scripts or paths to the scripts used in versioning updates.
+    /// These scripts can be used to manage or modify version-related data or configuration during the build process.
+    /// The scripts will be executed in the order they are specified.
+    ///
+    /// The scripts will be called with the following environment variables:
+    /// - `CURRENT_VERSION`: The current version of the project.
+    /// - `NEW_VERSION`: The new version of the project after the update.
+    /// - `PROJECT_PATH`: The path to the project directory.
+    /// - `DRY_RUN`: A flag indicating whether the script is being executed in dry-run mode (true) or not (false).
+    /// - `GIT_STASH`: A flag indicating whether the script should stash the files or not (true) or not (false).
+    /// - `EXECUTION_DATE`: The date and time when the script was executed formatted as ISO 8601: `YYYY-MM-DD`.
+    ///
+    /// The scripts should be separated by the OS file path separator
+    ///
+    /// This parameter is optional.
+    @Parameter(property = "versioning.update.scripts", required = false)
+    String scripts;
+
+    /// A list that holds file system paths pointing to script files.
+    /// Will be derived on execution from the `scripts` parameter.
+    /// Each path represented by this list is of type [Path], allowing interaction with the file system.
+    private List<Path> scriptPaths = List.of();
+
     /// Default constructor for the UpdatePomMojo class.
     ///
     /// Initializes an instance of the UpdatePomMojo class by invoking the superclass constructor.
@@ -129,6 +154,12 @@ public final class UpdatePomMojo extends BaseMojo {
                 commitMessage,
                 List.of(new PlaceHolderWithType("numberOfProjects", "d"))
         );
+        scriptPaths = Optional.ofNullable(scripts)
+                .map(s -> s.split(File.pathSeparator))
+                .stream()
+                .flatMap(Arrays::stream)
+                .map(Path::of)
+                .toList();
 
         Log log = getLog();
         List<VersionMarkdown> versionMarkdowns = getVersionMarkdowns();
