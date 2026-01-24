@@ -8,9 +8,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,6 +21,8 @@ import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.regex.MatchResult;
+import java.util.regex.Pattern;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -41,6 +45,20 @@ public final class Utils {
     ///
     /// The formatter is thread-safe and can be used in concurrent environments.
     public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+    /// A regular expression pattern used to extract and match specific placeholders from a string.
+    ///
+    /// The placeholders supported by this pattern are:
+    /// - `{date}`: A basic date placeholder.
+    /// - `{date#<pattern>}`: A date placeholder that specifies a date formatting pattern
+    /// within angled brackets following a '#' character.
+    /// - `version`: A placeholder representing a version value.
+    ///
+    /// This pattern is mainly used for parsing or identifying templated strings that include
+    /// dynamically replaceable placeholders for date and version values.
+    private static final Pattern PLACEHOLDER_FORMAT_EXTRACTOR = Pattern.compile("\\{(date(#([^{}]*))?|version)}");
+
+    private static final Map<String, DateTimeFormatter> CACHED_DATE_FORMATTERS = new HashMap<>();
 
     /// Utility class containing static constants and methods for various common operations.
     /// This class is not designed to be instantiated.
@@ -180,6 +198,45 @@ public final class Utils {
             );
         }
         return formatString;
+    }
+
+    /// Formats the provided header line by replacing placeholders with the corresponding values.
+    /// Placeholders include `{version}` for the version string
+    /// and `{date}` or a custom date pattern for the date component.
+    ///
+    /// @param headerLine the header line string containing placeholders to be replaced; must not be null
+    /// @param version    the version string to replace the `{version}` placeholder; must not be null
+    /// @param date       the date object to replace the `{date}` or custom date pattern placeholders; must not be null
+    /// @return a new string where placeholders in the header line are replaced with specified values
+    /// @throws NullPointerException if any of the provided arguments are null
+    public static String formatHeaderLine(String headerLine, String version, LocalDate date)
+            throws NullPointerException {
+        Objects.requireNonNull(headerLine, "`headerLine` must not be null");
+        Objects.requireNonNull(version, "`version` must not be null");
+        Objects.requireNonNull(date, "`date` must not be null");
+        return PLACEHOLDER_FORMAT_EXTRACTOR.matcher(headerLine)
+                .replaceAll(match -> replaceVersionOrDateOnMatch(version, date, match));
+    }
+
+    /// Replaces a placeholder in a matched pattern with either a version string or a formatted date,
+    /// based on the placeholder's content.
+    ///
+    /// @param version the version string to replace the `{version}` placeholder
+    /// @param date    the date to replace date-related placeholders
+    /// @param match   the result of a regex match containing the placeholder to be replaced
+    /// @return the replacement string for the matched placeholder, either the version or the formatted date
+    private static String replaceVersionOrDateOnMatch(String version, LocalDate date, MatchResult match) {
+        String placeholder = match.group(0);
+        if ("{version}".equals(placeholder)) {
+            return version;
+        }
+        final DateTimeFormatter formatter;
+        if ("{date}".equals(placeholder)) {
+            formatter = DateTimeFormatter.ISO_LOCAL_DATE;
+        } else {
+            formatter = CACHED_DATE_FORMATTERS.computeIfAbsent(match.group(3), DateTimeFormatter::ofPattern);
+        }
+        return date.format(formatter);
     }
 
     /// Returns a predicate that always evaluates to `true`.

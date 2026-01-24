@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -658,6 +659,83 @@ public class UtilsTest {
             );
             String result = Utils.prepareFormatString(formatString, keys);
             assertThat(result).isEqualTo("Value: %1$s, Another: %2$d");
+        }
+    }
+
+    @Nested
+    class FormatHeaderLineTest {
+
+        @Test
+        void nullHeaderLine_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.formatHeaderLine(null, "1.0.0", LocalDate.now()))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`headerLine` must not be null");
+        }
+
+        @Test
+        void nullVersion_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.formatHeaderLine("## {version}", null, LocalDate.now()))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`version` must not be null");
+        }
+
+        @Test
+        void nullDate_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.formatHeaderLine("## {date}", "1.0.0", null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`date` must not be null");
+        }
+
+        @Test
+        void defaultDateAndVersionPlaceholders_Replaced() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine("## {version} - {date}", "1.2.3", date);
+
+            assertThat(result).isEqualTo("## 1.2.3 - 2024-02-03");
+        }
+
+        @Test
+        void customDatePattern_Replaced() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine("Released {date#yyyy/MM/dd}", "1.2.3", date);
+
+            assertThat(result).isEqualTo("Released 2024/02/03");
+        }
+
+        @Test
+        void multiplePlaceholders_AllReplaced() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine(
+                    "v{version} ({date}) -> {version}",
+                    "2.0.0",
+                    date
+            );
+
+            assertThat(result).isEqualTo("v2.0.0 (2024-02-03) -> 2.0.0");
+        }
+
+        @Test
+        void multipleDateFormats_AllReplaced() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine(
+                    "Released {date#yyyy/MM/dd} (ISO {date}) [stamp {date#yyyyMMdd}]",
+                    "2.0.0",
+                    date
+            );
+
+            assertThat(result).isEqualTo("Released 2024/02/03 (ISO 2024-02-03) [stamp 20240203]");
+        }
+
+        @Test
+        void unknownPlaceholder_Preserved() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine(
+                    "Release {unknown} on {date}",
+                    "1.0.0",
+                    date
+            );
+
+            assertThat(result).isEqualTo("Release {unknown} on 2024-02-03");
         }
     }
 }
