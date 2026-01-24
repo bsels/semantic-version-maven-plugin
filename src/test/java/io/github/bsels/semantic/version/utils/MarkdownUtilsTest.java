@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
+import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.test.utils.TestLog;
 import io.github.bsels.semantic.version.utils.yaml.front.block.YamlFrontMatterBlock;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -48,6 +49,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class MarkdownUtilsTest {
     private static final String ARTIFACT_ID = "artifactId";
     private static final String GROUP_ID = "groupId";
+    private static final ArtifactIdentifier IDENTIFIER = ArtifactIdentifier.GROUP_ID_AND_ARTIFACT_ID;
+    private static final ArtifactIdentifier ARTIFACT_ONLY_IDENTIFIER = ArtifactIdentifier.ONLY_ARTIFACT_ID;
     private static final MavenArtifact MAVEN_ARTIFACT = new MavenArtifact(GROUP_ID, ARTIFACT_ID);
     private static final Path CHANGELOG_PATH = Path.of("project/CHANGELOG.md");
     private static final Path CHANGELOG_BACKUP_PATH = Path.of("project/CHANGELOG.md.backup");
@@ -638,7 +641,7 @@ public class MarkdownUtilsTest {
 
         @Test
         void nullLog_ThrowsNullPointerException() {
-            assertThatThrownBy(() -> MarkdownUtils.readVersionMarkdown(null, CHANGELOG_PATH))
+            assertThatThrownBy(() -> MarkdownUtils.readVersionMarkdown(null, CHANGELOG_PATH, IDENTIFIER, GROUP_ID))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`log` must not be null");
         }
@@ -646,7 +649,7 @@ public class MarkdownUtilsTest {
         @Test
         void nullMarkdownFile_ThrowsNullPointerException() {
             TestLog log = new TestLog(TestLog.LogLevel.DEBUG);
-            assertThatThrownBy(() -> MarkdownUtils.readVersionMarkdown(log, null))
+            assertThatThrownBy(() -> MarkdownUtils.readVersionMarkdown(log, null, IDENTIFIER, GROUP_ID))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`markdownFile` must not be null");
         }
@@ -670,7 +673,7 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.when(() -> Files.lines(CHANGELOG_PATH, StandardCharsets.UTF_8))
                         .thenReturn(markdown.lines());
 
-                assertThatThrownBy(() -> MarkdownUtils.readVersionMarkdown(log, CHANGELOG_PATH))
+                assertThatThrownBy(() -> MarkdownUtils.readVersionMarkdown(log, CHANGELOG_PATH, IDENTIFIER, GROUP_ID))
                         .isInstanceOf(MojoExecutionException.class)
                         .hasMessage("YAML front matter block not found in '%s' file".formatted(CHANGELOG_PATH));
             }
@@ -706,7 +709,7 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.when(() -> Files.lines(CHANGELOG_PATH, StandardCharsets.UTF_8))
                         .thenReturn(markdown.lines());
 
-                assertThatThrownBy(() -> MarkdownUtils.readVersionMarkdown(log, CHANGELOG_PATH))
+                assertThatThrownBy(() -> MarkdownUtils.readVersionMarkdown(log, CHANGELOG_PATH, IDENTIFIER, GROUP_ID))
                         .isInstanceOf(MojoExecutionException.class)
                         .hasMessage("YAML front matter does not contain valid maven artifacts and semantic version bump")
                         .hasRootCauseInstanceOf(JsonProcessingException.class)
@@ -764,7 +767,7 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.when(() -> Files.lines(CHANGELOG_PATH, StandardCharsets.UTF_8))
                         .thenReturn(markdown.lines());
 
-                versionMarkdown = MarkdownUtils.readVersionMarkdown(log, CHANGELOG_PATH);
+                versionMarkdown = MarkdownUtils.readVersionMarkdown(log, CHANGELOG_PATH, IDENTIFIER, GROUP_ID);
             }
 
             assertThat(versionMarkdown)
@@ -815,6 +818,87 @@ public class MarkdownUtilsTest {
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty())
                     );
         }
+
+        @Test
+        void happyFlow_ValidObject_OnlyArtifactId() throws MojoExecutionException {
+            TestLog log = new TestLog(TestLog.LogLevel.NONE);
+            String markdown = """
+                    ---
+                    none: None
+                    patch: patch
+                    minor: MINOR
+                    major: MAJOR
+                    ---
+                    
+                    # Header 1
+                    
+                    Header 1 paragraph.
+                    """;
+            VersionMarkdown versionMarkdown;
+            try (MockedStatic<Files> filesMockedStatic = Mockito.mockStatic(Files.class)) {
+                filesMockedStatic.when(() -> Files.exists(CHANGELOG_PATH))
+                        .thenReturn(true);
+                filesMockedStatic.when(() -> Files.lines(CHANGELOG_PATH, StandardCharsets.UTF_8))
+                        .thenReturn(markdown.lines());
+
+                versionMarkdown = MarkdownUtils.readVersionMarkdown(
+                        log,
+                        CHANGELOG_PATH,
+                        ARTIFACT_ONLY_IDENTIFIER,
+                        GROUP_ID
+                );
+            }
+
+            assertThat(versionMarkdown)
+                    .satisfies(
+                            data -> assertThat(data.bumps())
+                                    .hasSize(4)
+                                    .containsEntry(
+                                            new MavenArtifact(GROUP_ID, "none"),
+                                            SemanticVersionBump.NONE
+                                    )
+                                    .containsEntry(
+                                            new MavenArtifact(GROUP_ID, "patch"),
+                                            SemanticVersionBump.PATCH
+                                    )
+                                    .containsEntry(
+                                            new MavenArtifact(GROUP_ID, "minor"),
+                                            SemanticVersionBump.MINOR
+                                    )
+                                    .containsEntry(
+                                            new MavenArtifact(GROUP_ID, "major"),
+                                            SemanticVersionBump.MAJOR
+                                    )
+                    );
+
+            assertThat(log.getLogRecords())
+                    .hasSize(3)
+                    .satisfiesExactly(
+                            line -> assertThat(line)
+                                    .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.INFO)
+                                    .hasFieldOrPropertyWithValue("message", Optional.of("Read 10 lines from %s".formatted(CHANGELOG_PATH)))
+                                    .hasFieldOrPropertyWithValue("throwable", Optional.empty()),
+                            line -> assertThat(line)
+                                    .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.DEBUG)
+                                    .hasFieldOrPropertyWithValue("message", Optional.of("""
+                                            YAML front matter:
+                                                none: None
+                                                patch: patch
+                                                minor: MINOR
+                                                major: MAJOR\
+                                            """))
+                                    .hasFieldOrPropertyWithValue("throwable", Optional.empty()),
+                            line -> assertThat(line)
+                                    .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.DEBUG)
+                                    .satisfies(record -> assertThat(record.message().orElseThrow())
+                                            .contains("Maven artifacts and semantic version bumps:")
+                                            .contains("groupId:none=NONE")
+                                            .contains("groupId:patch=PATCH")
+                                            .contains("groupId:minor=MINOR")
+                                            .contains("groupId:major=MAJOR"))
+                                    .hasFieldOrPropertyWithValue("throwable", Optional.empty())
+                    );
+        }
     }
 
     @Nested
@@ -822,14 +906,18 @@ public class MarkdownUtilsTest {
 
         @Test
         void logIsNull_ThrowNullPointerException() {
-            assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(null, Map.of()))
+            assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(null, Map.of(), IDENTIFIER))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`log` must not be null");
         }
 
         @Test
         void bumpsIsNull_ThrowNullPointerException() {
-            assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(new TestLog(TestLog.LogLevel.DEBUG), null))
+            assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(
+                    new TestLog(TestLog.LogLevel.DEBUG),
+                    null,
+                    IDENTIFIER
+            ))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`bumps` must not be null");
         }
@@ -839,7 +927,7 @@ public class MarkdownUtilsTest {
             TestLog log = new TestLog(TestLog.LogLevel.DEBUG);
             Map<MavenArtifact, SemanticVersionBump> bumps = new HashMap<>();
             bumps.put(null, SemanticVersionBump.PATCH);
-            assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(log, bumps))
+            assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(log, bumps, IDENTIFIER))
                     .isInstanceOf(MojoExecutionException.class)
                     .hasMessage("Unable to construct version bump YAML")
                     .hasRootCauseInstanceOf(JsonMappingException.class)
@@ -856,7 +944,7 @@ public class MarkdownUtilsTest {
             Map<MavenArtifact, SemanticVersionBump> bumps = Map.of(
                     new MavenArtifact("group", "artifact"), bump
             );
-            YamlFrontMatterBlock block = MarkdownUtils.createVersionBumpsHeader(log, bumps);
+            YamlFrontMatterBlock block = MarkdownUtils.createVersionBumpsHeader(log, bumps, IDENTIFIER);
             assertThat(block)
                     .isNotNull()
                     .hasFieldOrPropertyWithValue("yaml", """
@@ -876,6 +964,35 @@ public class MarkdownUtilsTest {
         }
 
         @Test
+        void singleEntry_OnlyArtifactId_Valid() throws MojoExecutionException {
+            TestLog log = new TestLog(TestLog.LogLevel.NONE);
+            Map<MavenArtifact, SemanticVersionBump> bumps = Map.of(
+                    new MavenArtifact(GROUP_ID, ARTIFACT_ID), SemanticVersionBump.MINOR
+            );
+            YamlFrontMatterBlock block = MarkdownUtils.createVersionBumpsHeader(
+                    log,
+                    bumps,
+                    ARTIFACT_ONLY_IDENTIFIER
+            );
+            assertThat(block)
+                    .isNotNull()
+                    .hasFieldOrPropertyWithValue("yaml", """
+                            artifactId: "MINOR"\
+                            """);
+
+            assertThat(log.getLogRecords())
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .satisfiesExactly(
+                            line -> assertThat(line)
+                                    .returns("""
+                                            Version bumps YAML:
+                                                artifactId: "MINOR"
+                                            """, l -> l.message().orElseThrow())
+                    );
+        }
+
+        @Test
         void multipleEntries_Valid() throws MojoExecutionException {
             TestLog log = new TestLog(TestLog.LogLevel.NONE);
             Map<MavenArtifact, SemanticVersionBump> bumps = Map.of(
@@ -883,7 +1000,7 @@ public class MarkdownUtilsTest {
                     new MavenArtifact("group-2", "minor"), SemanticVersionBump.MINOR,
                     new MavenArtifact("group-3", "patch"), SemanticVersionBump.PATCH
             );
-            YamlFrontMatterBlock block = MarkdownUtils.createVersionBumpsHeader(log, bumps);
+            YamlFrontMatterBlock block = MarkdownUtils.createVersionBumpsHeader(log, bumps, IDENTIFIER);
             assertThat(block)
                     .isNotNull()
                     .extracting(YamlFrontMatterBlock::getYaml)

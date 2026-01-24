@@ -47,6 +47,10 @@ public final class MavenArtifactArtifactOnlySerializer extends JsonSerializer<Ma
             JsonGenerator jsonGenerator,
             SerializerProvider serializerProvider
     ) throws IOException {
-        jsonGenerator.writeString(mavenArtifact.artifactId());
+        if (jsonGenerator.getOutputContext().hasCurrentName()) {
+            jsonGenerator.writeString(mavenArtifact.artifactId());
+        } else {
+            jsonGenerator.writeFieldName(mavenArtifact.artifactId());
+        }
     }
 }

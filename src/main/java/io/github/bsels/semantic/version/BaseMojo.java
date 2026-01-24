@@ -149,7 +149,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     /// The default value is [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID],
     /// which includes both the group ID and artifact ID.
     @Parameter(property = "versioning.identifier", required = true, defaultValue = "GROUP_ID_AND_ARTIFACT_ID")
-    protected ArtifactIdentifier identifier;
+    protected ArtifactIdentifier identifier = ArtifactIdentifier.GROUP_ID_AND_ARTIFACT_ID;
 
     /// Default constructor for the BaseMojo class.
     /// Initializes the instance by invoking the superclass constructor.

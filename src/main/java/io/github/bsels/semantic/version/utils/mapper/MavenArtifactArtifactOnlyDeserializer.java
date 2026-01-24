@@ -40,7 +40,7 @@ public class MavenArtifactArtifactOnlyDeserializer extends JsonDeserializer<Mave
     ///
     /// @param groupId the predefined group ID to be associated with the Maven artifact; must not be null
     /// @throws NullPointerException if `groupId` is null
-    public MavenArtifactArtifactOnlyDeserializer(String groupId) {
+    public MavenArtifactArtifactOnlyDeserializer(String groupId) throws NullPointerException {
         super();
         this.groupId = Objects.requireNonNull(groupId, "`groupId` must not be null");
     }

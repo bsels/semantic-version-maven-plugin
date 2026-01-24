@@ -12,6 +12,7 @@ import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlyDeserializer;
+import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlyKeyDeserializer;
 import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlySerializer;
 import io.github.bsels.semantic.version.utils.yaml.front.block.MarkdownYamFrontMatterBlockRendererFactory;
 import io.github.bsels.semantic.version.utils.yaml.front.block.YamlFrontMatterBlock;
@@ -80,6 +81,7 @@ public final class MarkdownUtils {
     private static final ObjectMapper YAML_MAPPER_ARTIFACT_ONLY_SERIALIZER = YAML_MAPPER.copy()
             .registerModule(
                     new SimpleModule()
+                            .addKeySerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
                             .addSerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
             );
 
@@ -361,7 +363,10 @@ public final class MarkdownUtils {
             case ONLY_ARTIFACT_ID -> YAML_MAPPER.copy()
                     .registerModule(
                             new SimpleModule()
-                                    .addDeserializer(MavenArtifact.class, new MavenArtifactArtifactOnlyDeserializer(groupId))
+                                    .addKeyDeserializer(
+                                            MavenArtifact.class,
+                                            new MavenArtifactArtifactOnlyKeyDeserializer(groupId)
+                                    )
                     );
         };
     }
