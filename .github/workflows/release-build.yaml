@@ -46,8 +46,9 @@ jobs:
         run: |
           ./mvnw --batch-mode --no-transfer-progress clean deploy -Dgpg.passphrase=${{ secrets.GPG_KEY_PASSWORD }}
       - name: Zip coverage report
+        working-directory: ./target/site/jacoco
         run: |
-          zip -r coverage-report.zip target/site/jacoco
+          zip -r9 ../../../coverage-report.zip *
       - name: Attach coverage report to release
         run: |
           gh release upload ${{ github.event.release.tag_name }} coverage-report.zip
