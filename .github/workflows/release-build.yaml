@@ -43,8 +43,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SERVER_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           SERVER_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_KEY_PASSWORD }}
         run: |
-          ./mvnw --batch-mode --no-transfer-progress clean deploy -Dgpg.passphrase=${{ secrets.GPG_KEY_PASSWORD }}
+          ./mvnw --batch-mode --no-transfer-progress clean deploy
       - name: Zip coverage report
         working-directory: ./target/site/jacoco
         run: |
