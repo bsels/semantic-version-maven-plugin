@@ -155,7 +155,7 @@ public final class UpdatePomMojo extends BaseMojo {
     ///
     /// This method performs the following steps:
     /// 1. Retrieves the logger instance for logging operations.
-    /// 2. Fetches and processes markdown version information.
+    /// 2. Fetches and processes Markdown version information.
     /// 3. Validates the provided Markdown mappings to ensure correctness.
     /// 4. Collects Maven projects that are within the scope for processing.
     /// 5. Based on the number of scoped projects:
@@ -214,7 +214,7 @@ public final class UpdatePomMojo extends BaseMojo {
     /// Handles the processing of a single Maven project by determining the semantic version bump,
     /// updating the project's version, and synchronizing the changes with a Markdown file.
     ///
-    /// @param markdownMapping the mapping that contains the version bump map and markdown file details
+    /// @param markdownMapping the mapping that contains the version bump map and Markdown file details
     /// @param project         the Maven project to be processed
     /// @return `1` if a version update was performed, `0` otherwise.
     /// @throws MojoExecutionException if an error occurs during processing the project's POM file
@@ -349,7 +349,7 @@ public final class UpdatePomMojo extends BaseMojo {
     }
 
     /// Processes the Markdown versions for the provided Maven artifacts and updates the required dependencies,
-    /// markdown files, and version nodes as needed.
+    /// Markdown files, and version nodes as needed.
     ///
     /// @param markdownMapping              the mapping containing information about the Markdown files and version bump rules
     /// @param reactorArtifacts             the set of Maven artifacts that are part of the current reactor build
@@ -357,7 +357,7 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @param dependencyToProjectArtifacts a mapping of Maven artifacts to lists of dependent project artifacts
     /// @param updatableDependencies        a mapping of Maven artifacts to lists of dependencies in the form of XML nodes that can be updated in the POM files
     /// @return an object containing the set of updated artifacts and the queue of artifacts to be updated
-    /// @throws MojoExecutionException if there is an error during version processing or markdown update
+    /// @throws MojoExecutionException if there is an error during version processing or Markdown update
     /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
     private UpdatedAndToUpdateArtifacts processMarkdownVersions(
             MarkdownMapping markdownMapping,
@@ -531,7 +531,7 @@ public final class UpdatePomMojo extends BaseMojo {
         stashFiles(List.of(pom));
     }
 
-    /// Updates the Markdown file by reading the current changelog, merging version-specific markdown changes,
+    /// Updates the Markdown file by reading the current changelog, merging version-specific Markdown changes,
     /// and writing the updated changelog to the file system.
     ///
     /// @param markdownMapping the mapping between Maven artifacts and their associated Markdown changes
