@@ -756,4 +756,108 @@ public class ProcessUtilsTest {
                     .containsExactly("git", "add", TEST_CHANGELOG.toString(), TEST_POM.toString());
         }
     }
+
+    @Nested
+    class GitStatusTest {
+
+        @Test
+        void processCreationFailed_ThrowsMojoExecutionException() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start())
+                                .thenThrow(IOException.class);
+                    }
+            )) {
+                assertThatThrownBy(ProcessUtils::gitStatus)
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to get Git status")
+                        .hasRootCauseInstanceOf(IOException.class);
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "status");
+        }
+
+        @Test
+        void processInterrupted_ThrowsMojoExecutionException() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                        Mockito.when(process.waitFor())
+                                .thenThrow(InterruptedException.class);
+                    }
+            )) {
+                assertThatThrownBy(ProcessUtils::gitStatus)
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to get Git status")
+                        .hasRootCauseInstanceOf(InterruptedException.class);
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "status");
+        }
+
+        @Test
+        void processNonZeroExit_ThrowsMojoExecutionException() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                        Mockito.when(process.waitFor())
+                                .thenReturn(1);
+                    }
+            )) {
+                assertThatThrownBy(ProcessUtils::gitStatus)
+                        .isInstanceOf(MojoExecutionException.class)
+                        .hasMessage("Unable to get Git status");
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "status");
+        }
+
+        @Test
+        void processZeroExit_Success() {
+            AtomicReference<List<String>> command = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class, (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList()))
+                                .thenAnswer(invocation -> {
+                                    command.set(invocation.getArgument(0));
+                                    return mock;
+                                });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                        Mockito.when(process.waitFor())
+                                .thenReturn(0);
+                    }
+            )) {
+                assertThatNoException()
+                        .isThrownBy(ProcessUtils::gitStatus);
+            }
+
+            assertThat(command.get())
+                    .containsExactly("git", "status");
+        }
+    }
 }
