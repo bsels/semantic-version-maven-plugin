@@ -3180,9 +3180,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
 
             assertThat(mockedExecutedProcesses)
                     .hasSize(2);
-            assertThat(countScriptExecutions("script-a.sh"))
+            assertThat(countScriptExecutions(Path.of("script-a.sh").toAbsolutePath().toString()))
                     .isEqualTo(1);
-            assertThat(countScriptExecutions("script-b.sh"))
+            assertThat(countScriptExecutions(Path.of("script-b.sh").toAbsolutePath().toString()))
                     .isEqualTo(1);
         }
 
@@ -3202,9 +3202,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
 
             assertThat(mockedExecutedProcesses)
                     .hasSize(6);
-            assertThat(countScriptExecutions("script-a.sh"))
+            assertThat(countScriptExecutions(Path.of("script-a.sh").toAbsolutePath().toString()))
                     .isEqualTo(3);
-            assertThat(countScriptExecutions("script-b.sh"))
+            assertThat(countScriptExecutions(Path.of("script-b.sh").toAbsolutePath().toString()))
                     .isEqualTo(3);
         }
 

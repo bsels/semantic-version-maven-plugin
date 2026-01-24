@@ -160,6 +160,7 @@ public final class UpdatePomMojo extends BaseMojo {
                 .stream()
                 .flatMap(Arrays::stream)
                 .map(Path::of)
+                .map(Path::toAbsolutePath)
                 .toList();
 
         Log log = getLog();
