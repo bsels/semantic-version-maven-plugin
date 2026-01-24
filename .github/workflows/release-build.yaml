@@ -9,7 +9,7 @@ on:
         required: true
         type: string
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     name: Build
@@ -45,3 +45,9 @@ jobs:
           SERVER_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         run: |
           ./mvnw --batch-mode --no-transfer-progress clean deploy -Dgpg.passphrase=${{ secrets.GPG_KEY_PASSWORD }}
+      - name: Zip coverage report
+        run: |
+          zip -r coverage-report.zip target/site/jacoco
+      - name: Attach coverage report to release
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} coverage-report.zip
