@@ -2,6 +2,7 @@ package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.MarkdownMapping;
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionChange;
@@ -411,29 +412,6 @@ public final class UpdatePomMojo extends BaseMojo {
         }
     }
 
-    /// Reads and processes the POM files for a list of Maven projects
-    /// and returns a mapping of Maven artifacts to their corresponding project and document representations.
-    ///
-    /// @param projects the list of Maven projects whose POMs need to be read
-    /// @return an immutable map where the key is the Maven artifact representing a project and the value is its associated Maven project and document representation
-    /// @throws MojoExecutionException if an error occurs while executing the Mojo
-    /// @throws MojoFailureException   if the Mojo fails due to an expected problem
-    private Map<MavenArtifact, MavenProjectAndDocument> readAllPoms(List<MavenProject> projects)
-            throws MojoExecutionException, MojoFailureException {
-        Map<MavenArtifact, MavenProjectAndDocument> documents = new HashMap<>();
-        for (MavenProject project : projects) {
-            MavenArtifact mavenArtifact = new MavenArtifact(project.getGroupId(), project.getArtifactId());
-            Path pomFile = project.getFile().toPath();
-            MavenProjectAndDocument projectAndDocument = new MavenProjectAndDocument(
-                    mavenArtifact,
-                    pomFile,
-                    POMUtils.readPom(pomFile)
-            );
-            documents.put(mavenArtifact, projectAndDocument);
-        }
-        return Map.copyOf(documents);
-    }
-
     /// Updates the project version based on the specified semantic version bump and document.
     /// If no version update is required, an empty [Optional] is returned.
     ///
@@ -456,32 +434,6 @@ public final class UpdatePomMojo extends BaseMojo {
         }
         POMUtils.updateVersion(versionNode, semanticVersionBump);
         return Optional.of(new VersionChange(originalVersion, versionNode.getTextContent()));
-    }
-
-    /// Creates a mapping between dependency artifacts and project artifacts based on the provided
-    /// Maven project documents and reactor artifacts.
-    /// The method identifies dependencies in the projects that match artifacts in the reactor and associates
-    /// them with their corresponding project artifacts.
-    ///
-    /// @param documents        a collection of [MavenProjectAndDocument] representing the Maven projects and their associated model documents.
-    /// @param reactorArtifacts a set of [MavenArtifact] objects representing the artifacts present in the reactor.
-    /// @return a map where keys are dependency artifacts (from the reactor) and values are lists of project artifacts they are associated with.
-    private Map<MavenArtifact, List<MavenArtifact>> createDependencyToProjectArtifactMapping(
-            Collection<MavenProjectAndDocument> documents,
-            Set<MavenArtifact> reactorArtifacts
-    ) {
-        return documents.stream()
-                .flatMap(
-                        projectAndDocument -> POMUtils.getMavenArtifacts(projectAndDocument.document())
-                                .keySet()
-                                .stream()
-                                .filter(reactorArtifacts::contains)
-                                .map(artifact -> Map.entry(artifact, projectAndDocument.artifact()))
-                )
-                .collect(Utils.groupingByImmutable(
-                        Map.Entry::getKey,
-                        Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
-                ));
     }
 
     /// Merges updatable dependencies from a list of Maven project documents and a set of reactor artifacts.
@@ -601,30 +553,6 @@ public final class UpdatePomMojo extends BaseMojo {
             case MINOR -> SemanticVersionBump.MINOR;
             case PATCH -> SemanticVersionBump.PATCH;
         };
-    }
-
-    /// Represents a combination of a Maven project artifact, its associated POM file path,
-    /// and the XML document of the POM file's contents.
-    ///
-    /// This class is designed as a record to provide an immutable data container for
-    /// conveniently managing and accessing Maven project-related information.
-    ///
-    /// @param artifact the Maven artifact associated with the project; must not be null
-    /// @param pomFile  the path to the POM file for the project; must not be null
-    /// @param document the XML document representing the POM file's contents; must not be null
-    private record MavenProjectAndDocument(MavenArtifact artifact, Path pomFile, Document document) {
-
-        /// Constructs a new instance of the MavenProjectAndDocument record.
-        ///
-        /// @param artifact the Maven artifact associated with the project; must not be null
-        /// @param pomFile  the path to the POM file for the project; must not be null
-        /// @param document the XML document representing the POM file's contents; must not be null
-        /// @throws NullPointerException if any of the provided parameters are null
-        private MavenProjectAndDocument {
-            Objects.requireNonNull(artifact, "`artifact` must not be null");
-            Objects.requireNonNull(pomFile, "`pomFile` must not be null");
-            Objects.requireNonNull(document, "`document` must not be null");
-        }
     }
 
     /// Represents a data structure that holds a set of updated Maven artifacts
