@@ -314,7 +314,7 @@ public final class MarkdownUtils {
         Objects.requireNonNull(bumps, "`bumps` must not be null");
         String yaml;
         try {
-            yaml = YAML_MAPPER.writeValueAsString(bumps);
+            yaml = YAML_MAPPER.writeValueAsString(bumps).stripTrailing();
             log.debug("Version bumps YAML:\n%s\n".formatted(yaml.indent(4).stripTrailing()));
         } catch (JsonProcessingException e) {
             throw new MojoExecutionException("Unable to construct version bump YAML", e);

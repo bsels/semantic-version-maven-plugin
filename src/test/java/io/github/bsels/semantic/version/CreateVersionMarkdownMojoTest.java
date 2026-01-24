@@ -293,7 +293,6 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                                     .isEqualTo("""
                                             ---
                                             org.example.itests.multi:parent: "%s"
-                                            
                                             ---
                                             
                                             Testing
@@ -454,7 +453,6 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                                     Dry-run: new markdown file at %s:
                                     ---
                                     org.example.itests.single:project: "%s"
-                                    
                                     ---
                                     
                                     Testing
@@ -585,7 +583,6 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                                     .isEqualTo("""
                                             ---
                                             org.example.itests.single:project: "%s"
-                                            
                                             ---
                                             
                                             Testing external

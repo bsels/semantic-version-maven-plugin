@@ -835,7 +835,7 @@ public class MarkdownUtilsTest {
             assertThat(block)
                     .isNotNull()
                     .hasFieldOrPropertyWithValue("yaml", """
-                            group:artifact: "%s"
+                            group:artifact: "%s"\
                             """.formatted(bump));
 
             assertThat(log.getLogRecords())
