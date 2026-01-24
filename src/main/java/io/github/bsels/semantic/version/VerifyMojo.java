@@ -6,6 +6,7 @@ import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.VerificationMode;
+import io.github.bsels.semantic.version.utils.ProcessUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
@@ -101,9 +102,8 @@ public final class VerifyMojo extends BaseMojo {
     /// @throws MojoFailureException   if version or consistency validation fails, or if the Maven project state is invalid based on the defined validation logic.
     @Override
     protected void internalExecute() throws MojoExecutionException, MojoFailureException {
-        Log log = getLog();
         if (Git.NO_GIT != git) {
-            // TODO: Check if the repository is a valid git repository using `git status`
+            ProcessUtils.gitStatus();
         }
 
         Set<MavenArtifact> projects = getProjectsInScope()
@@ -166,13 +166,14 @@ public final class VerifyMojo extends BaseMojo {
             expectedProjects.add(artifact);
             toBeProcessed.addAll(dependencyToProjectArtifactMapping.getOrDefault(artifact, List.of()));
         }
-        boolean allMatched = expectedProjects.containsAll(mapping.versionBumpMap().keySet());
+        Set<MavenArtifact> versionMarkdownProjects = mapping.versionBumpMap().keySet();
+        boolean allMatched = versionMarkdownProjects.containsAll(expectedProjects);
         if (allMatched) {
             log.info("All dependent projects have version Markdown files.");
         } else {
             log.error("Some dependent projects are missing version Markdown files.");
             log.error("Expected projects: " + expectedProjects);
-            log.error("Found projects: " + mapping.versionBumpMap().keySet());
+            log.error("Found projects: " + versionMarkdownProjects);
         }
         return allMatched;
     }
