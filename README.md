@@ -129,6 +129,7 @@ versions, updates dependencies in multi-module projects, and merges changelog en
 | `versioning.backup`                | `boolean`     | `false`                                                   | Create backup of POM and CHANGELOG files before modification                                                                                                                                                                                                                         |
 | `versioning.commit.message.update` | `String`      | `Updated {numberOfProjects} project version(s) [skip ci]` | Commit message template for version updates. Use `{numberOfProjects}` placeholder for project count                                                                                                                                                                                  |
 | `versioning.update.scripts`        | `String`      | `-`                                                       | Script paths to execute per updated module, separated by the OS path separator. Each script runs in the module directory with `CURRENT_VERSION`, `NEW_VERSION`, `DRY_RUN` (`true` or `false`), `GIT_STASH` (`true` or `false`), `EXECUTION_DATE` (YYYY-MM-DD) environment variables. |
+| `versioning.version.header`        | `String`      | `{version} - {date#YYYY-MM-DD}`                           | Header format for version markdown files. Supports `{version}` and `{date#YYYY-MM-DD}` placeholders; date uses a `DateTimeFormatter` pattern.                                                                                                                                        |
 | `versioning.git`                   | `Git`         | `NO_GIT`                                                  | Defines the git operation mode:<br/>• `NO_GIT`: no git operations will be performed<br/>• `STASH`: added changed files to the git stash<br/>• `COMMIT`: commit all changed files with the configured commit message                                                                  |
 
 #### Example Usage
@@ -181,6 +182,13 @@ mvn io.github.bsels:semantic-version-maven-plugin:update \
   -Dversioning.directory=.versions
 ```
 
+**Custom version file header**:
+
+```bash
+mvn io.github.bsels:semantic-version-maven-plugin:update \
+  -Dversioning.version.header='Release {version} ({date#YYYY-MM-DD})'
+```
+
 **Multi-module project with revision property**:
 
 ```bash
@@ -215,6 +223,7 @@ These properties apply to both `create` and `update` goals:
 | `versioning.bump`                  | `VersionBump` | `FILE_BASED`                                              | Determines version increment strategy:<br/>• `FILE_BASED`: Read version bumps from markdown files in `.versioning` directory<br/>• `MAJOR`: Force MAJOR version increment (X.0.0) for all projects<br/>• `MINOR`: Force MINOR version increment (0.X.0) for all projects<br/>• `PATCH`: Force PATCH version increment (0.0.X) for all projects |
 | `versioning.commit.message.update` | `String`      | `Updated {numberOfProjects} project version(s) [skip ci]` | Commit message template used when updating project versions. The `{numberOfProjects}` placeholder is replaced with the actual count                                                                                                                                                                                                            |
 | `versioning.update.scripts`        | `String`      | `-`                                                       | Script paths to execute per updated module, separated by the OS path separator. Each script runs in the module directory with `CURRENT_VERSION`, `NEW_VERSION`, `DRY_RUN` (`true` or `false`), `GIT_STASH` (`true` or `false`), `EXECUTION_DATE` (YYYY-MM-DD) environment variables.                                                           |
+| `versioning.version.header`        | `String`      | `{version} - {date#YYYY-MM-DD}`                           | Header format for version markdown files. Supports `{version}` and `{date#YYYY-MM-DD}` placeholders; date uses a `DateTimeFormatter` pattern.                                                                                                                                                                                                  |
 
 ## Examples
 

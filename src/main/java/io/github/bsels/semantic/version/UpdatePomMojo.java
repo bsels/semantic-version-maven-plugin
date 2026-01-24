@@ -127,7 +127,7 @@ public final class UpdatePomMojo extends BaseMojo {
     ///   (the date format is processed by the [DateTimeFormatter]).
     ///
     /// This property is mandatory and must be defined for versioning tasks.
-    @Parameter(property = "versioning.version.file", required = true, defaultValue = "{version} - {date#YYYY-MM-DD}")
+    @Parameter(property = "versioning.version.header", required = true, defaultValue = "{version} - {date#YYYY-MM-DD}")
     String versionHeader = "{version} - {date#YYYY-MM-DD}";
 
     /// A list that holds file system paths pointing to script files.
