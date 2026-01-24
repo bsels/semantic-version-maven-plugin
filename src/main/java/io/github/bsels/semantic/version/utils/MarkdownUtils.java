@@ -11,7 +11,6 @@ import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
-import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlyDeserializer;
 import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlyKeyDeserializer;
 import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlySerializer;
 import io.github.bsels.semantic.version.utils.yaml.front.block.MarkdownYamFrontMatterBlockRendererFactory;
@@ -135,6 +134,8 @@ public final class MarkdownUtils {
     ///
     /// @param log          the logger used to log informational and debug messages during the parsing process; must not be null
     /// @param markdownFile the path to the Markdown file to be read and parsed; must not be null
+    /// @param identifier   the artifact identifier type used to determine the [ObjectMapper] configuration. It can be either [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID] or [ArtifactIdentifier#ONLY_ARTIFACT_ID].
+    /// @param groupId      the group ID of the current module used for deserialization when the identifier is [ArtifactIdentifier#ONLY_ARTIFACT_ID]
     /// @return a [VersionMarkdown] object containing the parsed Markdown content and the extracted Maven artifact to semantic version bump mappings
     /// @throws NullPointerException   if `log` or `markdownFile` is null
     /// @throws MojoExecutionException if an error occurs while reading the file, parsing the YAML front matter, or the Markdown does not contain the expected YAML front matter block
@@ -330,8 +331,9 @@ public final class MarkdownUtils {
 
     /// Creates a YAML front matter block containing version bump information for Maven artifacts.
     ///
-    /// @param log   the logger used for logging the YAML representation; must not be null
-    /// @param bumps a map where each key is a Maven artifact and the value is its corresponding semantic version bump. Must not be null.
+    /// @param log        the logger used for logging the YAML representation; must not be null
+    /// @param bumps      a map where each key is a Maven artifact and the value is its corresponding semantic version bump. Must not be null.
+    /// @param identifier the artifact identifier type used to determine the [ObjectMapper] configuration. It can be either [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID] or [ArtifactIdentifier#ONLY_ARTIFACT_ID].
     /// @return a [YamlFrontMatterBlock] containing the YAML representation of the version bump information.
     /// @throws NullPointerException   if the provided map and log is null.
     /// @throws MojoExecutionException if an error occurs while constructing the YAML representation.
