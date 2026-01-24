@@ -4,6 +4,7 @@ import io.github.bsels.semantic.version.models.MarkdownMapping;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
+import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
@@ -132,7 +133,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     /// indicating that no Git-specific actions will be performed unless explicitly configured.
     ///
     /// This field can be overridden by specifying the Maven property `versioning.git`.
-    @Parameter(property = "versioning.git", defaultValue = "NO_GIT")
+    @Parameter(property = "versioning.git", required = true, defaultValue = "NO_GIT")
     protected Git git = Git.NO_GIT;
 
     /// Indicates whether the original POM file and CHANGELOG file should be backed up before modifying its content.
@@ -140,8 +141,15 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     /// This parameter is configurable via the Maven property `versioning.backup`.
     /// When set to `true`, a backup of the POM/CHANGELOG file will be created before any updates are applied.
     /// The default value for this parameter is `false`, meaning no backup will be created unless explicitly specified.
-    @Parameter(property = "versioning.backup", defaultValue = "false")
-    boolean backupFiles = false;
+    @Parameter(property = "versioning.backup", required = true, defaultValue = "false")
+    protected boolean backupFiles = false;
+
+    /// Specifies the mode of artifact identification within a repository or dependency context.
+    /// This parameter is configurable via the Maven property `versioning.identifier`.
+    /// The default value is [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID],
+    /// which includes both the group ID and artifact ID.
+    @Parameter(property = "versioning.identifier", required = true, defaultValue = "GROUP_ID_AND_ARTIFACT_ID")
+    protected ArtifactIdentifier identifier;
 
     /// Default constructor for the BaseMojo class.
     /// Initializes the instance by invoking the superclass constructor.
@@ -222,7 +230,12 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
                     .toList();
             List<VersionMarkdown> parsedMarkdowns = new ArrayList<>();
             for (Path markdownFile : markdownFiles) {
-                parsedMarkdowns.add(MarkdownUtils.readVersionMarkdown(log, markdownFile));
+                parsedMarkdowns.add(MarkdownUtils.readVersionMarkdown(
+                        log,
+                        markdownFile,
+                        identifier,
+                        session.getCurrentProject().getGroupId()
+                ));
             }
             versionMarkdowns = List.copyOf(parsedMarkdowns);
         } catch (IOException e) {

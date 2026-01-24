@@ -118,7 +118,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
             return;
         }
 
-        YamlFrontMatterBlock versionBumpHeader = MarkdownUtils.createVersionBumpsHeader(log, selectedProjects);
+        YamlFrontMatterBlock versionBumpHeader = MarkdownUtils.createVersionBumpsHeader(log, selectedProjects, identifier);
         Node inputMarkdown = createChangelogEntry();
         inputMarkdown.prependChild(versionBumpHeader);
 
