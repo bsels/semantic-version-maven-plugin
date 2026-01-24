@@ -2,6 +2,7 @@ package io.github.bsels.semantic.version.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.type.MapType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
@@ -9,6 +10,10 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
+import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
+import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlyDeserializer;
+import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlyKeyDeserializer;
+import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlySerializer;
 import io.github.bsels.semantic.version.utils.yaml.front.block.MarkdownYamFrontMatterBlockRendererFactory;
 import io.github.bsels.semantic.version.utils.yaml.front.block.YamlFrontMatterBlock;
 import io.github.bsels.semantic.version.utils.yaml.front.block.YamlFrontMatterExtension;
@@ -64,6 +69,22 @@ public final class MarkdownUtils {
     private static final ObjectMapper YAML_MAPPER = new YAMLMapper()
             .configure(YAMLGenerator.Feature.WRITE_DOC_START_MARKER, false);
 
+    /// A pre-configured Jackson [ObjectMapper] instance for processing YAML data.
+    /// This [ObjectMapper] is designed specifically for serializing [MavenArtifact] objects
+    /// using the [MavenArtifactArtifactOnlySerializer].
+    /// It is a static and final instance,
+    /// ensuring a consistent configuration that only serializes the artifact-level details of [MavenArtifact] objects.
+    ///
+    /// The [ObjectMapper] is initialized as a copy of the default YAML_MAPPER and extended
+    /// with a custom SimpleModule that registers the [MavenArtifactArtifactOnlySerializer].
+    /// This configuration modifies the serialization behavior to focus exclusively on artifact-specific properties.
+    private static final ObjectMapper YAML_MAPPER_ARTIFACT_ONLY_SERIALIZER = YAML_MAPPER.copy()
+            .registerModule(
+                    new SimpleModule()
+                            .addKeySerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
+                            .addSerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
+            );
+
     /// A statically defined parser built for processing CommonMark-based Markdown with certain custom configurations.
     /// This parser is configured to:
     /// - Utilize the [YamlFrontMatterExtension], which adds support for recognizing and processing YAML front matter
@@ -117,10 +138,13 @@ public final class MarkdownUtils {
     /// @return a [VersionMarkdown] object containing the parsed Markdown content and the extracted Maven artifact to semantic version bump mappings
     /// @throws NullPointerException   if `log` or `markdownFile` is null
     /// @throws MojoExecutionException if an error occurs while reading the file, parsing the YAML front matter, or the Markdown does not contain the expected YAML front matter block
-    public static VersionMarkdown readVersionMarkdown(Log log, Path markdownFile)
-            throws NullPointerException, MojoExecutionException {
+    public static VersionMarkdown readVersionMarkdown(
+            Log log, Path markdownFile, ArtifactIdentifier identifier, String groupId
+    ) throws NullPointerException, MojoExecutionException {
         Objects.requireNonNull(log, "`log` must not be null");
         Objects.requireNonNull(markdownFile, "`markdownFile` must not be null");
+        Objects.requireNonNull(identifier, "`identifier` must not be null");
+        Objects.requireNonNull(groupId, "`groupId` must not be null");
         Node document = readMarkdown(log, markdownFile);
 
         if (!(document.getFirstChild() instanceof YamlFrontMatterBlock yamlFrontMatterBlock)) {
@@ -132,7 +156,8 @@ public final class MarkdownUtils {
         Map<MavenArtifact, SemanticVersionBump> bumps;
         try {
             log.debug("YAML front matter:\n%s".formatted(yaml.indent(4).stripTrailing()));
-            bumps = YAML_MAPPER.readValue(yaml, MAVEN_ARTIFACT_BUMP_MAP_TYPE);
+            bumps = prepareObjectMapperDeserialization(identifier, groupId)
+                    .readValue(yaml, MAVEN_ARTIFACT_BUMP_MAP_TYPE);
         } catch (JsonProcessingException e) {
             throw new MojoExecutionException(
                     "YAML front matter does not contain valid maven artifacts and semantic version bump", e
@@ -192,6 +217,7 @@ public final class MarkdownUtils {
     ///
     /// @param changelog     the root Node of the changelog Markdown structure to be updated; must not be null
     /// @param version       the version string to be added to the changelog; must not be null
+    /// @param headerLine    the header line format to be used for the new version heading; must not be null
     /// @param headerToNodes a mapping of SemanticVersionBump types to their associated Markdown nodes; must not be null
     /// @throws NullPointerException     if any of the parameters `changelog`, `version`, or `headerToNodes` is null
     /// @throws IllegalArgumentException if the changelog is not a document or does not start with a single H1 heading titled "Changelog"
@@ -199,10 +225,12 @@ public final class MarkdownUtils {
     public static void mergeVersionMarkdownsInChangelog(
             Node changelog,
             String version,
+            String headerLine,
             Map<SemanticVersionBump, List<Node>> headerToNodes
     ) throws NullPointerException, IllegalArgumentException {
         Objects.requireNonNull(changelog, "`changelog` must not be null");
         Objects.requireNonNull(version, "`version` must not be null");
+        Objects.requireNonNull(headerLine, "`headerFormatLine` must not be null");
         Objects.requireNonNull(headerToNodes, "`headerToNodes` must not be null");
 
         if (!(changelog instanceof Document document)) {
@@ -217,7 +245,7 @@ public final class MarkdownUtils {
 
         Heading newVersionHeading = new Heading();
         newVersionHeading.setLevel(2);
-        newVersionHeading.appendChild(new Text("%s - %s".formatted(version, LocalDate.now())));
+        newVersionHeading.appendChild(new Text(Utils.formatHeaderLine(headerLine, version, LocalDate.now())));
         heading.insertAfter(newVersionHeading);
 
         Comparator<Map.Entry<SemanticVersionBump, List<Node>>> comparator = Map.Entry.comparingByKey();
@@ -308,18 +336,51 @@ public final class MarkdownUtils {
     /// @throws NullPointerException   if the provided map and log is null.
     /// @throws MojoExecutionException if an error occurs while constructing the YAML representation.
     public static YamlFrontMatterBlock createVersionBumpsHeader(
-            Log log, Map<MavenArtifact, SemanticVersionBump> bumps
+            Log log, Map<MavenArtifact, SemanticVersionBump> bumps, ArtifactIdentifier identifier
     ) throws NullPointerException, MojoExecutionException {
         Objects.requireNonNull(log, "`log` must not be null");
         Objects.requireNonNull(bumps, "`bumps` must not be null");
+        Objects.requireNonNull(identifier, "`identifier` must not be null");
         String yaml;
         try {
-            yaml = YAML_MAPPER.writeValueAsString(bumps);
+            yaml = prepareObjectMapperSerialization(identifier)
+                    .writeValueAsString(bumps).stripTrailing();
             log.debug("Version bumps YAML:\n%s\n".formatted(yaml.indent(4).stripTrailing()));
         } catch (JsonProcessingException e) {
             throw new MojoExecutionException("Unable to construct version bump YAML", e);
         }
         return new YamlFrontMatterBlock(yaml);
+    }
+
+    /// Prepares and configures an [ObjectMapper] for deserializing YAML data based on the given identifier type.
+    ///
+    /// @param identifier The artifact identifier type used to determine the [ObjectMapper] configuration. It can be either [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID] or [ArtifactIdentifier#ONLY_ARTIFACT_ID].
+    /// @param groupId    The group ID to be used in the deserialization process when the identifier is [ArtifactIdentifier#ONLY_ARTIFACT_ID].
+    /// @return A configured [ObjectMapper] instance for deserializing YAML data.
+    private static ObjectMapper prepareObjectMapperDeserialization(ArtifactIdentifier identifier, String groupId) {
+        return switch (identifier) {
+            case GROUP_ID_AND_ARTIFACT_ID -> YAML_MAPPER;
+            case ONLY_ARTIFACT_ID -> YAML_MAPPER.copy()
+                    .registerModule(
+                            new SimpleModule()
+                                    .addKeyDeserializer(
+                                            MavenArtifact.class,
+                                            new MavenArtifactArtifactOnlyKeyDeserializer(groupId)
+                                    )
+                    );
+        };
+    }
+
+    /// Prepares and returns an [ObjectMapper] instance configured for serialization based on the provided artifact
+    /// identifier.
+    ///
+    /// @param identifier the artifact identifier that determines the specific [ObjectMapper] configuration to be used. It can either be [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID] or [ArtifactIdentifier#ONLY_ARTIFACT_ID].
+    /// @return an [ObjectMapper] instance configured for the specified artifact identifier.
+    private static ObjectMapper prepareObjectMapperSerialization(ArtifactIdentifier identifier) {
+        return switch (identifier) {
+            case GROUP_ID_AND_ARTIFACT_ID -> YAML_MAPPER;
+            case ONLY_ARTIFACT_ID -> YAML_MAPPER_ARTIFACT_ONLY_SERIALIZER;
+        };
     }
 
     /// Merges two [Node] instances by inserting the second node after the first node and returning the second node.

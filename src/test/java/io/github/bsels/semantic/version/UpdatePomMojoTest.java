@@ -1,6 +1,8 @@
 package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
+import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.test.utils.ReadMockedMavenSession;
@@ -15,12 +17,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.CopyOption;
@@ -42,14 +46,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ExtendWith(MockitoExtension.class)
 public class UpdatePomMojoTest extends AbstractBaseMojoTest {
     private static final LocalDate DATE = LocalDate.of(2025, 1, 1);
+    @Mock
+    Process processMock;
     private UpdatePomMojo classUnderTest;
     private TestLog testLog;
     private Map<Path, StringWriter> mockedOutputFiles;
     private List<CopyPath> mockedCopiedFiles;
     private List<Path> mockedDeletedFiles;
-
+    private List<List<String>> mockedExecutedProcesses;
     private MockedStatic<Files> filesMockedStatic;
     private MockedStatic<LocalDate> localDateMockedStatic;
+    private MockedConstruction<ProcessBuilder> mockedProcessBuilderConstruction;
 
     @BeforeEach
     void setUp() {
@@ -59,6 +66,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         mockedOutputFiles = new HashMap<>();
         mockedCopiedFiles = new ArrayList<>();
         mockedDeletedFiles = new ArrayList<>();
+        mockedExecutedProcesses = new ArrayList<>();
 
         filesMockedStatic = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS);
         filesMockedStatic.when(() -> Files.newBufferedWriter(Mockito.any(), Mockito.any(), Mockito.any(OpenOption[].class)))
@@ -85,12 +93,32 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         localDateMockedStatic = Mockito.mockStatic(LocalDate.class);
         localDateMockedStatic.when(LocalDate::now)
                 .thenReturn(DATE);
+
+        mockedProcessBuilderConstruction = Mockito.mockConstruction(ProcessBuilder.class, (mock, context) -> {
+            if (!context.arguments().isEmpty()) {
+                List<String> command = List.of((String[]) context.arguments().get(0));
+                if (!command.isEmpty()) {
+                    mockedExecutedProcesses.add(command);
+                }
+            }
+            Map<String, String> environment = new HashMap<>();
+            Mockito.when(mock.command(Mockito.anyList()))
+                    .thenAnswer(invocation -> {
+                        mockedExecutedProcesses.add(invocation.getArgument(0));
+                        return mock;
+                    });
+            Mockito.when(mock.environment()).thenReturn(environment);
+            Mockito.when(mock.directory(Mockito.any())).thenReturn(mock);
+            Mockito.when(mock.inheritIO()).thenReturn(mock);
+            Mockito.when(mock.start()).thenReturn(processMock);
+        });
     }
 
     @AfterEach
     void tearDown() {
         filesMockedStatic.close();
         localDateMockedStatic.close();
+        mockedProcessBuilderConstruction.close();
     }
 
     @Test
@@ -120,6 +148,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         assertThat(mockedCopiedFiles)
                 .isEmpty();
         assertThat(mockedDeletedFiles)
+                .isEmpty();
+        assertThat(mockedExecutedProcesses)
                 .isEmpty();
     }
 
@@ -153,6 +183,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         assertThat(mockedCopiedFiles)
                 .isEmpty();
         assertThat(mockedDeletedFiles)
+                .isEmpty();
+        assertThat(mockedExecutedProcesses)
                 .isEmpty();
     }
 
@@ -265,6 +297,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -309,6 +343,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -477,11 +513,185 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isNotEmpty()
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "leaves", "single", "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
-        void multiFileBased_Valid() {
+        void singleFileBased_ArtifactOnlyIdentifier_Valid() {
             classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.identifier = ArtifactIdentifier.ONLY_ARTIFACT_ID;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "leaves", "single-artifact-only");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(21)
+                    .satisfiesExactlyInAnyOrder(
+                            validateLogRecordInfo("Execution for project: org.example.itests.leaves:root:5.0.0-root"),
+                            validateLogRecordInfo("Read 7 lines from %s".formatted(
+                                    getResourcesPath("versioning", "leaves", "single-artifact-only", "versioning.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        child-1: patch
+                                        child-2: minor
+                                        child-3: major\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.leaves:child-2=MINOR, org.example.itests.leaves:child-1=PATCH, \
+                                    org.example.itests.leaves:child-3=MAJOR}\
+                                    """),
+                            validateLogRecordInfo("Multiple projects in scope"),
+                            validateLogRecordInfo("Found 3 projects in scope"),
+                            validateLogRecordInfo("Updating version with a PATCH semantic version"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("leaves", "child-1", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog"),
+                            validateLogRecordInfo("Updating version with a MINOR semantic version"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog"),
+                            validateLogRecordInfo("Updating version with a MAJOR semantic version"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog"),
+                            validateLogRecordDebug("Updating project org.example.itests.leaves:child-1"),
+                            validateLogRecordDebug("Updating project org.example.itests.leaves:child-2"),
+                            validateLogRecordDebug("Updating project org.example.itests.leaves:child-3")
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(6)
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "child-1", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.leaves</groupId>
+                                                <artifactId>child-1</artifactId>
+                                                <version>5.0.1-child-1</version>
+                                            </project>
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "intermediate", "child-2", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.leaves</groupId>
+                                                <artifactId>child-2</artifactId>
+                                                <version>5.1.0-child-2</version>
+                                            </project>
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "intermediate", "child-3", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.leaves</groupId>
+                                                <artifactId>child-3</artifactId>
+                                                <version>6.0.0-child-3</version>
+                                            </project>
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "child-1", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 5.0.1-child-1 - 2025-01-01
+                                            
+                                            ### Patch
+                                            
+                                            Different versions bump in different modules.
+                                            
+                                            ## 5.0.0-child-1 - 2026-01-01
+                                            
+                                            Initial child 1 release.
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 5.1.0-child-2 - 2025-01-01
+                                            
+                                            ### Minor
+                                            
+                                            Different versions bump in different modules.
+                                            
+                                            ## 5.0.0-child-2 - 2026-01-01
+                                            
+                                            Initial child 2 release.
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 6.0.0-child-3 - 2025-01-01
+                                            
+                                            ### Major
+                                            
+                                            Different versions bump in different modules.
+                                            
+                                            ## 5.0.0-child-3 - 2026-01-01
+                                            
+                                            Initial child 3 release.
+                                            """
+                                    )
+                    );
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactly(getResourcesPath("versioning", "leaves", "single-artifact-only", "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
+        }
+
+        @ParameterizedTest
+        @EnumSource(Git.class)
+        void multiFileBased_Valid(Git gitMode) {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.git = gitMode;
             classUnderTest.versionDirectory = getResourcesPath("versioning", "leaves", "multi");
 
             assertThatNoException()
@@ -667,6 +877,55 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                             getResourcesPath("versioning", "leaves", "multi", "child-2.md"),
                             getResourcesPath("versioning", "leaves", "multi", "child-3.md")
                     );
+            if (Git.NO_GIT == gitMode) {
+                assertThat(mockedExecutedProcesses)
+                        .isEmpty();
+            } else if (Git.STASH == gitMode) {
+                assertThat(mockedExecutedProcesses)
+                        .hasSize(7)
+                        .contains(
+                                List.of("git", "add", getResourcesPath("leaves", "child-1", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "child-1", "CHANGELOG.md").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md").toString())
+                        )
+                        .anySatisfy(
+                                command -> assertThat(command)
+                                        .startsWith("git", "add")
+                                        .containsExactlyInAnyOrder(
+                                                "git",
+                                                "add",
+                                                getResourcesPath("versioning", "leaves", "multi", "child-1.md").toString(),
+                                                getResourcesPath("versioning", "leaves", "multi", "child-2.md").toString(),
+                                                getResourcesPath("versioning", "leaves", "multi", "child-3.md").toString()
+                                        )
+                        );
+            } else {
+                assertThat(mockedExecutedProcesses)
+                        .hasSize(8)
+                        .contains(
+                                List.of("git", "add", getResourcesPath("leaves", "child-1", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "child-1", "CHANGELOG.md").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "pom.xml").toString()),
+                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md").toString()),
+                                List.of("git", "commit", "-m", "Updated 3 project version(s) [skip ci]")
+                        )
+                        .anySatisfy(
+                                command -> assertThat(command)
+                                        .startsWith("git", "add")
+                                        .containsExactlyInAnyOrder(
+                                                "git",
+                                                "add",
+                                                getResourcesPath("versioning", "leaves", "multi", "child-1.md").toString(),
+                                                getResourcesPath("versioning", "leaves", "multi", "child-2.md").toString(),
+                                                getResourcesPath("versioning", "leaves", "multi", "child-3.md").toString()
+                                        )
+                        );
+            }
         }
 
     }
@@ -909,6 +1168,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isNotEmpty()
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "multi", dependency, "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -962,6 +1223,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isNotEmpty()
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "multi", "excluded", "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
     }
 
@@ -1108,6 +1371,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isNotEmpty()
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "multi-recursive", "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
     }
 
@@ -1202,6 +1467,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -1307,6 +1574,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     );
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -1385,6 +1654,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -1430,6 +1701,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -1455,6 +1728,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -1494,6 +1769,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -1532,6 +1809,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -1630,6 +1909,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .containsExactlyInAnyOrder(
                             getResourcesPath("versioning", "revision", "multi", folder, "versioning.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -1768,6 +2049,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                             getResourcesPath("versioning", "revision", "multi", "multiple", "patch.md"),
                             getResourcesPath("versioning", "revision", "multi", "multiple", "none.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
     }
 
@@ -1857,6 +2140,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -1957,6 +2242,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     );
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2028,6 +2315,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2071,6 +2360,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2096,6 +2387,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2135,6 +2428,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2173,6 +2468,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2266,6 +2563,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .containsExactlyInAnyOrder(
                             getResourcesPath("versioning", "revision", "single", folder, "versioning.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2399,6 +2698,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                             getResourcesPath("versioning", "revision", "single", "multiple", "patch.md"),
                             getResourcesPath("versioning", "revision", "single", "multiple", "none.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
     }
 
@@ -2484,6 +2785,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2580,6 +2883,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     );
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2647,6 +2952,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @ParameterizedTest
@@ -2690,6 +2997,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2715,6 +3024,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2754,6 +3065,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedDeletedFiles)
                     .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -2792,6 +3105,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(mockedCopiedFiles)
                     .isEmpty();
             assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
 
@@ -2881,6 +3196,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .containsExactlyInAnyOrder(
                             getResourcesPath("versioning", "single", folder, "versioning.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
         }
 
         @Test
@@ -3010,6 +3327,62 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                             getResourcesPath("versioning", "single", "multiple", "patch.md"),
                             getResourcesPath("versioning", "single", "multiple", "none.md")
                     );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
+        }
+    }
+
+    @Nested
+    class ExecuteScriptsFlowTest {
+
+        @Test
+        void singleProject_ExecutesScriptsForUpdate() {
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
+                    getResourcesPath("single"),
+                    Path.of(".")
+            );
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "single", "patch");
+            classUnderTest.scripts = String.join(File.pathSeparator, "script-a.sh", "script-b.sh");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedExecutedProcesses)
+                    .hasSize(2);
+            assertThat(countScriptExecutions(Path.of("script-a.sh").toAbsolutePath().toString()))
+                    .isEqualTo(1);
+            assertThat(countScriptExecutions(Path.of("script-b.sh").toAbsolutePath().toString()))
+                    .isEqualTo(1);
+        }
+
+        @Test
+        void multiProject_ExecutesScriptsForEachUpdatedProject() {
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
+                    getResourcesPath("leaves"),
+                    Path.of(".")
+            );
+            classUnderTest.modus = Modus.PROJECT_VERSION_ONLY_LEAFS;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "leaves", "single");
+            classUnderTest.scripts = String.join(File.pathSeparator, "script-a.sh", "script-b.sh");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedExecutedProcesses)
+                    .hasSize(6);
+            assertThat(countScriptExecutions(Path.of("script-a.sh").toAbsolutePath().toString()))
+                    .isEqualTo(3);
+            assertThat(countScriptExecutions(Path.of("script-b.sh").toAbsolutePath().toString()))
+                    .isEqualTo(3);
+        }
+
+        private long countScriptExecutions(String script) {
+            return mockedExecutedProcesses.stream()
+                    .filter(command -> command.equals(List.of(script)))
+                    .count();
         }
     }
 }

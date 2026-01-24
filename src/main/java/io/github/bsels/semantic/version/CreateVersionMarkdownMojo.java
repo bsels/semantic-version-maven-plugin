@@ -1,6 +1,7 @@
 package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.ProcessUtils;
@@ -13,6 +14,7 @@ import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugins.annotations.Execute;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.commonmark.node.Node;
 
@@ -56,6 +58,24 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
             SemanticVersionBump.PATCH, SemanticVersionBump.MINOR, SemanticVersionBump.MAJOR
     );
 
+    /// Represents the commit message for creating a version Markdown file.
+    /// This variable is essential for customizing the commit message applied when creating a version Markdown file.
+    ///
+    /// The placeholder `"{numberOfProjects}"` is used to dynamically insert the number of projects for which
+    /// the version file was created into the message.
+    ///
+    /// Attributes:
+    /// - property: Specifies the configuration property key to override this value.
+    /// - required: Signifies that this parameter is mandatory.
+    /// - defaultValue: If not explicitly specified,
+    ///   defaults to `"Created version Markdown file for {numberOfProjects} project(s)"`.
+    @Parameter(
+            property = "versioning.commit.message.create",
+            required = true,
+            defaultValue = "Created version Markdown file for {numberOfProjects} project(s)"
+    )
+    String commitMessage = "Created version Markdown file for {numberOfProjects} project(s)";
+
     /// Default constructor for the CreateVersionMarkdownMojo class.
     /// Invokes the superclass constructor to initialize the instance.
     /// This constructor is typically used by the Maven framework during the build lifecycle.
@@ -79,6 +99,11 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
     /// @throws MojoFailureException   if the operation to process or create the version Markdown file fails.
     @Override
     protected void internalExecute() throws MojoExecutionException, MojoFailureException {
+        commitMessage = Utils.prepareFormatString(
+                commitMessage,
+                List.of(new PlaceHolderWithType("numberOfProjects", "d"))
+        );
+
         Log log = getLog();
         List<MavenArtifact> projects = getProjectsInScope()
                 .map(mavenProject -> new MavenArtifact(mavenProject.getGroupId(), mavenProject.getArtifactId()))
@@ -93,7 +118,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
             return;
         }
 
-        YamlFrontMatterBlock versionBumpHeader = MarkdownUtils.createVersionBumpsHeader(log, selectedProjects);
+        YamlFrontMatterBlock versionBumpHeader = MarkdownUtils.createVersionBumpsHeader(log, selectedProjects, identifier);
         Node inputMarkdown = createChangelogEntry();
         inputMarkdown.prependChild(versionBumpHeader);
 
@@ -101,6 +126,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
         Utils.createDirectoryIfNotExists(versioningFolder);
         Path versioningFile = Utils.resolveVersioningFile(versioningFolder);
         writeMarkdownFile(inputMarkdown, versioningFile);
+        commit(commitMessage.formatted(selectedProjects.size()));
     }
 
     /// Creates a changelog entry by either taking user input directly or by leveraging an external editor.

@@ -2,12 +2,14 @@ package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.MarkdownMapping;
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionChange;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.POMUtils;
+import io.github.bsels.semantic.version.utils.ProcessUtils;
 import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -21,9 +23,12 @@ import org.apache.maven.project.MavenProject;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
+import java.io.File;
 import java.nio.file.Path;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -73,6 +78,63 @@ public final class UpdatePomMojo extends BaseMojo {
     @Parameter(property = "versioning.bump", required = true, defaultValue = "FILE_BASED")
     VersionBump versionBump = VersionBump.FILE_BASED;
 
+    /// Represents the commit message template used during version updates.
+    /// This variable is essential for customizing the commit message applied when updating project versions.
+    ///
+    /// The placeholder `"{numberOfProjects}"` is used to dynamically insert the number of project versions updated into
+    /// the message.
+    ///
+    /// Attributes:
+    /// - property: Specifies the configuration property key to override this value.
+    /// - required: Signifies that this parameter is mandatory.
+    /// - defaultValue: If not explicitly specified,
+    ///   defaults to `"Updated {numberOfProjects} project version(s)[skip ci]"`.
+    @Parameter(
+            property = "versioning.commit.message.update",
+            required = true,
+            defaultValue = "Updated {numberOfProjects} project version(s) [skip ci]"
+    )
+    String commitMessage = "Updated {numberOfProjects} project version(s) [skip ci]";
+
+    /// Specifies the scripts or paths to the scripts used in versioning updates.
+    /// These scripts can be used to manage or modify version-related data or configuration during the build process in
+    /// the working directory of each processed module.
+    /// The scripts will be executed in the order they are specified.
+    ///
+    /// The scripts will be called with the following environment variables:
+    /// - `CURRENT_VERSION`: The current version of the project.
+    /// - `NEW_VERSION`: The new version of the project after the update.
+    /// - `DRY_RUN`: A flag indicating whether the script is being executed in dry-run mode (true) or not (false).
+    /// - `GIT_STASH`: A flag indicating whether the script should stash the files or not (true) or not (false).
+    /// - `EXECUTION_DATE`: The date and time when the script was executed formatted as ISO 8601: `YYYY-MM-DD`.
+    ///
+    /// The scripts should be separated by the OS file path separator
+    ///
+    /// This parameter is optional.
+    @Parameter(property = "versioning.update.scripts", required = false)
+    String scripts;
+
+    /// Specifies the header format for the version file.
+    /// The header is used to define the versioning structure within the file,
+    /// including placeholders that can be dynamically replaced.
+    ///
+    /// The default format includes the version number and the current date.
+    /// Placeholders like `{version}` and `{date#YYYY-MM-DD}` are used for injecting the version
+    /// and date details respectively.
+    ///
+    /// - `{version}`: Represents the version of the application or component.
+    /// - `{date#YYYY-MM-DD}`: Represents the current date in the specified format
+    ///   (the date format is processed by the [DateTimeFormatter]).
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.version.header", required = true, defaultValue = "{version} - {date#YYYY-MM-DD}")
+    String versionHeader = "{version} - {date#YYYY-MM-DD}";
+
+    /// A list that holds file system paths pointing to script files.
+    /// Will be derived on execution from the `scripts` parameter.
+    /// Each path represented by this list is of type [Path], allowing interaction with the file system.
+    private List<Path> scriptPaths = List.of();
+
     /// Default constructor for the UpdatePomMojo class.
     ///
     /// Initializes an instance of the UpdatePomMojo class by invoking the superclass constructor.
@@ -93,7 +155,7 @@ public final class UpdatePomMojo extends BaseMojo {
     ///
     /// This method performs the following steps:
     /// 1. Retrieves the logger instance for logging operations.
-    /// 2. Fetches and processes markdown version information.
+    /// 2. Fetches and processes Markdown version information.
     /// 3. Validates the provided Markdown mappings to ensure correctness.
     /// 4. Collects Maven projects that are within the scope for processing.
     /// 5. Based on the number of scoped projects:
@@ -106,6 +168,18 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @throws MojoFailureException   if a failure condition specific to the plugin occurs. This indicates a detected issue that halts further execution.
     @Override
     public void internalExecute() throws MojoExecutionException, MojoFailureException {
+        commitMessage = Utils.prepareFormatString(
+                commitMessage,
+                List.of(new PlaceHolderWithType("numberOfProjects", "d"))
+        );
+        scriptPaths = Optional.ofNullable(scripts)
+                .map(s -> s.split(File.pathSeparator))
+                .stream()
+                .flatMap(Arrays::stream)
+                .map(Path::of)
+                .map(Path::toAbsolutePath)
+                .toList();
+
         Log log = getLog();
         List<VersionMarkdown> versionMarkdowns = getVersionMarkdowns();
         MarkdownMapping mapping = getMarkdownMapping(versionMarkdowns);
@@ -114,37 +188,38 @@ public final class UpdatePomMojo extends BaseMojo {
         List<MavenProject> projectsInScope = getProjectsInScope()
                 .collect(Utils.asImmutableList());
 
-        boolean hasChanges;
+        int changedProjects;
         if (projectsInScope.isEmpty()) {
             log.warn("No projects found in scope");
-            hasChanges = false;
+            changedProjects = 0;
         } else if (projectsInScope.size() == 1) {
             log.info("Single project in scope");
-            hasChanges = handleSingleProject(mapping, projectsInScope.get(0));
+            changedProjects = handleSingleProject(mapping, projectsInScope.get(0));
         } else {
             log.info("Multiple projects in scope");
-            hasChanges = handleMultiProjects(mapping, projectsInScope);
+            changedProjects = handleMultiProjects(mapping, projectsInScope);
         }
 
-        if (!dryRun && hasChanges && VersionBump.FILE_BASED.equals(versionBump)) {
-            Utils.deleteFilesIfExists(
-                    versionMarkdowns.stream()
-                            .map(VersionMarkdown::path)
-                            .filter(Objects::nonNull)
-                            .toList()
-            );
+        if (!dryRun && changedProjects > 0 && VersionBump.FILE_BASED.equals(versionBump)) {
+            List<Path> paths = versionMarkdowns.stream()
+                    .map(VersionMarkdown::path)
+                    .filter(Objects::nonNull)
+                    .toList();
+            Utils.deleteFilesIfExists(paths);
+            stashFiles(paths);
         }
+        commit(commitMessage.formatted(changedProjects));
     }
 
     /// Handles the processing of a single Maven project by determining the semantic version bump,
     /// updating the project's version, and synchronizing the changes with a Markdown file.
     ///
-    /// @param markdownMapping the mapping that contains the version bump map and markdown file details
+    /// @param markdownMapping the mapping that contains the version bump map and Markdown file details
     /// @param project         the Maven project to be processed
-    /// @return `true` if a version update was performed, `false` otherwise.
+    /// @return `1` if a version update was performed, `0` otherwise.
     /// @throws MojoExecutionException if an error occurs during processing the project's POM file
     /// @throws MojoFailureException   if a failure occurs due to semantic version bump or other operations
-    private boolean handleSingleProject(MarkdownMapping markdownMapping, MavenProject project)
+    private int handleSingleProject(MarkdownMapping markdownMapping, MavenProject project)
             throws MojoExecutionException, MojoFailureException {
         Path pom = project.getFile()
                 .toPath();
@@ -160,18 +235,19 @@ public final class UpdatePomMojo extends BaseMojo {
 
             writeUpdatedPom(document, pom);
             updateMarkdownFile(markdownMapping, artifact, pom, newVersion);
+            executeScripts(pom.getParent(), version.get());
         }
-        return version.isPresent();
+        return version.isPresent() ? 1 : 0;
     }
 
     /// Handles multiple Maven projects by processing their POM files, dependencies, and versions, updating the projects as necessary.
     ///
     /// @param markdownMapping an instance of [MarkdownMapping] that contains mapping details for Markdown processing.
     /// @param projects        a list of [MavenProject] objects, representing the Maven projects to be processed.
-    /// @return `true` if any projects were updated, `false` otherwise.
+    /// @return the number of projects that were updated based on the version changes.
     /// @throws MojoExecutionException if there's an execution error while handling the projects.
     /// @throws MojoFailureException   if a failure is encountered during the processing of the projects.
-    private boolean handleMultiProjects(MarkdownMapping markdownMapping, List<MavenProject> projects)
+    private int handleMultiProjects(MarkdownMapping markdownMapping, List<MavenProject> projects)
             throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
         Map<MavenArtifact, MavenProjectAndDocument> documents = readAllPoms(projects);
@@ -204,7 +280,28 @@ public final class UpdatePomMojo extends BaseMojo {
         );
 
         writeUpdatedProjects(result.updatedArtifacts(), documents);
-        return !result.updatedArtifacts().isEmpty();
+        return result.updatedArtifacts().size();
+    }
+
+    /// Executes a series of scripts provided in the [#scriptPaths] collection.
+    ///
+    /// This method iterates over the available script paths
+    /// and invokes the `ProcessUtils.executeScripts` method for each script,
+    /// passing the required parameters for execution.
+    ///
+    /// @param projectPath   the base path of the project where scripts will be executed
+    /// @param versionChange the object representing the version change details for the script execution
+    /// @throws MojoExecutionException if an error occurs during script execution
+    private void executeScripts(Path projectPath, VersionChange versionChange) throws MojoExecutionException {
+        for (Path scriptPath : scriptPaths) {
+            ProcessUtils.executeScripts(
+                    scriptPath,
+                    projectPath,
+                    versionChange,
+                    dryRun,
+                    git.isStash()
+            );
+        }
     }
 
     /// Handles Maven projects and their dependencies to update versions and related metadata.
@@ -244,6 +341,7 @@ public final class UpdatePomMojo extends BaseMojo {
                     .forEach(toBeUpdated::offer);
 
             updateMarkdownFile(markdownMapping, artifact, mavenProjectAndDocument.pomFile(), change.newVersion());
+            executeScripts(mavenProjectAndDocument.pomFile().getParent(), change);
 
             updatableDependencies.getOrDefault(artifact, List.of())
                     .forEach(node -> POMUtils.updateVersionNodeIfOldVersionMatches(change, node));
@@ -251,7 +349,7 @@ public final class UpdatePomMojo extends BaseMojo {
     }
 
     /// Processes the Markdown versions for the provided Maven artifacts and updates the required dependencies,
-    /// markdown files, and version nodes as needed.
+    /// Markdown files, and version nodes as needed.
     ///
     /// @param markdownMapping              the mapping containing information about the Markdown files and version bump rules
     /// @param reactorArtifacts             the set of Maven artifacts that are part of the current reactor build
@@ -259,7 +357,7 @@ public final class UpdatePomMojo extends BaseMojo {
     /// @param dependencyToProjectArtifacts a mapping of Maven artifacts to lists of dependent project artifacts
     /// @param updatableDependencies        a mapping of Maven artifacts to lists of dependencies in the form of XML nodes that can be updated in the POM files
     /// @return an object containing the set of updated artifacts and the queue of artifacts to be updated
-    /// @throws MojoExecutionException if there is an error during version processing or markdown update
+    /// @throws MojoExecutionException if there is an error during version processing or Markdown update
     /// @throws MojoFailureException   if any Mojo-related failure occurs during execution
     private UpdatedAndToUpdateArtifacts processMarkdownVersions(
             MarkdownMapping markdownMapping,
@@ -287,6 +385,7 @@ public final class UpdatePomMojo extends BaseMojo {
 
                 updatableDependencies.getOrDefault(artifact, List.of())
                         .forEach(node -> POMUtils.updateVersionNodeIfOldVersionMatches(change, node));
+                executeScripts(mavenProjectAndDocument.pomFile().getParent(), change);
             }
         }
         return new UpdatedAndToUpdateArtifacts(updatedArtifacts, toBeUpdated);
@@ -429,9 +528,10 @@ public final class UpdatePomMojo extends BaseMojo {
         } else {
             POMUtils.writePom(document, pom, backupFiles);
         }
+        stashFiles(List.of(pom));
     }
 
-    /// Updates the Markdown file by reading the current changelog, merging version-specific markdown changes,
+    /// Updates the Markdown file by reading the current changelog, merging version-specific Markdown changes,
     /// and writing the updated changelog to the file system.
     ///
     /// @param markdownMapping the mapping between Maven artifacts and their associated Markdown changes
@@ -454,6 +554,7 @@ public final class UpdatePomMojo extends BaseMojo {
         MarkdownUtils.mergeVersionMarkdownsInChangelog(
                 changelog,
                 newVersion,
+                versionHeader,
                 markdownMapping.markdownMap()
                         .getOrDefault(
                                 projectArtifact,

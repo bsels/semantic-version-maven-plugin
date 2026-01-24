@@ -1,5 +1,6 @@
 package io.github.bsels.semantic.version.utils;
 
+import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.project.MavenProject;
 import org.junit.jupiter.api.Nested;
@@ -20,7 +21,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -525,6 +528,214 @@ public class UtilsTest {
                 assertThat(Utils.resolveVersioningFile(folder))
                         .isEqualTo(expectedPath);
             }
+        }
+    }
+
+    @Nested
+    class PrepareFormatStringTest {
+
+        @Test
+        void nullFormatString_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.prepareFormatString(null, List.of()))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`formatString` must not be null");
+        }
+
+        @Test
+        void nullKeys_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.prepareFormatString("test", null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`keys` must not be null");
+        }
+
+        @Test
+        void nullKeyInList_ThrowsNullPointerException() {
+            List<PlaceHolderWithType> keys = Arrays.asList(
+                    new PlaceHolderWithType("version", "s"),
+                    null,
+                    new PlaceHolderWithType("date", "s")
+            );
+            assertThatThrownBy(() -> Utils.prepareFormatString("test", keys))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("All keys must not be null");
+        }
+
+        @Test
+        void emptyKeysAndEmptyString_ReturnsEmptyString() {
+            String result = Utils.prepareFormatString("", List.of());
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        void emptyKeys_ReturnsOriginalString() {
+            String formatString = "No placeholders here";
+            String result = Utils.prepareFormatString(formatString, List.of());
+            assertThat(result).isEqualTo(formatString);
+        }
+
+        @Test
+        void singlePlaceholder_CorrectlyReplaced() {
+            String formatString = "Version: {version}";
+            List<PlaceHolderWithType> keys = List.of(
+                    new PlaceHolderWithType("version", "s")
+            );
+            String result = Utils.prepareFormatString(formatString, keys);
+            assertThat(result).isEqualTo("Version: %1$s");
+        }
+
+        @Test
+        void multiplePlaceholders_CorrectlyReplacedInOrder() {
+            String formatString = "Version {version} released on {date} by {author}";
+            List<PlaceHolderWithType> keys = List.of(
+                    new PlaceHolderWithType("version", "s"),
+                    new PlaceHolderWithType("date", "s"),
+                    new PlaceHolderWithType("author", "s")
+            );
+            String result = Utils.prepareFormatString(formatString, keys);
+            assertThat(result).isEqualTo("Version %1$s released on %2$s by %3$s");
+        }
+
+        @Test
+        void differentFormatTypes_CorrectlyApplied() {
+            String formatString = "Count: {count}, Name: {name}, Value: {value}";
+            List<PlaceHolderWithType> keys = List.of(
+                    new PlaceHolderWithType("count", "d"),
+                    new PlaceHolderWithType("name", "s"),
+                    new PlaceHolderWithType("value", "f")
+            );
+            String result = Utils.prepareFormatString(formatString, keys);
+            assertThat(result).isEqualTo("Count: %1$d, Name: %2$s, Value: %3$f");
+        }
+
+        @Test
+        void samePlaceholderMultipleTimes_AllInstancesReplaced() {
+            String formatString = "{version} is the latest version. Update to {version} now!";
+            List<PlaceHolderWithType> keys = List.of(
+                    new PlaceHolderWithType("version", "s")
+            );
+            String result = Utils.prepareFormatString(formatString, keys);
+            assertThat(result).isEqualTo("%1$s is the latest version. Update to %1$s now!");
+        }
+
+        @Test
+        void placeholderNotInString_StringUnchanged() {
+            String formatString = "No version here";
+            List<PlaceHolderWithType> keys = List.of(
+                    new PlaceHolderWithType("version", "s"),
+                    new PlaceHolderWithType("date", "s")
+            );
+            String result = Utils.prepareFormatString(formatString, keys);
+            assertThat(result).isEqualTo("No version here");
+        }
+
+        @Test
+        void partialPlaceholderMatch_OnlyFullMatchReplaced() {
+            String formatString = "{version} and {versioning} are different";
+            List<PlaceHolderWithType> keys = List.of(
+                    new PlaceHolderWithType("version", "s")
+            );
+            String result = Utils.prepareFormatString(formatString, keys);
+            assertThat(result).isEqualTo("%1$s and {versioning} are different");
+        }
+
+        @Test
+        void complexFormatString_CorrectlyProcessed() {
+            String formatString = "Released version {version} on {date} with {count} features";
+            List<PlaceHolderWithType> keys = List.of(
+                    new PlaceHolderWithType("version", "s"),
+                    new PlaceHolderWithType("date", "tF"),
+                    new PlaceHolderWithType("count", "d")
+            );
+            String result = Utils.prepareFormatString(formatString, keys);
+            assertThat(result).isEqualTo("Released version %1$s on %2$tF with %3$d features");
+        }
+
+        @Test
+        void placeholdersWithSpecialCharacters_CorrectlyReplaced() {
+            String formatString = "Value: {some-value}, Another: {another_value}";
+            List<PlaceHolderWithType> keys = List.of(
+                    new PlaceHolderWithType("some-value", "s"),
+                    new PlaceHolderWithType("another_value", "d")
+            );
+            String result = Utils.prepareFormatString(formatString, keys);
+            assertThat(result).isEqualTo("Value: %1$s, Another: %2$d");
+        }
+    }
+
+    @Nested
+    class FormatHeaderLineTest {
+
+        @Test
+        void nullHeaderLine_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.formatHeaderLine(null, "1.0.0", LocalDate.now()))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`headerLine` must not be null");
+        }
+
+        @Test
+        void nullVersion_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.formatHeaderLine("## {version}", null, LocalDate.now()))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`version` must not be null");
+        }
+
+        @Test
+        void nullDate_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> Utils.formatHeaderLine("## {date}", "1.0.0", null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`date` must not be null");
+        }
+
+        @Test
+        void defaultDateAndVersionPlaceholders_Replaced() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine("## {version} - {date}", "1.2.3", date);
+
+            assertThat(result).isEqualTo("## 1.2.3 - 2024-02-03");
+        }
+
+        @Test
+        void customDatePattern_Replaced() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine("Released {date#yyyy/MM/dd}", "1.2.3", date);
+
+            assertThat(result).isEqualTo("Released 2024/02/03");
+        }
+
+        @Test
+        void multiplePlaceholders_AllReplaced() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine(
+                    "v{version} ({date}) -> {version}",
+                    "2.0.0",
+                    date
+            );
+
+            assertThat(result).isEqualTo("v2.0.0 (2024-02-03) -> 2.0.0");
+        }
+
+        @Test
+        void multipleDateFormats_AllReplaced() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine(
+                    "Released {date#yyyy/MM/dd} (ISO {date}) [stamp {date#yyyyMMdd}]",
+                    "2.0.0",
+                    date
+            );
+
+            assertThat(result).isEqualTo("Released 2024/02/03 (ISO 2024-02-03) [stamp 20240203]");
+        }
+
+        @Test
+        void unknownPlaceholder_Preserved() {
+            LocalDate date = LocalDate.of(2024, 2, 3);
+            String result = Utils.formatHeaderLine(
+                    "Release {unknown} on {date}",
+                    "1.0.0",
+                    date
+            );
+
+            assertThat(result).isEqualTo("Release {unknown} on 2024-02-03");
         }
     }
 }
