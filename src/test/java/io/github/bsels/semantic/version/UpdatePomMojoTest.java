@@ -23,6 +23,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.CopyOption;
@@ -99,11 +100,14 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     mockedExecutedProcesses.add(command);
                 }
             }
+            Map<String, String> environment = new HashMap<>();
             Mockito.when(mock.command(Mockito.anyList()))
                     .thenAnswer(invocation -> {
                         mockedExecutedProcesses.add(invocation.getArgument(0));
                         return mock;
                     });
+            Mockito.when(mock.environment()).thenReturn(environment);
+            Mockito.when(mock.directory(Mockito.any())).thenReturn(mock);
             Mockito.when(mock.inheritIO()).thenReturn(mock);
             Mockito.when(mock.start()).thenReturn(processMock);
         });
@@ -3154,6 +3158,60 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     );
             assertThat(mockedExecutedProcesses)
                     .isEmpty();
+        }
+    }
+
+    @Nested
+    class ExecuteScriptsFlowTest {
+
+        @Test
+        void singleProject_ExecutesScriptsForUpdate() {
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
+                    getResourcesPath("single"),
+                    Path.of(".")
+            );
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "single", "patch");
+            classUnderTest.scripts = String.join(File.pathSeparator, "script-a.sh", "script-b.sh");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedExecutedProcesses)
+                    .hasSize(2);
+            assertThat(countScriptExecutions("script-a.sh"))
+                    .isEqualTo(1);
+            assertThat(countScriptExecutions("script-b.sh"))
+                    .isEqualTo(1);
+        }
+
+        @Test
+        void multiProject_ExecutesScriptsForEachUpdatedProject() {
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(
+                    getResourcesPath("leaves"),
+                    Path.of(".")
+            );
+            classUnderTest.modus = Modus.PROJECT_VERSION_ONLY_LEAFS;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "leaves", "single");
+            classUnderTest.scripts = String.join(File.pathSeparator, "script-a.sh", "script-b.sh");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedExecutedProcesses)
+                    .hasSize(6);
+            assertThat(countScriptExecutions("script-a.sh"))
+                    .isEqualTo(3);
+            assertThat(countScriptExecutions("script-b.sh"))
+                    .isEqualTo(3);
+        }
+
+        private long countScriptExecutions(String script) {
+            return mockedExecutedProcesses.stream()
+                    .filter(command -> command.equals(List.of(script)))
+                    .count();
         }
     }
 }
