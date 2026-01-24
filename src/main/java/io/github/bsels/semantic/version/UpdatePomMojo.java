@@ -25,6 +25,7 @@ import org.w3c.dom.Node;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -112,6 +113,22 @@ public final class UpdatePomMojo extends BaseMojo {
     /// This parameter is optional.
     @Parameter(property = "versioning.update.scripts", required = false)
     String scripts;
+
+    /// Specifies the header format for the version file.
+    /// The header is used to define the versioning structure within the file,
+    /// including placeholders that can be dynamically replaced.
+    ///
+    /// The default format includes the version number and the current date.
+    /// Placeholders like `{version}` and `{date#YYYY-MM-DD}` are used for injecting the version
+    /// and date details respectively.
+    ///
+    /// - `{version}`: Represents the version of the application or component.
+    /// - `{date#YYYY-MM-DD}`: Represents the current date in the specified format
+    ///   (the date format is processed by the [DateTimeFormatter]).
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.version.file", required = true, defaultValue = "{version} - {date#YYYY-MM-DD}")
+    String versionHeader = "{version} - {date#YYYY-MM-DD}";
 
     /// A list that holds file system paths pointing to script files.
     /// Will be derived on execution from the `scripts` parameter.
@@ -537,6 +554,7 @@ public final class UpdatePomMojo extends BaseMojo {
         MarkdownUtils.mergeVersionMarkdownsInChangelog(
                 changelog,
                 newVersion,
+                versionHeader,
                 markdownMapping.markdownMap()
                         .getOrDefault(
                                 projectArtifact,

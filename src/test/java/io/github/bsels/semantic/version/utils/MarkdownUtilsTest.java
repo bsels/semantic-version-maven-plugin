@@ -52,6 +52,7 @@ public class MarkdownUtilsTest {
     private static final Path CHANGELOG_PATH = Path.of("project/CHANGELOG.md");
     private static final Path CHANGELOG_BACKUP_PATH = Path.of("project/CHANGELOG.md.backup");
     private static final String VERSION = "1.0.0";
+    private static final String HEADER_LINE = "{version} - {date}";
     private static final LocalDate DATE = LocalDate.of(2025, 1, 1);
     private static final String CHANGE_LINE = "Version bumped with a %s semantic version at index %d";
 
@@ -296,6 +297,7 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     null,
                     VERSION,
+                    HEADER_LINE,
                     Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(NullPointerException.class)
@@ -307,6 +309,7 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     createDummyChangelogDocument(),
                     null,
+                    HEADER_LINE,
                     Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(NullPointerException.class)
@@ -314,10 +317,23 @@ public class MarkdownUtilsTest {
         }
 
         @Test
+        void nullHeaderLine_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
+                    createDummyChangelogDocument(),
+                    VERSION,
+                    null,
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
+            ))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`headerFormatLine` must not be null");
+        }
+
+        @Test
         void nullHeaderToNodes_ThrowsNullPointerException() {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     createDummyChangelogDocument(),
                     VERSION,
+                    HEADER_LINE,
                     null
             ))
                     .isInstanceOf(NullPointerException.class)
@@ -329,6 +345,7 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     new Paragraph(),
                     VERSION,
+                    HEADER_LINE,
                     Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -344,6 +361,7 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
+                    HEADER_LINE,
                     Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -360,6 +378,7 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
+                    HEADER_LINE,
                     Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -376,6 +395,7 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
+                    HEADER_LINE,
                     Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -391,6 +411,7 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
+                    HEADER_LINE,
                     Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -410,6 +431,7 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
+                    HEADER_LINE,
                     Map.of()
             ))
                     .isInstanceOf(AssertionError.class)
@@ -427,6 +449,7 @@ public class MarkdownUtilsTest {
                 assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                         changelogDocument,
                         VERSION,
+                        HEADER_LINE,
                         Map.of(SemanticVersionBump.PATCH, List.of(new Paragraph())))
                 )
                         .isInstanceOf(IllegalArgumentException.class)
@@ -446,6 +469,7 @@ public class MarkdownUtilsTest {
                         .isThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                                 changelogDocument,
                                 VERSION,
+                                HEADER_LINE,
                                 Map.of())
                         );
             }
@@ -474,6 +498,7 @@ public class MarkdownUtilsTest {
                         .isThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                                 changelogDocument,
                                 VERSION,
+                                HEADER_LINE,
                                 Map.ofEntries(
                                         createDummyVersionMarkdown(SemanticVersionBump.NONE, 1),
                                         createDummyVersionMarkdown(SemanticVersionBump.PATCH, 2),

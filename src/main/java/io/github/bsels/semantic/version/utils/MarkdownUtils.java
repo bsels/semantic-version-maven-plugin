@@ -192,6 +192,7 @@ public final class MarkdownUtils {
     ///
     /// @param changelog     the root Node of the changelog Markdown structure to be updated; must not be null
     /// @param version       the version string to be added to the changelog; must not be null
+    /// @param headerLine    the header line format to be used for the new version heading; must not be null
     /// @param headerToNodes a mapping of SemanticVersionBump types to their associated Markdown nodes; must not be null
     /// @throws NullPointerException     if any of the parameters `changelog`, `version`, or `headerToNodes` is null
     /// @throws IllegalArgumentException if the changelog is not a document or does not start with a single H1 heading titled "Changelog"
@@ -199,10 +200,12 @@ public final class MarkdownUtils {
     public static void mergeVersionMarkdownsInChangelog(
             Node changelog,
             String version,
+            String headerLine,
             Map<SemanticVersionBump, List<Node>> headerToNodes
     ) throws NullPointerException, IllegalArgumentException {
         Objects.requireNonNull(changelog, "`changelog` must not be null");
         Objects.requireNonNull(version, "`version` must not be null");
+        Objects.requireNonNull(headerLine, "`headerFormatLine` must not be null");
         Objects.requireNonNull(headerToNodes, "`headerToNodes` must not be null");
 
         if (!(changelog instanceof Document document)) {
@@ -217,7 +220,7 @@ public final class MarkdownUtils {
 
         Heading newVersionHeading = new Heading();
         newVersionHeading.setLevel(2);
-        newVersionHeading.appendChild(new Text("%s - %s".formatted(version, LocalDate.now())));
+        newVersionHeading.appendChild(new Text(Utils.formatHeaderLine(headerLine, version, LocalDate.now())));
         heading.insertAfter(newVersionHeading);
 
         Comparator<Map.Entry<SemanticVersionBump, List<Node>>> comparator = Map.Entry.comparingByKey();
