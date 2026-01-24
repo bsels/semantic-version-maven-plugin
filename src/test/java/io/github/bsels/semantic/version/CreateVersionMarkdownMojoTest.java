@@ -1,6 +1,7 @@
 package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.test.utils.ReadMockedMavenSession;
@@ -453,6 +454,64 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                                     Dry-run: new markdown file at %s:
                                     ---
                                     org.example.itests.single:project: "%s"
+                                    ---
+                                    
+                                    Testing
+                                    """.formatted(getSingleVersioningMarkdown(), bump))
+                    );
+
+            assertThat(outputStream.toString())
+                    .isEqualTo("""
+                            Project org.example.itests.single:project
+                            Select semantic version bump:\s
+                              1: PATCH
+                              2: MINOR
+                              3: MAJOR
+                            Enter semantic version name or number: \
+                            Version bumps: 'org.example.itests.single:project': %S
+                            Please type the changelog entry here (enter empty line to open external editor, \
+                            two empty lines after your input to end):
+                            """.formatted(bump));
+
+            assertThat(mockedOutputFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = SemanticVersionBump.class, names = {"MAJOR", "MINOR", "PATCH"})
+        void dryRunInlineEditor_ArtifactOnlyIdentifier_Valid(SemanticVersionBump bump) {
+            classUnderTest.dryRun = true;
+            classUnderTest.identifier = ArtifactIdentifier.ONLY_ARTIFACT_ID;
+
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
+                    Scanner.class, (mock, context) -> {
+                        Mockito.when(mock.hasNextLine()).thenReturn(true, false);
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.nextLine()).thenReturn(bump.name());
+                        } else {
+                            Mockito.when(mock.nextLine()).thenReturn("Testing");
+                        }
+                    }
+            )) {
+                assertThatNoException()
+                        .isThrownBy(classUnderTest::execute);
+            }
+
+            assertThat(testLog.getLogRecords())
+                    .isNotEmpty()
+                    .hasSize(3)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.single:project:1.0.0"),
+                            validateLogRecordDebug("""
+                                    Version bumps YAML:
+                                        project: "%s"
+                                    """.formatted(bump)),
+                            validateLogRecordInfo("""
+                                    Dry-run: new markdown file at %s:
+                                    ---
+                                    project: "%s"
                                     ---
                                     
                                     Testing

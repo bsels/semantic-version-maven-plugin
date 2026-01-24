@@ -1,6 +1,7 @@
 package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.parameters.VersionBump;
@@ -512,6 +513,176 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isNotEmpty()
                     .hasSize(1)
                     .containsExactly(getResourcesPath("versioning", "leaves", "single", "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
+        }
+
+        @Test
+        void singleFileBased_ArtifactOnlyIdentifier_Valid() {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.identifier = ArtifactIdentifier.ONLY_ARTIFACT_ID;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "leaves", "single-artifact-only");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(21)
+                    .satisfiesExactlyInAnyOrder(
+                            validateLogRecordInfo("Execution for project: org.example.itests.leaves:root:5.0.0-root"),
+                            validateLogRecordInfo("Read 7 lines from %s".formatted(
+                                    getResourcesPath("versioning", "leaves", "single-artifact-only", "versioning.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        child-1: patch
+                                        child-2: minor
+                                        child-3: major\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.leaves:child-2=MINOR, org.example.itests.leaves:child-1=PATCH, \
+                                    org.example.itests.leaves:child-3=MAJOR}\
+                                    """),
+                            validateLogRecordInfo("Multiple projects in scope"),
+                            validateLogRecordInfo("Found 3 projects in scope"),
+                            validateLogRecordInfo("Updating version with a PATCH semantic version"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("leaves", "child-1", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog"),
+                            validateLogRecordInfo("Updating version with a MINOR semantic version"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog"),
+                            validateLogRecordInfo("Updating version with a MAJOR semantic version"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog"),
+                            validateLogRecordDebug("Updating project org.example.itests.leaves:child-1"),
+                            validateLogRecordDebug("Updating project org.example.itests.leaves:child-2"),
+                            validateLogRecordDebug("Updating project org.example.itests.leaves:child-3")
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(6)
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "child-1", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.leaves</groupId>
+                                                <artifactId>child-1</artifactId>
+                                                <version>5.0.1-child-1</version>
+                                            </project>
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "intermediate", "child-2", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.leaves</groupId>
+                                                <artifactId>child-2</artifactId>
+                                                <version>5.1.0-child-2</version>
+                                            </project>
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "intermediate", "child-3", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.leaves</groupId>
+                                                <artifactId>child-3</artifactId>
+                                                <version>6.0.0-child-3</version>
+                                            </project>
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "child-1", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 5.0.1-child-1 - 2025-01-01
+                                            
+                                            ### Patch
+                                            
+                                            Different versions bump in different modules.
+                                            
+                                            ## 5.0.0-child-1 - 2026-01-01
+                                            
+                                            Initial child 1 release.
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 5.1.0-child-2 - 2025-01-01
+                                            
+                                            ### Minor
+                                            
+                                            Different versions bump in different modules.
+                                            
+                                            ## 5.0.0-child-2 - 2026-01-01
+                                            
+                                            Initial child 2 release.
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## 6.0.0-child-3 - 2025-01-01
+                                            
+                                            ### Major
+                                            
+                                            Different versions bump in different modules.
+                                            
+                                            ## 5.0.0-child-3 - 2026-01-01
+                                            
+                                            Initial child 3 release.
+                                            """
+                                    )
+                    );
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactly(getResourcesPath("versioning", "leaves", "single-artifact-only", "versioning.md"));
             assertThat(mockedExecutedProcesses)
                     .isEmpty();
         }
