@@ -317,6 +317,7 @@ public final class MarkdownUtils {
     /// of dependency changes.
     ///
     /// @param mavenArtifact the Maven artifact associated with the version bump; must not be null
+    /// @param text          the text to include in the document; must not be null
     /// @return a [VersionMarkdown] object containing the generated document and a mapping of the Maven artifact to a PATCH semantic version bump
     /// @throws NullPointerException if the `mavenArtifact` or `text` parameter is null
     public static VersionMarkdown createSimpleVersionBumpDocument(MavenArtifact mavenArtifact, String text)
