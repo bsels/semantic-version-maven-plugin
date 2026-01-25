@@ -22,5 +22,13 @@ jobs:
           cache: 'maven'
           cache-dependency-path: 'pom.xml'
       - name: Build with Maven
+        id: build
         run: |
-          ./mvnw --no-transfer-progress --batch-mode clean verify -Dgpg.skip
+          ./mvnw --no-transfer-progress --batch-mode clean install -Dgpg.skip
+          VERSION=$(./mvnw --no-transfer-progress --batch-mode help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Validate versioning files present
+        run: >
+          ./mvnw --no-transfer-progress --batch-mode
+          io.github.bsels:semantic-version-maven-plugin:${{ steps.build.outputs.version }}:verify
+          -Dversioning.git=COMMIT -Dversioning.verification.mode=ALL_PROJECTS
