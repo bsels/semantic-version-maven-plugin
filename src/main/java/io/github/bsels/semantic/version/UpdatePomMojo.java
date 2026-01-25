@@ -6,6 +6,7 @@ import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionChange;
+import io.github.bsels.semantic.version.models.VersionHeaders;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
@@ -554,7 +555,8 @@ public final class UpdatePomMojo extends BaseMojo {
                         .collect(Utils.groupingByImmutable(
                                 entry -> entry.bumps().get(projectArtifact),
                                 Collectors.mapping(VersionMarkdown::content, Utils.asImmutableList())
-                        ))
+                        )),
+                new VersionHeaders()
         );
         log.debug("Updated changelog");
         MarkdownUtils.printMarkdown(log, changelog, 0);

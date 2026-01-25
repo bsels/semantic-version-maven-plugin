@@ -217,10 +217,11 @@ public final class MarkdownUtils {
     /// grouped by semantic version bump types (e.g., MAJOR, MINOR, PATCH).
     /// The changelog must begin with a single H1 heading titled "Changelog".
     ///
-    /// @param changelog     the root Node of the changelog Markdown structure to be updated; must not be null
-    /// @param version       the version string to be added to the changelog; must not be null
-    /// @param headerLine    the header line format to be used for the new version heading; must not be null
-    /// @param headerToNodes a mapping of SemanticVersionBump types to their associated Markdown nodes; must not be null
+    /// @param changelog      the root Node of the changelog Markdown structure to be updated; must not be null
+    /// @param version        the version string to be added to the changelog; must not be null
+    /// @param headerLine     the header line format to be used for the new version heading; must not be null
+    /// @param headerToNodes  a mapping of SemanticVersionBump types to their associated Markdown nodes; must not be null
+    /// @param versionHeaders the version headers to be used for the new version heading; must not be null
     /// @throws NullPointerException     if any of the parameters `changelog`, `version`, or `headerToNodes` is null
     /// @throws IllegalArgumentException if the changelog is not a document or does not start with a single H1 heading titled "Changelog"
     /// @throws IllegalArgumentException if any of the nodes in the map entries node lists is not a document
@@ -228,12 +229,14 @@ public final class MarkdownUtils {
             Node changelog,
             String version,
             String headerLine,
-            Map<SemanticVersionBump, List<Node>> headerToNodes
+            Map<SemanticVersionBump, List<Node>> headerToNodes,
+            VersionHeaders versionHeaders
     ) throws NullPointerException, IllegalArgumentException {
         Objects.requireNonNull(changelog, "`changelog` must not be null");
         Objects.requireNonNull(version, "`version` must not be null");
         Objects.requireNonNull(headerLine, "`headerFormatLine` must not be null");
         Objects.requireNonNull(headerToNodes, "`headerToNodes` must not be null");
+        Objects.requireNonNull(versionHeaders, "`versionHeaders` must not be null");
 
         if (!(changelog instanceof Document document)) {
             throw new IllegalArgumentException("`changelog` must be a Document");
@@ -254,7 +257,11 @@ public final class MarkdownUtils {
         Node current = headerToNodes.entrySet()
                 .stream()
                 .sorted(comparator.reversed())
-                .reduce(newVersionHeading, MarkdownUtils::copyVersionMarkdownToChangeset, mergeNodes());
+                .reduce(
+                        newVersionHeading,
+                        (node, entry) -> copyVersionMarkdownToChangeset(node, entry, versionHeaders),
+                        mergeNodes()
+                );
 
         assert current.getNext() == nextChild : "Incorrectly inserted nodes into changelog";
     }
@@ -403,11 +410,14 @@ public final class MarkdownUtils {
     ///
     /// @param current the current Node in the Markdown structure to which the bump type heading and its associated nodes will be inserted; must not be null
     /// @param entry   a Map.Entry containing a SemanticVersionBump key representing the bump type (e.g., MAJOR, MINOR, PATCH, NONE) and a List of Nodes associated with that bump type; must not be null
+    /// @param headers the [VersionHeaders] instance used to retrieve header strings based on [SemanticVersionBump] types; must not be null
     /// @return the last Node inserted into the Markdown structure, representing the merged result of the operation
     /// @throws IllegalArgumentException if any of the nodes in the entry node list is not a document
-    private static Node copyVersionMarkdownToChangeset(Node current, Map.Entry<SemanticVersionBump, List<Node>> entry)
-            throws IllegalArgumentException {
-        VersionHeaders headers = new VersionHeaders();
+    private static Node copyVersionMarkdownToChangeset(
+            Node current,
+            Map.Entry<SemanticVersionBump, List<Node>> entry,
+            VersionHeaders headers
+    ) throws IllegalArgumentException {
         Heading bumpTypeHeading = new Heading();
         bumpTypeHeading.setLevel(3);
         bumpTypeHeading.appendChild(new Text(headers.getHeader(entry.getKey())));

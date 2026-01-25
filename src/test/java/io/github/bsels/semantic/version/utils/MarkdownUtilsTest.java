@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.models.VersionHeaders;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.test.utils.TestLog;
@@ -59,6 +60,7 @@ public class MarkdownUtilsTest {
     private static final LocalDate DATE = LocalDate.of(2025, 1, 1);
     private static final String CHANGE_LINE = "Version bumped with a %s semantic version at index %d";
     private static final String SIMPLE_BUMP_TEXT = "Project version bumped as result of dependency bumps";
+    private static final VersionHeaders VERSION_HEADERS = new VersionHeaders();
 
     private Node createDummyChangelogDocument() {
         Document document = new Document();
@@ -314,7 +316,8 @@ public class MarkdownUtilsTest {
                     null,
                     VERSION,
                     HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`changelog` must not be null");
@@ -326,7 +329,8 @@ public class MarkdownUtilsTest {
                     createDummyChangelogDocument(),
                     null,
                     HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`version` must not be null");
@@ -338,7 +342,8 @@ public class MarkdownUtilsTest {
                     createDummyChangelogDocument(),
                     VERSION,
                     null,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`headerFormatLine` must not be null");
@@ -350,7 +355,8 @@ public class MarkdownUtilsTest {
                     createDummyChangelogDocument(),
                     VERSION,
                     HEADER_LINE,
-                    null
+                    null,
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`headerToNodes` must not be null");
@@ -362,7 +368,8 @@ public class MarkdownUtilsTest {
                     new Paragraph(),
                     VERSION,
                     HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("`changelog` must be a Document");
@@ -378,7 +385,8 @@ public class MarkdownUtilsTest {
                     document,
                     VERSION,
                     HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Changelog must start with a single H1 heading with the text 'Changelog'");
@@ -395,7 +403,8 @@ public class MarkdownUtilsTest {
                     document,
                     VERSION,
                     HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Changelog must start with a single H1 heading with the text 'Changelog'");
@@ -412,7 +421,8 @@ public class MarkdownUtilsTest {
                     document,
                     VERSION,
                     HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Changelog must start with a single H1 heading with the text 'Changelog'");
@@ -428,7 +438,8 @@ public class MarkdownUtilsTest {
                     document,
                     VERSION,
                     HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Changelog must start with a single H1 heading with the text 'Changelog'");
@@ -448,7 +459,8 @@ public class MarkdownUtilsTest {
                     document,
                     VERSION,
                     HEADER_LINE,
-                    Map.of()
+                    Map.of(),
+                    VERSION_HEADERS
             ))
                     .isInstanceOf(AssertionError.class)
                     .hasMessage("Incorrectly inserted nodes into changelog");
@@ -466,8 +478,8 @@ public class MarkdownUtilsTest {
                         changelogDocument,
                         VERSION,
                         HEADER_LINE,
-                        Map.of(SemanticVersionBump.PATCH, List.of(new Paragraph())))
-                )
+                        Map.of(SemanticVersionBump.PATCH, List.of(new Paragraph())),
+                        VERSION_HEADERS))
                         .isInstanceOf(IllegalArgumentException.class)
                         .hasMessage("Node must be a Document");
             }
@@ -486,7 +498,8 @@ public class MarkdownUtilsTest {
                                 changelogDocument,
                                 VERSION,
                                 HEADER_LINE,
-                                Map.of())
+                                Map.of(),
+                                VERSION_HEADERS)
                         );
             }
 
@@ -520,7 +533,8 @@ public class MarkdownUtilsTest {
                                         createDummyVersionMarkdown(SemanticVersionBump.PATCH, 2),
                                         createDummyVersionMarkdown(SemanticVersionBump.MINOR, 3),
                                         createDummyVersionMarkdown(SemanticVersionBump.MAJOR, 4)
-                                ))
+                                ),
+                                VERSION_HEADERS)
                         );
             }
 
@@ -544,6 +558,43 @@ public class MarkdownUtilsTest {
                     hasParagraph(CHANGE_LINE.formatted(SemanticVersionBump.NONE, 0))
             );
 
+        }
+
+        @Test
+        void customHeaders_UsesProvidedHeaderLabels() {
+            Document changelogDocument = new Document();
+            Heading firstHeader = new Heading();
+            firstHeader.setLevel(1);
+            firstHeader.appendChild(new Text("Changelog"));
+            changelogDocument.appendChild(firstHeader);
+            VersionHeaders customHeaders = new VersionHeaders("Breaking", "Features", "Fixes", "Misc");
+
+            try (MockedStatic<LocalDate> localDateMockedStatic = Mockito.mockStatic(LocalDate.class)) {
+                localDateMockedStatic.when(LocalDate::now)
+                        .thenReturn(DATE);
+
+                assertThatNoException()
+                        .isThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
+                                changelogDocument,
+                                VERSION,
+                                HEADER_LINE,
+                                Map.ofEntries(
+                                        createDummyVersionMarkdown(SemanticVersionBump.MINOR, 1),
+                                        createDummyVersionMarkdown(SemanticVersionBump.NONE, 1)
+                                ),
+                                customHeaders)
+                        );
+            }
+
+            assertThatDocument(
+                    changelogDocument,
+                    hasHeading(1, "Changelog"),
+                    hasHeading(2, "%s - %s".formatted(VERSION, DATE)),
+                    hasHeading(3, "Features"),
+                    hasParagraph(CHANGE_LINE.formatted(SemanticVersionBump.MINOR, 0)),
+                    hasHeading(3, "Misc"),
+                    hasParagraph(CHANGE_LINE.formatted(SemanticVersionBump.NONE, 0))
+            );
         }
 
         private Map.Entry<SemanticVersionBump, List<Node>> createDummyVersionMarkdown(
