@@ -318,13 +318,14 @@ public final class MarkdownUtils {
     ///
     /// @param mavenArtifact the Maven artifact associated with the version bump; must not be null
     /// @return a [VersionMarkdown] object containing the generated document and a mapping of the Maven artifact to a PATCH semantic version bump
-    /// @throws NullPointerException if the `mavenArtifact` parameter is null
-    public static VersionMarkdown createSimpleVersionBumpDocument(MavenArtifact mavenArtifact)
+    /// @throws NullPointerException if the `mavenArtifact` or `text` parameter is null
+    public static VersionMarkdown createSimpleVersionBumpDocument(MavenArtifact mavenArtifact, String text)
             throws NullPointerException {
         Objects.requireNonNull(mavenArtifact, "`mavenArtifact` must not be null");
+        Objects.requireNonNull(text, "`text` must not be null");
         Document document = new Document();
         Paragraph paragraph = new Paragraph();
-        paragraph.appendChild(new Text("Project version bumped as result of dependency bumps"));
+        paragraph.appendChild(new Text(text));
         document.appendChild(paragraph);
         return new VersionMarkdown(null, document, Map.of(mavenArtifact, SemanticVersionBump.NONE));
     }

@@ -58,6 +58,7 @@ public class MarkdownUtilsTest {
     private static final String HEADER_LINE = "{version} - {date}";
     private static final LocalDate DATE = LocalDate.of(2025, 1, 1);
     private static final String CHANGE_LINE = "Version bumped with a %s semantic version at index %d";
+    private static final String SIMPLE_BUMP_TEXT = "Project version bumped as result of dependency bumps";
 
     private Node createDummyChangelogDocument() {
         Document document = new Document();
@@ -86,32 +87,44 @@ public class MarkdownUtilsTest {
 
         @Test
         void nullArtifact_ThrowsNullPointerException() {
-            assertThatThrownBy(() -> MarkdownUtils.createSimpleVersionBumpDocument(null))
+            assertThatThrownBy(() -> MarkdownUtils.createSimpleVersionBumpDocument(null, SIMPLE_BUMP_TEXT))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`mavenArtifact` must not be null");
         }
 
         @Test
+        void nullText_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> MarkdownUtils.createSimpleVersionBumpDocument(MAVEN_ARTIFACT, null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`text` must not be null");
+        }
+
+        @Test
         void createDocument_ValidMarkdown() {
-            VersionMarkdown actual = MarkdownUtils.createSimpleVersionBumpDocument(MAVEN_ARTIFACT);
-            assertThat(actual.content())
-                    .isInstanceOf(Document.class)
-                    .extracting(Node::getFirstChild)
-                    .isInstanceOf(Paragraph.class)
-                    .satisfies(
-                            n -> assertThat(n.getFirstChild())
-                                    .isNotNull()
-                                    .isInstanceOf(Text.class)
-                                    .hasFieldOrPropertyWithValue("literal", "Project version bumped as result of dependency bumps")
-                                    .extracting(Node::getNext)
-                                    .isNull()
-                    )
-                    .extracting(Node::getNext)
+            VersionMarkdown actual = MarkdownUtils.createSimpleVersionBumpDocument(MAVEN_ARTIFACT, SIMPLE_BUMP_TEXT);
+
+            assertThat(actual.path())
                     .isNull();
+
+            assertThatDocument(
+                    actual.content(),
+                    hasParagraph(SIMPLE_BUMP_TEXT)
+            );
 
             assertThat(actual.bumps())
                     .hasSize(1)
                     .containsEntry(MAVEN_ARTIFACT, SemanticVersionBump.NONE);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"", "Dependency bump applied", "Dependency bump:\n- api"})
+        void textIsPreserved(String text) {
+            VersionMarkdown actual = MarkdownUtils.createSimpleVersionBumpDocument(MAVEN_ARTIFACT, text);
+
+            assertThatDocument(
+                    actual.content(),
+                    hasParagraph(text)
+            );
         }
     }
 

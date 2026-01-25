@@ -31,7 +31,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +56,23 @@ import static io.github.bsels.semantic.version.utils.MarkdownUtils.readMarkdown;
 @Mojo(name = "update", aggregator = true, requiresDependencyResolution = ResolutionScope.NONE)
 @Execute(phase = LifecyclePhase.NONE)
 public final class UpdatePomMojo extends BaseMojo {
+    /// The default commit message template used for version updates in projects.
+    ///
+    /// This message is intended to communicate the number of project versions updated in a commit.
+    /// It may include a placeholder, such as {numberOfProjects},
+    /// which is dynamically replaced with the actual number of projects updated during execution.
+    /// The text `[skip ci]` can be included to prevent triggering continuous integration (CI) pipelines for the commit.
+    public static final String DEFAULT_COMMIT_MESSAGE = "Updated {numberOfProjects} project version(s) [skip ci]";
+    /// A default template string used to represent version and date information.
+    /// The placeholder `{version}` is intended to be replaced with the version identifier,
+    /// while `{date#YYYY-MM-DD}` is a placeholder for the release date in the "YYYY-MM-DD" format.
+    ///
+    /// This variable provides a standard format to generate consistent version headers throughout the application.
+    public static final String DEFAULT_VERSION_HEADER = "{version} - {date#YYYY-MM-DD}";
+    /// Default message indicating that the project version has been updated due to changes in its dependencies.
+    /// This message is typically used in the context of automated dependency management or versioning processes
+    /// to provide a standardized description of the reason for the bump.
+    public static final String DEFAULT_DEPENDENCY_BUMP_MESSAGE = "Project version bumped as result of dependency bumps";
 
     /// Represents the strategy or mechanism for handling version increments or updates during the execution
     /// of the Maven plugin. This parameter defines how the versioning process is managed in the project, whether
@@ -93,9 +109,9 @@ public final class UpdatePomMojo extends BaseMojo {
     @Parameter(
             property = "versioning.commit.message.update",
             required = true,
-            defaultValue = "Updated {numberOfProjects} project version(s) [skip ci]"
+            defaultValue = DEFAULT_COMMIT_MESSAGE
     )
-    String commitMessage = "Updated {numberOfProjects} project version(s) [skip ci]";
+    String commitMessage = DEFAULT_COMMIT_MESSAGE;
 
     /// Specifies the scripts or paths to the scripts used in versioning updates.
     /// These scripts can be used to manage or modify version-related data or configuration during the build process in
@@ -128,8 +144,27 @@ public final class UpdatePomMojo extends BaseMojo {
     ///   (the date format is processed by the [DateTimeFormatter]).
     ///
     /// This property is mandatory and must be defined for versioning tasks.
-    @Parameter(property = "versioning.version.header", required = true, defaultValue = "{version} - {date#YYYY-MM-DD}")
-    String versionHeader = "{version} - {date#YYYY-MM-DD}";
+    @Parameter(property = "versioning.version.header", required = true, defaultValue = DEFAULT_VERSION_HEADER)
+    String versionHeader = DEFAULT_VERSION_HEADER;
+
+    /// The commit message template used when performing an automatic dependency version bump.
+    ///
+    /// This message will be used to describe changes in dependency versions during the execution of
+    /// the versioning process.
+    /// The template can include placeholders or other formatting conventions based on project-specific requirements.
+    ///
+    /// The property is configurable via the Maven property `versioning.dependency.bump.message`.
+    /// It is mandatory to provide a value for this property, and if not explicitly set,
+    /// the default value `DEFAULT_DEPENDENCY_BUMP_MESSAGE` will be used.
+    ///
+    /// It is required to ensure the default value or the provided value adheres to
+    /// the desired commit message standards.
+    @Parameter(
+            property = "versioning.dependency.bump.message",
+            required = true,
+            defaultValue = DEFAULT_DEPENDENCY_BUMP_MESSAGE
+    )
+    String dependencyBumpMessage = DEFAULT_DEPENDENCY_BUMP_MESSAGE;
 
     /// A list that holds file system paths pointing to script files.
     /// Will be derived on execution from the `scripts` parameter.
@@ -510,7 +545,10 @@ public final class UpdatePomMojo extends BaseMojo {
                 markdownMapping.markdownMap()
                         .getOrDefault(
                                 projectArtifact,
-                                List.of(MarkdownUtils.createSimpleVersionBumpDocument(projectArtifact))
+                                List.of(MarkdownUtils.createSimpleVersionBumpDocument(
+                                        projectArtifact,
+                                        dependencyBumpMessage
+                                ))
                         )
                         .stream()
                         .collect(Utils.groupingByImmutable(
