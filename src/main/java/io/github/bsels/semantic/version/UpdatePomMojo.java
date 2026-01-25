@@ -126,6 +126,15 @@ public final class UpdatePomMojo extends BaseMojo {
     @Parameter(property = "versioning.update.scripts", required = false)
     String scripts;
 
+    /// Specifies the header label for the changelog title.
+    /// The header is used as the H1 heading when updating Markdown content.
+    ///
+    /// The default value is [VersionHeaders#CHANGELOG_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.changelog.header", required = true, defaultValue = VersionHeaders.CHANGELOG_HEADER)
+    String changelogHeader = VersionHeaders.CHANGELOG_HEADER;
+
     /// Specifies the header format for the version file.
     /// The header is used to define the versioning structure within the file,
     /// including placeholders that can be dynamically replaced.
@@ -141,6 +150,42 @@ public final class UpdatePomMojo extends BaseMojo {
     /// This property is mandatory and must be defined for versioning tasks.
     @Parameter(property = "versioning.version.header", required = true, defaultValue = VersionHeaders.VERSION_HEADER)
     String versionHeader = VersionHeaders.VERSION_HEADER;
+
+    /// Specifies the header label for the major version section.
+    /// The header groups entries for major changes when updating Markdown content.
+    ///
+    /// The default value is [VersionHeaders#MAJOR_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.major.header", required = true, defaultValue = VersionHeaders.MAJOR_HEADER)
+    String majorHeader = VersionHeaders.MAJOR_HEADER;
+
+    /// Specifies the header label for the minor version section.
+    /// The header groups entries for minor changes when updating Markdown content.
+    ///
+    /// The default value is [VersionHeaders#MINOR_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.minor.header", required = true, defaultValue = VersionHeaders.MINOR_HEADER)
+    String minorHeader = VersionHeaders.MINOR_HEADER;
+
+    /// Specifies the header label for the patch version section.
+    /// The header groups entries for patch changes when updating Markdown content.
+    ///
+    /// The default value is [VersionHeaders#PATCH_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.patch.header", required = true, defaultValue = VersionHeaders.PATCH_HEADER)
+    String patchHeader = VersionHeaders.PATCH_HEADER;
+
+    /// Specifies the header label for the other changes section.
+    /// The header groups entries that do not match major, minor, or patch changes.
+    ///
+    /// The default value is [VersionHeaders#OTHER_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.other.header", required = true, defaultValue = VersionHeaders.OTHER_HEADER)
+    String otherHeader = VersionHeaders.OTHER_HEADER;
 
     /// The commit message template used when performing an automatic dependency version bump.
     ///
@@ -166,7 +211,9 @@ public final class UpdatePomMojo extends BaseMojo {
     /// Each path represented by this list is of type [Path], allowing interaction with the file system.
     private List<Path> scriptPaths = List.of();
 
-    private VersionHeaders versionHeaders = VersionHeaders.DEFAULT; // TODO
+    /// Holds version header metadata derived from [#changelogHeader], [#versionHeader], [#majorHeader],
+    /// [#minorHeader], [#patchHeader], and [#otherHeader].
+    private VersionHeaders versionHeaders;
 
     /// Default constructor for the UpdatePomMojo class.
     ///
@@ -212,6 +259,14 @@ public final class UpdatePomMojo extends BaseMojo {
                 .map(Path::of)
                 .map(Path::toAbsolutePath)
                 .toList();
+        versionHeaders = new VersionHeaders(
+                changelogHeader,
+                versionHeader,
+                majorHeader,
+                minorHeader,
+                patchHeader,
+                otherHeader
+        );
 
         Log log = getLog();
         List<VersionMarkdown> versionMarkdowns = getVersionMarkdowns();
