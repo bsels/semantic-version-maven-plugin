@@ -9,6 +9,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.models.VersionHeaders;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlyKeyDeserializer;
@@ -406,14 +407,10 @@ public final class MarkdownUtils {
     /// @throws IllegalArgumentException if any of the nodes in the entry node list is not a document
     private static Node copyVersionMarkdownToChangeset(Node current, Map.Entry<SemanticVersionBump, List<Node>> entry)
             throws IllegalArgumentException {
+        VersionHeaders headers = new VersionHeaders();
         Heading bumpTypeHeading = new Heading();
         bumpTypeHeading.setLevel(3);
-        bumpTypeHeading.appendChild(new Text(switch (entry.getKey()) {
-            case MAJOR -> "Major";
-            case MINOR -> "Minor";
-            case PATCH -> "Patch";
-            case NONE -> "Other";
-        }));
+        bumpTypeHeading.appendChild(new Text(headers.getHeader(entry.getKey())));
         current.insertAfter(bumpTypeHeading);
         return entry.getValue()
                 .stream()

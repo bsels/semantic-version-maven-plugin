@@ -70,4 +70,22 @@ public record VersionHeaders(String major, String minor, String patch, String ot
     public VersionHeaders() {
         this(MAJOR_HEADER, MINOR_HEADER, PATCH_HEADER, OTHER_HEADER);
     }
+
+    /// Retrieves the corresponding header string based on the specified version bump type.
+    ///
+    /// The method evaluates the provided `versionBump` and returns the appropriate header string associated with
+    /// the semantic versioning increment type (major, minor, patch) or a default value for no increment.
+    ///
+    /// @param versionBump the type of semantic version bump, such as MAJOR, MINOR, PATCH, or NONE; must not be null
+    /// @return the header string corresponding to the specified version bump type
+    /// @throws NullPointerException if the provided `versionBump` is null
+    public String getHeader(SemanticVersionBump versionBump) throws NullPointerException {
+        Objects.requireNonNull(versionBump, "`versionBump` must not be null");
+        return switch (versionBump) {
+            case MAJOR -> major;
+            case MINOR -> minor;
+            case PATCH -> patch;
+            case NONE -> other;
+        };
+    }
 }
