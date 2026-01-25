@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0 - 2026-01-25
+
+### Minor
+
+Make the headers from the CHANGELOG.md configurable.
+
+Added a verification mojo for validation in pull requests.
+
+### Patch
+
+Bumped the `commonmark` version from **0.27.0** to **0.27.1**.
+
 ## 1.1.0 - 2026-01-24
 
 ### Minor
