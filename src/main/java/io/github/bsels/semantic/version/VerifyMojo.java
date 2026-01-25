@@ -81,6 +81,14 @@ public final class VerifyMojo extends BaseMojo {
     @Parameter(property = "versioning.verification.consistent", required = true, defaultValue = "false")
     boolean consistentVersionBumps = false;
 
+    /// Default constructor for the `VerifyMojo` class.
+    /// Initializes a new instance of the VerifyMojo by invoking the superclass constructor.
+    /// This constructor is typically used by the Maven framework during the build lifecycle to configure
+    /// and execute the associated Mojo's functionality.
+    public VerifyMojo() {
+        super();
+    }
+
     /// Executes the primary logic for the Mojo, including validation of versioning, consistency, and project scope.
     /// This method performs the following tasks:
     ///
