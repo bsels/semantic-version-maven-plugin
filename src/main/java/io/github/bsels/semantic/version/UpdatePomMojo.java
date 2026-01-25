@@ -166,6 +166,8 @@ public final class UpdatePomMojo extends BaseMojo {
     /// Each path represented by this list is of type [Path], allowing interaction with the file system.
     private List<Path> scriptPaths = List.of();
 
+    private VersionHeaders versionHeaders = VersionHeaders.DEFAULT; // TODO
+
     /// Default constructor for the UpdatePomMojo class.
     ///
     /// Initializes an instance of the UpdatePomMojo class by invoking the superclass constructor.
@@ -530,13 +532,13 @@ public final class UpdatePomMojo extends BaseMojo {
     ) throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
         Path changelogFile = pom.getParent().resolve(CHANGELOG_MD);
-        org.commonmark.node.Node changelog = readMarkdown(log, changelogFile);
+        org.commonmark.node.Node changelog = readMarkdown(log, changelogFile, versionHeaders);
         log.debug("Original changelog");
         MarkdownUtils.printMarkdown(log, changelog, 0);
         MarkdownUtils.mergeVersionMarkdownsInChangelog(
                 changelog,
                 newVersion,
-                versionHeader,
+                versionHeaders,
                 markdownMapping.markdownMap()
                         .getOrDefault(
                                 projectArtifact,
@@ -549,8 +551,7 @@ public final class UpdatePomMojo extends BaseMojo {
                         .collect(Utils.groupingByImmutable(
                                 entry -> entry.bumps().get(projectArtifact),
                                 Collectors.mapping(VersionMarkdown::content, Utils.asImmutableList())
-                        )),
-                new VersionHeaders()
+                        ))
         );
         log.debug("Updated changelog");
         MarkdownUtils.printMarkdown(log, changelog, 0);

@@ -12,10 +12,12 @@ import java.util.Objects;
 /// The class also provides a default constructor that initializes the headers with predefined constant values,
 /// offering a standardized approach to creating instances.
 ///
-/// @param major the major version header; must not be null
-/// @param minor the minor version header; must not be null
-/// @param patch the patch version header; must not be null
-/// @param other an additional version-related header; must not be null
+/// @param changelogHeader the changelog header; must not be null
+/// @param versionHeader   the version header; must not be null
+/// @param major           the major version header; must not be null
+/// @param minor           the minor version header; must not be null
+/// @param patch           the patch version header; must not be null
+/// @param other           an additional version-related header; must not be null
 public record VersionHeaders(
         String changelogHeader,
         String versionHeader,
@@ -68,12 +70,29 @@ public record VersionHeaders(
     /// It ensures a clear and consistent label for referencing supplementary version information.
     public static final String OTHER_HEADER = "Other";
 
+    /// Represents the default instance of the `VersionHeaders` class,
+    /// initialized with predefined header constants for changelog, version, major, minor, patch, and other headers.
+    ///
+    /// This variable serves as the standard configuration for `VersionHeaders`,
+    /// providing a convenient way to access a pre-configured version header setup that ensures all header fields
+    /// are non-null.
+    /// The default values for the fields are as follows:
+    /// - Changelog: `CHANGELOG_HEADER`
+    /// - Version: `VERSION_HEADER`
+    /// - Major: `MAJOR_HEADER`
+    /// - Minor: `MINOR_HEADER`
+    /// - Patch: `PATCH_HEADER`
+    /// - Other: `OTHER_HEADER`
+    public static final VersionHeaders DEFAULT = new VersionHeaders();
+
     /// Constructs an instance of VersionHeaders, ensuring that all header components are non-null.
     ///
-    /// @param major the major version header; must not be null
-    /// @param minor the minor version header; must not be null
-    /// @param patch the patch version header; must not be null
-    /// @param other an additional version-related header; must not be null
+    /// @param changelogHeader the changelog header; must not be null
+    /// @param versionHeader   the version header; must not be null
+    /// @param major           the major version header; must not be null
+    /// @param minor           the minor version header; must not be null
+    /// @param patch           the patch version header; must not be null
+    /// @param other           an additional version-related header; must not be null
     /// @throws NullPointerException if any of the header components (major, minor, patch, or other) are null
     public VersionHeaders {
         Objects.requireNonNull(changelogHeader, "`changelogHeader` header cannot be null");

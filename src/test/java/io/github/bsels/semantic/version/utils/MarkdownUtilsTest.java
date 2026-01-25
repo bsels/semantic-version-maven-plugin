@@ -315,9 +315,8 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     null,
                     VERSION,
-                    HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
-                    VERSION_HEADERS
+                    VERSION_HEADERS,
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`changelog` must not be null");
@@ -328,25 +327,23 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     createDummyChangelogDocument(),
                     null,
-                    HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
-                    VERSION_HEADERS
+                    VERSION_HEADERS,
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`version` must not be null");
         }
 
         @Test
-        void nullHeaderLine_ThrowsNullPointerException() {
+        void nullVersionHeaders_ThrowsNullPointerException() {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     createDummyChangelogDocument(),
                     VERSION,
                     null,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
-                    VERSION_HEADERS
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(NullPointerException.class)
-                    .hasMessage("`headerFormatLine` must not be null");
+                    .hasMessage("`versionHeaders` must not be null");
         }
 
         @Test
@@ -354,9 +351,8 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     createDummyChangelogDocument(),
                     VERSION,
-                    HEADER_LINE,
-                    null,
-                    VERSION_HEADERS
+                    VERSION_HEADERS,
+                    null
             ))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`headerToNodes` must not be null");
@@ -367,9 +363,8 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     new Paragraph(),
                     VERSION,
-                    HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
-                    VERSION_HEADERS
+                    VERSION_HEADERS,
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("`changelog` must be a Document");
@@ -384,9 +379,8 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
-                    HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
-                    VERSION_HEADERS
+                    VERSION_HEADERS,
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Changelog must start with a single H1 heading with the text 'Changelog'");
@@ -402,9 +396,8 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
-                    HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
-                    VERSION_HEADERS
+                    VERSION_HEADERS,
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Changelog must start with a single H1 heading with the text 'Changelog'");
@@ -420,9 +413,8 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
-                    HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
-                    VERSION_HEADERS
+                    VERSION_HEADERS,
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Changelog must start with a single H1 heading with the text 'Changelog'");
@@ -437,9 +429,8 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
-                    HEADER_LINE,
-                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1)),
-                    VERSION_HEADERS
+                    VERSION_HEADERS,
+                    Map.ofEntries(createDummyVersionMarkdown(SemanticVersionBump.PATCH, 1))
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Changelog must start with a single H1 heading with the text 'Changelog'");
@@ -458,9 +449,8 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                     document,
                     VERSION,
-                    HEADER_LINE,
-                    Map.of(),
-                    VERSION_HEADERS
+                    VERSION_HEADERS,
+                    Map.of()
             ))
                     .isInstanceOf(AssertionError.class)
                     .hasMessage("Incorrectly inserted nodes into changelog");
@@ -477,9 +467,8 @@ public class MarkdownUtilsTest {
                 assertThatThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                         changelogDocument,
                         VERSION,
-                        HEADER_LINE,
-                        Map.of(SemanticVersionBump.PATCH, List.of(new Paragraph())),
-                        VERSION_HEADERS))
+                        VERSION_HEADERS,
+                        Map.of(SemanticVersionBump.PATCH, List.of(new Paragraph()))))
                         .isInstanceOf(IllegalArgumentException.class)
                         .hasMessage("Node must be a Document");
             }
@@ -497,9 +486,8 @@ public class MarkdownUtilsTest {
                         .isThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                                 changelogDocument,
                                 VERSION,
-                                HEADER_LINE,
-                                Map.of(),
-                                VERSION_HEADERS)
+                                VERSION_HEADERS,
+                                Map.of())
                         );
             }
 
@@ -527,14 +515,13 @@ public class MarkdownUtilsTest {
                         .isThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                                 changelogDocument,
                                 VERSION,
-                                HEADER_LINE,
+                                VERSION_HEADERS,
                                 Map.ofEntries(
                                         createDummyVersionMarkdown(SemanticVersionBump.NONE, 1),
                                         createDummyVersionMarkdown(SemanticVersionBump.PATCH, 2),
                                         createDummyVersionMarkdown(SemanticVersionBump.MINOR, 3),
                                         createDummyVersionMarkdown(SemanticVersionBump.MAJOR, 4)
-                                ),
-                                VERSION_HEADERS)
+                                ))
                         );
             }
 
@@ -565,9 +552,16 @@ public class MarkdownUtilsTest {
             Document changelogDocument = new Document();
             Heading firstHeader = new Heading();
             firstHeader.setLevel(1);
-            firstHeader.appendChild(new Text("Changelog"));
+            firstHeader.appendChild(new Text("Changes"));
             changelogDocument.appendChild(firstHeader);
-            VersionHeaders customHeaders = new VersionHeaders("Changes", "Version", "Breaking", "Features", "Fixes", "Misc");
+            VersionHeaders customHeaders = new VersionHeaders(
+                    "Changes",
+                    HEADER_LINE,
+                    "Breaking",
+                    "Features",
+                    "Fixes",
+                    "Misc"
+            );
 
             try (MockedStatic<LocalDate> localDateMockedStatic = Mockito.mockStatic(LocalDate.class)) {
                 localDateMockedStatic.when(LocalDate::now)
@@ -577,18 +571,17 @@ public class MarkdownUtilsTest {
                         .isThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
                                 changelogDocument,
                                 VERSION,
-                                HEADER_LINE,
+                                customHeaders,
                                 Map.ofEntries(
                                         createDummyVersionMarkdown(SemanticVersionBump.MINOR, 1),
                                         createDummyVersionMarkdown(SemanticVersionBump.NONE, 1)
-                                ),
-                                customHeaders)
+                                ))
                         );
             }
 
             assertThatDocument(
                     changelogDocument,
-                    hasHeading(1, "Changelog"),
+                    hasHeading(1, "Changes"),
                     hasHeading(2, "%s - %s".formatted(VERSION, DATE)),
                     hasHeading(3, "Features"),
                     hasParagraph(CHANGE_LINE.formatted(SemanticVersionBump.MINOR, 0)),
@@ -615,14 +608,14 @@ public class MarkdownUtilsTest {
 
         @Test
         void nullLog_ThrowNullPointerException() {
-            assertThatThrownBy(() -> MarkdownUtils.readMarkdown(null, CHANGELOG_PATH))
+            assertThatThrownBy(() -> MarkdownUtils.readMarkdown(null, CHANGELOG_PATH, VERSION_HEADERS))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`log` must not be null");
         }
 
         @Test
         void nullMarkdownFile_ThrowNullPointerException() {
-            assertThatThrownBy(() -> MarkdownUtils.readMarkdown(new TestLog(TestLog.LogLevel.DEBUG), null))
+            assertThatThrownBy(() -> MarkdownUtils.readMarkdown(new TestLog(TestLog.LogLevel.DEBUG), null, VERSION_HEADERS))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`markdownFile` must not be null");
         }
@@ -634,7 +627,7 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.when(() -> Files.exists(CHANGELOG_PATH))
                         .thenReturn(false);
 
-                Node document = MarkdownUtils.readMarkdown(log, CHANGELOG_PATH);
+                Node document = MarkdownUtils.readMarkdown(log, CHANGELOG_PATH, VERSION_HEADERS);
                 assertThatDocument(
                         document,
                         hasHeading(1, "Changelog")
@@ -660,7 +653,7 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.when(() -> Files.lines(CHANGELOG_PATH, StandardCharsets.UTF_8))
                         .thenThrow(new IOException("Failed to read file"));
 
-                assertThatThrownBy(() -> MarkdownUtils.readMarkdown(log, CHANGELOG_PATH))
+                assertThatThrownBy(() -> MarkdownUtils.readMarkdown(log, CHANGELOG_PATH, VERSION_HEADERS))
                         .isInstanceOf(MojoExecutionException.class)
                         .hasMessage("Unable to read '%s' file".formatted(CHANGELOG_PATH))
                         .hasRootCauseInstanceOf(IOException.class)
@@ -680,7 +673,7 @@ public class MarkdownUtilsTest {
                 filesMockedStatic.when(() -> Files.lines(CHANGELOG_PATH, StandardCharsets.UTF_8))
                         .thenReturn(Stream.of("# My Changelog", "", "Test paragraph"));
 
-                Node document = MarkdownUtils.readMarkdown(log, CHANGELOG_PATH);
+                Node document = MarkdownUtils.readMarkdown(log, CHANGELOG_PATH, VERSION_HEADERS);
 
                 assertThatDocument(
                         document,
