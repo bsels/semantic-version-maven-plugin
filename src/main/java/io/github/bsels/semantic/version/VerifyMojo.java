@@ -117,7 +117,10 @@ public final class VerifyMojo extends BaseMojo {
     @Override
     protected void internalExecute() throws MojoExecutionException, MojoFailureException {
         if (Git.NO_GIT != git) {
+            Log log = getLog();
+            log.info("Checking Git status...");
             ProcessUtils.gitStatus();
+            log.info("Git status check completed.");
         }
 
         Set<MavenArtifact> projects = getProjectsInScope()
