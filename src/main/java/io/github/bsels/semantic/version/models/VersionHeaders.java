@@ -16,7 +16,33 @@ import java.util.Objects;
 /// @param minor the minor version header; must not be null
 /// @param patch the patch version header; must not be null
 /// @param other an additional version-related header; must not be null
-public record VersionHeaders(String major, String minor, String patch, String other) {
+public record VersionHeaders(
+        String changelogHeader,
+        String versionHeader,
+        String major,
+        String minor,
+        String patch,
+        String other
+) {
+    /// A constant string representing the header title for a changelog.
+    ///
+    /// This value is used as a predefined label or key to denote sections
+    /// or content related to a changelog in version management or documentation contexts.
+    public static final String CHANGELOG_HEADER = "Changelog";
+    /// A predefined string template representing the version header format.
+    ///
+    /// This string is designed to standardize the representation of version information,
+    /// embedding placeholders for dynamic values such as version identifiers and dates.
+    /// The template includes:
+    /// - `{version}`: A placeholder to be replaced with the actual version number.
+    /// - `{date#YYYY-MM-DD}`: A placeholder for the date in "YYYY-MM-DD" format.
+    ///
+    /// The `VERSION_HEADER` serves as a customizable pattern for formatting
+    /// and displaying version details in documentation or output logs.
+    ///
+    /// Example usages might replace the placeholders for real-world use cases to generate dynamically populated headers
+    /// based on the current versioning context.
+    public static final String VERSION_HEADER = "{version} - {date#YYYY-MM-DD}";
     /// A constant representing the "Major" version header identifier.
     ///
     /// This header is used to specify the major component within a versioning system,
@@ -50,6 +76,8 @@ public record VersionHeaders(String major, String minor, String patch, String ot
     /// @param other an additional version-related header; must not be null
     /// @throws NullPointerException if any of the header components (major, minor, patch, or other) are null
     public VersionHeaders {
+        Objects.requireNonNull(changelogHeader, "`changelogHeader` header cannot be null");
+        Objects.requireNonNull(versionHeader, "`versionHeader` header cannot be null");
         Objects.requireNonNull(major, "`major` header cannot be null");
         Objects.requireNonNull(minor, "`minor` header cannot be null");
         Objects.requireNonNull(patch, "`patch` header cannot be null");
@@ -60,15 +88,17 @@ public record VersionHeaders(String major, String minor, String patch, String ot
     /// for major, minor, patch, and other headers.
     ///
     /// This no-argument constructor initializes the header fields with the following default values:
-    /// - Major: `MAJOR_HEADER`
-    /// - Minor: `MINOR_HEADER`
-    /// - Patch: `PATCH_HEADER`
-    /// - Other: `OTHER_HEADER`
+    /// - Changelog: [#CHANGELOG_HEADER]
+    /// - Version: [#VERSION_HEADER]
+    /// - Major: [#MAJOR_HEADER]
+    /// - Minor: [#MINOR_HEADER]
+    /// - Patch: [#PATCH_HEADER]
+    /// - Other: [#OTHER_HEADER
     ///
     /// The purpose of this constructor is to provide a standardized way to create a VersionHeaders
     /// instance with commonly used headers. All header fields are guaranteed to be non-null.
     public VersionHeaders() {
-        this(MAJOR_HEADER, MINOR_HEADER, PATCH_HEADER, OTHER_HEADER);
+        this(CHANGELOG_HEADER, VERSION_HEADER, MAJOR_HEADER, MINOR_HEADER, PATCH_HEADER, OTHER_HEADER);
     }
 
     /// Retrieves the corresponding header string based on the specified version bump type.

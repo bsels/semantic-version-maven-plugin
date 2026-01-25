@@ -567,7 +567,7 @@ public class MarkdownUtilsTest {
             firstHeader.setLevel(1);
             firstHeader.appendChild(new Text("Changelog"));
             changelogDocument.appendChild(firstHeader);
-            VersionHeaders customHeaders = new VersionHeaders("Breaking", "Features", "Fixes", "Misc");
+            VersionHeaders customHeaders = new VersionHeaders("Changes", "Version", "Breaking", "Features", "Fixes", "Misc");
 
             try (MockedStatic<LocalDate> localDateMockedStatic = Mockito.mockStatic(LocalDate.class)) {
                 localDateMockedStatic.when(LocalDate::now)

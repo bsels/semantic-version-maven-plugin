@@ -64,12 +64,6 @@ public final class UpdatePomMojo extends BaseMojo {
     /// which is dynamically replaced with the actual number of projects updated during execution.
     /// The text `[skip ci]` can be included to prevent triggering continuous integration (CI) pipelines for the commit.
     public static final String DEFAULT_COMMIT_MESSAGE = "Updated {numberOfProjects} project version(s) [skip ci]";
-    /// A default template string used to represent version and date information.
-    /// The placeholder `{version}` is intended to be replaced with the version identifier,
-    /// while `{date#YYYY-MM-DD}` is a placeholder for the release date in the "YYYY-MM-DD" format.
-    ///
-    /// This variable provides a standard format to generate consistent version headers throughout the application.
-    public static final String DEFAULT_VERSION_HEADER = "{version} - {date#YYYY-MM-DD}";
     /// Default message indicating that the project version has been updated due to changes in its dependencies.
     /// This message is typically used in the context of automated dependency management or versioning processes
     /// to provide a standardized description of the reason for the bump.
@@ -145,8 +139,8 @@ public final class UpdatePomMojo extends BaseMojo {
     ///   (the date format is processed by the [DateTimeFormatter]).
     ///
     /// This property is mandatory and must be defined for versioning tasks.
-    @Parameter(property = "versioning.version.header", required = true, defaultValue = DEFAULT_VERSION_HEADER)
-    String versionHeader = DEFAULT_VERSION_HEADER;
+    @Parameter(property = "versioning.version.header", required = true, defaultValue = VersionHeaders.VERSION_HEADER)
+    String versionHeader = VersionHeaders.VERSION_HEADER;
 
     /// The commit message template used when performing an automatic dependency version bump.
     ///
