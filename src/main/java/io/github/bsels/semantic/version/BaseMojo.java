@@ -2,12 +2,14 @@ package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.MarkdownMapping;
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
+import io.github.bsels.semantic.version.utils.POMUtils;
 import io.github.bsels.semantic.version.utils.ProcessUtils;
 import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.execution.MavenSession;
@@ -24,6 +26,8 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,7 +62,7 @@ import java.util.stream.Stream;
 ///
 /// Any issues encountered during plugin execution may result in a [MojoExecutionException]
 /// or a [MojoFailureException] being thrown.
-public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersionMarkdownMojo, UpdatePomMojo {
+public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersionMarkdownMojo, UpdatePomMojo, VerifyMojo {
 
     /// A constant string representing the filename of the changelog file, "CHANGELOG.md".
     ///
@@ -403,6 +407,55 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
         }
     }
 
+    /// Reads and processes the POM files for a list of Maven projects
+    /// and returns a mapping of Maven artifacts to their corresponding project and document representations.
+    ///
+    /// @param projects the list of Maven projects whose POMs need to be read
+    /// @return an immutable map where the key is the Maven artifact representing a project and the value is its associated Maven project and document representation
+    /// @throws MojoExecutionException if an error occurs while executing the Mojo
+    /// @throws MojoFailureException   if the Mojo fails due to an expected problem
+    protected Map<MavenArtifact, MavenProjectAndDocument> readAllPoms(List<MavenProject> projects)
+            throws MojoExecutionException, MojoFailureException {
+        Map<MavenArtifact, MavenProjectAndDocument> documents = new HashMap<>();
+        for (MavenProject project : projects) {
+            MavenArtifact mavenArtifact = new MavenArtifact(project.getGroupId(), project.getArtifactId());
+            Path pomFile = project.getFile().toPath();
+            MavenProjectAndDocument projectAndDocument = new MavenProjectAndDocument(
+                    mavenArtifact,
+                    pomFile,
+                    POMUtils.readPom(pomFile)
+            );
+            documents.put(mavenArtifact, projectAndDocument);
+        }
+        return Map.copyOf(documents);
+    }
+
+    /// Creates a mapping between dependency artifacts and project artifacts based on the provided
+    /// Maven project documents and reactor artifacts.
+    /// The method identifies dependencies in the projects that match artifacts in the reactor and associates
+    /// them with their corresponding project artifacts.
+    ///
+    /// @param documents        a collection of [MavenProjectAndDocument] representing the Maven projects and their associated model documents.
+    /// @param reactorArtifacts a set of [MavenArtifact] objects representing the artifacts present in the reactor.
+    /// @return a map where keys are dependency artifacts (from the reactor) and values are lists of project artifacts they are associated with.
+    protected Map<MavenArtifact, List<MavenArtifact>> createDependencyToProjectArtifactMapping(
+            Collection<MavenProjectAndDocument> documents,
+            Set<MavenArtifact> reactorArtifacts
+    ) {
+        return documents.stream()
+                .flatMap(
+                        projectAndDocument -> POMUtils.getMavenArtifacts(projectAndDocument.document())
+                                .keySet()
+                                .stream()
+                                .filter(reactorArtifacts::contains)
+                                .map(artifact -> Map.entry(artifact, projectAndDocument.artifact()))
+                )
+                .collect(Utils.groupingByImmutable(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
+                ));
+    }
+
     /// Functional interface that represents an operation that accepts a single input
     /// and can throw [MojoExecutionException] and [MojoFailureException].
     ///
@@ -416,5 +469,4 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
         /// @throws MojoFailureException   if the operation fails
         void accept(T t) throws MojoExecutionException, MojoFailureException;
     }
-
 }

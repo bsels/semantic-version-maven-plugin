@@ -27,6 +27,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
@@ -38,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -2029,6 +2031,160 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                             Patch versioning applied.
                                             
                                             ### Other
+                                            
+                                            No versioning applied.
+                                            
+                                            ## 3.0.0 - 2026-01-01
+                                            
+                                            Initial release.
+                                            """
+                                    )
+                    );
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(4)
+                    .containsExactlyInAnyOrder(
+                            getResourcesPath("versioning", "revision", "multi", "multiple", "major.md"),
+                            getResourcesPath("versioning", "revision", "multi", "multiple", "minor.md"),
+                            getResourcesPath("versioning", "revision", "multi", "multiple", "patch.md"),
+                            getResourcesPath("versioning", "revision", "multi", "multiple", "none.md")
+                    );
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
+        }
+
+        @Test
+        void multipleSemanticVersionBumpFiles_CustomHeaders_Valid() {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "revision", "multi", "multiple");
+            classUnderTest.changelogHeader = "Changes";
+            classUnderTest.versionHeader = "{version} / {date#yyyy/MM/dd}";
+            classUnderTest.majorHeader = "Breaking";
+            classUnderTest.minorHeader = "Features";
+            classUnderTest.patchHeader = "Fixes";
+            classUnderTest.otherHeader = "Misc";
+
+            Path changelogPath = getResourcesPath("revision", "multi", "CHANGELOG.md");
+            filesMockedStatic.when(() -> Files.lines(changelogPath, StandardCharsets.UTF_8))
+                    .thenReturn(Stream.of(
+                            "# Changes",
+                            "",
+                            "## 3.0.0 - 2026-01-01",
+                            "",
+                            "Initial release."
+                    ));
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(18)
+                    .satisfiesExactlyInAnyOrder(
+                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "multiple", "major.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': major\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(SemanticVersionBump.MAJOR)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "multiple", "minor.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': minor\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(SemanticVersionBump.MINOR)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "multiple", "none.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': none\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(SemanticVersionBump.NONE)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "revision", "multi", "multiple", "patch.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.revision.multi:parent': patch\
+                                    """),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.revision.multi:parent=%s}\
+                                    """.formatted(SemanticVersionBump.PATCH)),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo(
+                                    "Updating version with a %s semantic version".formatted(SemanticVersionBump.MAJOR)
+                            ),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(changelogPath)),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog")
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(2)
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.revision.multi</groupId>
+                                                <artifactId>parent</artifactId>
+                                                <version>${revision}</version>
+                                            
+                                                <properties>
+                                                    <revision>4.0.0</revision>
+                                                </properties>
+                                            
+                                                <modules>
+                                                    <module>child1</module>
+                                                    <module>child2</module>
+                                                </modules>
+                                            </project>
+                                            """
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("revision", "multi", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changes
+                                            
+                                            ## 4.0.0 / 2025/01/01
+                                            
+                                            ### Breaking
+                                            
+                                            Major versioning applied.
+                                            
+                                            ### Features
+                                            
+                                            Minor versioning applied.
+                                            
+                                            ### Fixes
+                                            
+                                            Patch versioning applied.
+                                            
+                                            ### Misc
                                             
                                             No versioning applied.
                                             

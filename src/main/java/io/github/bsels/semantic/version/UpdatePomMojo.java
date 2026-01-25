@@ -2,9 +2,11 @@ package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.MarkdownMapping;
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionChange;
+import io.github.bsels.semantic.version.models.VersionHeaders;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
@@ -30,7 +32,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,17 @@ import static io.github.bsels.semantic.version.utils.MarkdownUtils.readMarkdown;
 @Mojo(name = "update", aggregator = true, requiresDependencyResolution = ResolutionScope.NONE)
 @Execute(phase = LifecyclePhase.NONE)
 public final class UpdatePomMojo extends BaseMojo {
+    /// The default commit message template used for version updates in projects.
+    ///
+    /// This message is intended to communicate the number of project versions updated in a commit.
+    /// It may include a placeholder, such as {numberOfProjects},
+    /// which is dynamically replaced with the actual number of projects updated during execution.
+    /// The text `[skip ci]` can be included to prevent triggering continuous integration (CI) pipelines for the commit.
+    public static final String DEFAULT_COMMIT_MESSAGE = "Updated {numberOfProjects} project version(s) [skip ci]";
+    /// Default message indicating that the project version has been updated due to changes in its dependencies.
+    /// This message is typically used in the context of automated dependency management or versioning processes
+    /// to provide a standardized description of the reason for the bump.
+    public static final String DEFAULT_DEPENDENCY_BUMP_MESSAGE = "Project version bumped as result of dependency bumps";
 
     /// Represents the strategy or mechanism for handling version increments or updates during the execution
     /// of the Maven plugin. This parameter defines how the versioning process is managed in the project, whether
@@ -92,9 +104,9 @@ public final class UpdatePomMojo extends BaseMojo {
     @Parameter(
             property = "versioning.commit.message.update",
             required = true,
-            defaultValue = "Updated {numberOfProjects} project version(s) [skip ci]"
+            defaultValue = DEFAULT_COMMIT_MESSAGE
     )
-    String commitMessage = "Updated {numberOfProjects} project version(s) [skip ci]";
+    String commitMessage = DEFAULT_COMMIT_MESSAGE;
 
     /// Specifies the scripts or paths to the scripts used in versioning updates.
     /// These scripts can be used to manage or modify version-related data or configuration during the build process in
@@ -114,6 +126,15 @@ public final class UpdatePomMojo extends BaseMojo {
     @Parameter(property = "versioning.update.scripts", required = false)
     String scripts;
 
+    /// Specifies the header label for the changelog title.
+    /// The header is used as the H1 heading when updating Markdown content.
+    ///
+    /// The default value is [VersionHeaders#CHANGELOG_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.changelog.header", required = true, defaultValue = VersionHeaders.CHANGELOG_HEADER)
+    String changelogHeader = VersionHeaders.CHANGELOG_HEADER;
+
     /// Specifies the header format for the version file.
     /// The header is used to define the versioning structure within the file,
     /// including placeholders that can be dynamically replaced.
@@ -127,13 +148,72 @@ public final class UpdatePomMojo extends BaseMojo {
     ///   (the date format is processed by the [DateTimeFormatter]).
     ///
     /// This property is mandatory and must be defined for versioning tasks.
-    @Parameter(property = "versioning.version.header", required = true, defaultValue = "{version} - {date#YYYY-MM-DD}")
-    String versionHeader = "{version} - {date#YYYY-MM-DD}";
+    @Parameter(property = "versioning.version.header", required = true, defaultValue = VersionHeaders.VERSION_HEADER)
+    String versionHeader = VersionHeaders.VERSION_HEADER;
+
+    /// Specifies the header label for the major version section.
+    /// The header groups entries for major changes when updating Markdown content.
+    ///
+    /// The default value is [VersionHeaders#MAJOR_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.major.header", required = true, defaultValue = VersionHeaders.MAJOR_HEADER)
+    String majorHeader = VersionHeaders.MAJOR_HEADER;
+
+    /// Specifies the header label for the minor version section.
+    /// The header groups entries for minor changes when updating Markdown content.
+    ///
+    /// The default value is [VersionHeaders#MINOR_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.minor.header", required = true, defaultValue = VersionHeaders.MINOR_HEADER)
+    String minorHeader = VersionHeaders.MINOR_HEADER;
+
+    /// Specifies the header label for the patch version section.
+    /// The header groups entries for patch changes when updating Markdown content.
+    ///
+    /// The default value is [VersionHeaders#PATCH_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.patch.header", required = true, defaultValue = VersionHeaders.PATCH_HEADER)
+    String patchHeader = VersionHeaders.PATCH_HEADER;
+
+    /// Specifies the header label for the other changes section.
+    /// The header groups entries that do not match major, minor, or patch changes.
+    ///
+    /// The default value is [VersionHeaders#OTHER_HEADER].
+    ///
+    /// This property is mandatory and must be defined for versioning tasks.
+    @Parameter(property = "versioning.other.header", required = true, defaultValue = VersionHeaders.OTHER_HEADER)
+    String otherHeader = VersionHeaders.OTHER_HEADER;
+
+    /// The commit message template used when performing an automatic dependency version bump.
+    ///
+    /// This message will be used to describe changes in dependency versions during the execution of
+    /// the versioning process.
+    /// The template can include placeholders or other formatting conventions based on project-specific requirements.
+    ///
+    /// The property is configurable via the Maven property `versioning.dependency.bump.message`.
+    /// It is mandatory to provide a value for this property, and if not explicitly set,
+    /// the default value `DEFAULT_DEPENDENCY_BUMP_MESSAGE` will be used.
+    ///
+    /// It is required to ensure the default value or the provided value adheres to
+    /// the desired commit message standards.
+    @Parameter(
+            property = "versioning.dependency.bump.message",
+            required = true,
+            defaultValue = DEFAULT_DEPENDENCY_BUMP_MESSAGE
+    )
+    String dependencyBumpMessage = DEFAULT_DEPENDENCY_BUMP_MESSAGE;
 
     /// A list that holds file system paths pointing to script files.
     /// Will be derived on execution from the `scripts` parameter.
     /// Each path represented by this list is of type [Path], allowing interaction with the file system.
     private List<Path> scriptPaths = List.of();
+
+    /// Holds version header metadata derived from [#changelogHeader], [#versionHeader], [#majorHeader],
+    /// [#minorHeader], [#patchHeader], and [#otherHeader].
+    private VersionHeaders versionHeaders;
 
     /// Default constructor for the UpdatePomMojo class.
     ///
@@ -179,6 +259,14 @@ public final class UpdatePomMojo extends BaseMojo {
                 .map(Path::of)
                 .map(Path::toAbsolutePath)
                 .toList();
+        versionHeaders = new VersionHeaders(
+                changelogHeader,
+                versionHeader,
+                majorHeader,
+                minorHeader,
+                patchHeader,
+                otherHeader
+        );
 
         Log log = getLog();
         List<VersionMarkdown> versionMarkdowns = getVersionMarkdowns();
@@ -411,29 +499,6 @@ public final class UpdatePomMojo extends BaseMojo {
         }
     }
 
-    /// Reads and processes the POM files for a list of Maven projects
-    /// and returns a mapping of Maven artifacts to their corresponding project and document representations.
-    ///
-    /// @param projects the list of Maven projects whose POMs need to be read
-    /// @return an immutable map where the key is the Maven artifact representing a project and the value is its associated Maven project and document representation
-    /// @throws MojoExecutionException if an error occurs while executing the Mojo
-    /// @throws MojoFailureException   if the Mojo fails due to an expected problem
-    private Map<MavenArtifact, MavenProjectAndDocument> readAllPoms(List<MavenProject> projects)
-            throws MojoExecutionException, MojoFailureException {
-        Map<MavenArtifact, MavenProjectAndDocument> documents = new HashMap<>();
-        for (MavenProject project : projects) {
-            MavenArtifact mavenArtifact = new MavenArtifact(project.getGroupId(), project.getArtifactId());
-            Path pomFile = project.getFile().toPath();
-            MavenProjectAndDocument projectAndDocument = new MavenProjectAndDocument(
-                    mavenArtifact,
-                    pomFile,
-                    POMUtils.readPom(pomFile)
-            );
-            documents.put(mavenArtifact, projectAndDocument);
-        }
-        return Map.copyOf(documents);
-    }
-
     /// Updates the project version based on the specified semantic version bump and document.
     /// If no version update is required, an empty [Optional] is returned.
     ///
@@ -456,32 +521,6 @@ public final class UpdatePomMojo extends BaseMojo {
         }
         POMUtils.updateVersion(versionNode, semanticVersionBump);
         return Optional.of(new VersionChange(originalVersion, versionNode.getTextContent()));
-    }
-
-    /// Creates a mapping between dependency artifacts and project artifacts based on the provided
-    /// Maven project documents and reactor artifacts.
-    /// The method identifies dependencies in the projects that match artifacts in the reactor and associates
-    /// them with their corresponding project artifacts.
-    ///
-    /// @param documents        a collection of [MavenProjectAndDocument] representing the Maven projects and their associated model documents.
-    /// @param reactorArtifacts a set of [MavenArtifact] objects representing the artifacts present in the reactor.
-    /// @return a map where keys are dependency artifacts (from the reactor) and values are lists of project artifacts they are associated with.
-    private Map<MavenArtifact, List<MavenArtifact>> createDependencyToProjectArtifactMapping(
-            Collection<MavenProjectAndDocument> documents,
-            Set<MavenArtifact> reactorArtifacts
-    ) {
-        return documents.stream()
-                .flatMap(
-                        projectAndDocument -> POMUtils.getMavenArtifacts(projectAndDocument.document())
-                                .keySet()
-                                .stream()
-                                .filter(reactorArtifacts::contains)
-                                .map(artifact -> Map.entry(artifact, projectAndDocument.artifact()))
-                )
-                .collect(Utils.groupingByImmutable(
-                        Map.Entry::getKey,
-                        Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
-                ));
     }
 
     /// Merges updatable dependencies from a list of Maven project documents and a set of reactor artifacts.
@@ -548,17 +587,20 @@ public final class UpdatePomMojo extends BaseMojo {
     ) throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
         Path changelogFile = pom.getParent().resolve(CHANGELOG_MD);
-        org.commonmark.node.Node changelog = readMarkdown(log, changelogFile);
+        org.commonmark.node.Node changelog = readMarkdown(log, changelogFile, versionHeaders);
         log.debug("Original changelog");
         MarkdownUtils.printMarkdown(log, changelog, 0);
         MarkdownUtils.mergeVersionMarkdownsInChangelog(
                 changelog,
                 newVersion,
-                versionHeader,
+                versionHeaders,
                 markdownMapping.markdownMap()
                         .getOrDefault(
                                 projectArtifact,
-                                List.of(MarkdownUtils.createSimpleVersionBumpDocument(projectArtifact))
+                                List.of(MarkdownUtils.createSimpleVersionBumpDocument(
+                                        projectArtifact,
+                                        dependencyBumpMessage
+                                ))
                         )
                         .stream()
                         .collect(Utils.groupingByImmutable(
@@ -601,30 +643,6 @@ public final class UpdatePomMojo extends BaseMojo {
             case MINOR -> SemanticVersionBump.MINOR;
             case PATCH -> SemanticVersionBump.PATCH;
         };
-    }
-
-    /// Represents a combination of a Maven project artifact, its associated POM file path,
-    /// and the XML document of the POM file's contents.
-    ///
-    /// This class is designed as a record to provide an immutable data container for
-    /// conveniently managing and accessing Maven project-related information.
-    ///
-    /// @param artifact the Maven artifact associated with the project; must not be null
-    /// @param pomFile  the path to the POM file for the project; must not be null
-    /// @param document the XML document representing the POM file's contents; must not be null
-    private record MavenProjectAndDocument(MavenArtifact artifact, Path pomFile, Document document) {
-
-        /// Constructs a new instance of the MavenProjectAndDocument record.
-        ///
-        /// @param artifact the Maven artifact associated with the project; must not be null
-        /// @param pomFile  the path to the POM file for the project; must not be null
-        /// @param document the XML document representing the POM file's contents; must not be null
-        /// @throws NullPointerException if any of the provided parameters are null
-        private MavenProjectAndDocument {
-            Objects.requireNonNull(artifact, "`artifact` must not be null");
-            Objects.requireNonNull(pomFile, "`pomFile` must not be null");
-            Objects.requireNonNull(document, "`document` must not be null");
-        }
     }
 
     /// Represents a data structure that holds a set of updated Maven artifacts

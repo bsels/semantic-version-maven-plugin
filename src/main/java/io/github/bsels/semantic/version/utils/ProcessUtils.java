@@ -94,6 +94,17 @@ public final class ProcessUtils {
         );
     }
 
+    /// Executes the `git status` command and monitors its exit status.
+    /// This method retrieves the current state of the Git repository,
+    /// displaying information about changes in the working directory and staging area.
+    ///
+    /// If the command execution fails, a detailed exception is thrown encapsulating the error.
+    ///
+    /// @throws MojoExecutionException if an I/O error, process interruption, or non-zero exit status occurs during the execution of the `git status` command.
+    public static void gitStatus() throws MojoExecutionException {
+        executeGitCommand(List.of("git", "status"), "Unable to get Git status");
+    }
+
     /// Executes the given script within the context of a specified project directory and applies version-related
     /// environment variables.
     /// Optionally, the execution can be a dry run or include Git stash behavior.

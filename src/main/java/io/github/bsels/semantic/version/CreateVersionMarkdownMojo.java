@@ -3,6 +3,7 @@ package io.github.bsels.semantic.version;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.models.VersionHeaders;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.ProcessUtils;
 import io.github.bsels.semantic.version.utils.TerminalHelper;
@@ -212,7 +213,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
             if (!valid) {
                 throw new MojoFailureException("Unable to create a new Markdown file in external editor.");
             }
-            return MarkdownUtils.readMarkdown(getLog(), temporaryMarkdownFile);
+            return MarkdownUtils.readMarkdown(getLog(), temporaryMarkdownFile, VersionHeaders.DEFAULT);
         } finally {
             Utils.deleteFileIfExists(temporaryMarkdownFile);
         }

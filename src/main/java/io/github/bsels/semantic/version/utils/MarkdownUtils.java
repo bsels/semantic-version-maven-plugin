@@ -9,6 +9,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
+import io.github.bsels.semantic.version.models.VersionHeaders;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlyKeyDeserializer;
@@ -114,13 +115,6 @@ public final class MarkdownUtils {
             .nodeRendererFactory(MarkdownYamFrontMatterBlockRendererFactory.getInstance())
             .build();
 
-    /// Represents the title "Changelog" used as the top-level heading in Markdown changelogs processed by
-    /// the utility methods of the `MarkdownUtils` class.
-    ///
-    /// This constant is used as a reference to ensure that the changelog Markdown structure
-    /// adheres to the expected format, where the main heading for the document is a single H1 titled
-    private static final String CHANGELOG = "Changelog";
-
     /// Utility class for handling operations related to Markdown processing.
     /// This class contains static methods and is not intended to be instantiated.
     private MarkdownUtils() {
@@ -132,10 +126,10 @@ public final class MarkdownUtils {
     /// The parsed Markdown content is stored as a hierarchical structure of nodes,
     /// and the versioning information is extracted from the YAML front matter block.
     ///
-    /// @param log          the logger used to log informational and debug messages during the parsing process; must not be null
-    /// @param markdownFile the path to the Markdown file to be read and parsed; must not be null
-    /// @param identifier   the artifact identifier type used to determine the [ObjectMapper] configuration. It can be either [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID] or [ArtifactIdentifier#ONLY_ARTIFACT_ID].
-    /// @param groupId      the group ID of the current module used for deserialization when the identifier is [ArtifactIdentifier#ONLY_ARTIFACT_ID]
+    /// @param log            the logger used to log informational and debug messages during the parsing process; must not be null
+    /// @param markdownFile   the path to the Markdown file to be read and parsed; must not be null
+    /// @param identifier     the artifact identifier type used to determine the [ObjectMapper] configuration. It can be either [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID] or [ArtifactIdentifier#ONLY_ARTIFACT_ID].
+    /// @param groupId        the group ID of the current module used for deserialization when the identifier is [ArtifactIdentifier#ONLY_ARTIFACT_ID]
     /// @return a [VersionMarkdown] object containing the parsed Markdown content and the extracted Maven artifact to semantic version bump mappings
     /// @throws NullPointerException   if `log` or `markdownFile` is null
     /// @throws MojoExecutionException if an error occurs while reading the file, parsing the YAML front matter, or the Markdown does not contain the expected YAML front matter block
@@ -146,7 +140,7 @@ public final class MarkdownUtils {
         Objects.requireNonNull(markdownFile, "`markdownFile` must not be null");
         Objects.requireNonNull(identifier, "`identifier` must not be null");
         Objects.requireNonNull(groupId, "`groupId` must not be null");
-        Node document = readMarkdown(log, markdownFile);
+        Node document = readMarkdown(log, markdownFile, VersionHeaders.DEFAULT);
 
         if (!(document.getFirstChild() instanceof YamlFrontMatterBlock yamlFrontMatterBlock)) {
             throw new MojoExecutionException("YAML front matter block not found in '%s' file".formatted(markdownFile));
@@ -172,12 +166,14 @@ public final class MarkdownUtils {
     /// Reads and parses a Markdown file, returning its content as a structured Node object.
     /// The method logs the number of lines read from the file for informational purposes.
     ///
-    /// @param log          the logger used to log informational messages during the parsing process; must not be null
-    /// @param markdownFile the path to the Markdown file to be read and parsed; must not be null
+    /// @param log            the logger used to log informational messages during the parsing process; must not be null
+    /// @param markdownFile   the path to the Markdown file to be read and parsed; must not be null
+    /// @param versionHeaders the version headers to be used for formatting the changelog; must not be null
     /// @return a Node object representing the parsed structure of the Markdown content
     /// @throws NullPointerException   if log or markdownFile is null
     /// @throws MojoExecutionException if an error occurs while reading the file or parsing its content
-    public static Node readMarkdown(Log log, Path markdownFile) throws MojoExecutionException {
+    public static Node readMarkdown(Log log, Path markdownFile, VersionHeaders versionHeaders)
+            throws MojoExecutionException {
         Objects.requireNonNull(log, "`log` must not be null");
         Objects.requireNonNull(markdownFile, "`markdownFile` must not be null");
         if (!Files.exists(markdownFile)) {
@@ -185,7 +181,7 @@ public final class MarkdownUtils {
             Document document = new Document();
             Heading heading = new Heading();
             heading.setLevel(1);
-            heading.appendChild(new Text(CHANGELOG));
+            heading.appendChild(new Text(versionHeaders.changelogHeader()));
             document.appendChild(heading);
             return document;
         }
@@ -216,22 +212,22 @@ public final class MarkdownUtils {
     /// grouped by semantic version bump types (e.g., MAJOR, MINOR, PATCH).
     /// The changelog must begin with a single H1 heading titled "Changelog".
     ///
-    /// @param changelog     the root Node of the changelog Markdown structure to be updated; must not be null
-    /// @param version       the version string to be added to the changelog; must not be null
-    /// @param headerLine    the header line format to be used for the new version heading; must not be null
-    /// @param headerToNodes a mapping of SemanticVersionBump types to their associated Markdown nodes; must not be null
+    /// @param changelog      the root Node of the changelog Markdown structure to be updated; must not be null
+    /// @param version        the version string to be added to the changelog; must not be null
+    /// @param versionHeaders the version headers to be used for the new version heading; must not be null
+    /// @param headerToNodes  a mapping of SemanticVersionBump types to their associated Markdown nodes; must not be null
     /// @throws NullPointerException     if any of the parameters `changelog`, `version`, or `headerToNodes` is null
     /// @throws IllegalArgumentException if the changelog is not a document or does not start with a single H1 heading titled "Changelog"
     /// @throws IllegalArgumentException if any of the nodes in the map entries node lists is not a document
     public static void mergeVersionMarkdownsInChangelog(
             Node changelog,
             String version,
-            String headerLine,
+            VersionHeaders versionHeaders,
             Map<SemanticVersionBump, List<Node>> headerToNodes
     ) throws NullPointerException, IllegalArgumentException {
         Objects.requireNonNull(changelog, "`changelog` must not be null");
         Objects.requireNonNull(version, "`version` must not be null");
-        Objects.requireNonNull(headerLine, "`headerFormatLine` must not be null");
+        Objects.requireNonNull(versionHeaders, "`versionHeaders` must not be null");
         Objects.requireNonNull(headerToNodes, "`headerToNodes` must not be null");
 
         if (!(changelog instanceof Document document)) {
@@ -239,21 +235,28 @@ public final class MarkdownUtils {
         }
         if (!(document.getFirstChild() instanceof Heading heading &&
                 heading.getLevel() == 1 &&
-                heading.getFirstChild() instanceof Text text && CHANGELOG.equals(text.getLiteral()))) {
+                heading.getFirstChild() instanceof Text text &&
+                versionHeaders.changelogHeader().equals(text.getLiteral()))) {
             throw new IllegalArgumentException("Changelog must start with a single H1 heading with the text 'Changelog'");
         }
         Node nextChild = heading.getNext();
 
         Heading newVersionHeading = new Heading();
         newVersionHeading.setLevel(2);
-        newVersionHeading.appendChild(new Text(Utils.formatHeaderLine(headerLine, version, LocalDate.now())));
+        newVersionHeading.appendChild(new Text(
+                Utils.formatHeaderLine(versionHeaders.versionHeader(), version, LocalDate.now())
+        ));
         heading.insertAfter(newVersionHeading);
 
         Comparator<Map.Entry<SemanticVersionBump, List<Node>>> comparator = Map.Entry.comparingByKey();
         Node current = headerToNodes.entrySet()
                 .stream()
                 .sorted(comparator.reversed())
-                .reduce(newVersionHeading, MarkdownUtils::copyVersionMarkdownToChangeset, mergeNodes());
+                .reduce(
+                        newVersionHeading,
+                        (node, entry) -> copyVersionMarkdownToChangeset(node, entry, versionHeaders),
+                        mergeNodes()
+                );
 
         assert current.getNext() == nextChild : "Incorrectly inserted nodes into changelog";
     }
@@ -317,14 +320,16 @@ public final class MarkdownUtils {
     /// of dependency changes.
     ///
     /// @param mavenArtifact the Maven artifact associated with the version bump; must not be null
+    /// @param text          the text to include in the document; must not be null
     /// @return a [VersionMarkdown] object containing the generated document and a mapping of the Maven artifact to a PATCH semantic version bump
-    /// @throws NullPointerException if the `mavenArtifact` parameter is null
-    public static VersionMarkdown createSimpleVersionBumpDocument(MavenArtifact mavenArtifact)
+    /// @throws NullPointerException if the `mavenArtifact` or `text` parameter is null
+    public static VersionMarkdown createSimpleVersionBumpDocument(MavenArtifact mavenArtifact, String text)
             throws NullPointerException {
         Objects.requireNonNull(mavenArtifact, "`mavenArtifact` must not be null");
+        Objects.requireNonNull(text, "`text` must not be null");
         Document document = new Document();
         Paragraph paragraph = new Paragraph();
-        paragraph.appendChild(new Text("Project version bumped as result of dependency bumps"));
+        paragraph.appendChild(new Text(text));
         document.appendChild(paragraph);
         return new VersionMarkdown(null, document, Map.of(mavenArtifact, SemanticVersionBump.NONE));
     }
@@ -400,18 +405,17 @@ public final class MarkdownUtils {
     ///
     /// @param current the current Node in the Markdown structure to which the bump type heading and its associated nodes will be inserted; must not be null
     /// @param entry   a Map.Entry containing a SemanticVersionBump key representing the bump type (e.g., MAJOR, MINOR, PATCH, NONE) and a List of Nodes associated with that bump type; must not be null
+    /// @param headers the [VersionHeaders] instance used to retrieve header strings based on [SemanticVersionBump] types; must not be null
     /// @return the last Node inserted into the Markdown structure, representing the merged result of the operation
     /// @throws IllegalArgumentException if any of the nodes in the entry node list is not a document
-    private static Node copyVersionMarkdownToChangeset(Node current, Map.Entry<SemanticVersionBump, List<Node>> entry)
-            throws IllegalArgumentException {
+    private static Node copyVersionMarkdownToChangeset(
+            Node current,
+            Map.Entry<SemanticVersionBump, List<Node>> entry,
+            VersionHeaders headers
+    ) throws IllegalArgumentException {
         Heading bumpTypeHeading = new Heading();
         bumpTypeHeading.setLevel(3);
-        bumpTypeHeading.appendChild(new Text(switch (entry.getKey()) {
-            case MAJOR -> "Major";
-            case MINOR -> "Minor";
-            case PATCH -> "Patch";
-            case NONE -> "Other";
-        }));
+        bumpTypeHeading.appendChild(new Text(headers.getHeader(entry.getKey())));
         current.insertAfter(bumpTypeHeading);
         return entry.getValue()
                 .stream()
