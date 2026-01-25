@@ -10,7 +10,11 @@ import io.github.bsels.semantic.version.utils.ProcessUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.plugins.annotations.Execute;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.plugins.annotations.ResolutionScope;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
@@ -47,6 +51,8 @@ import java.util.stream.Collectors;
 ///
 /// This class is designed to be a final implementation, and its extensibility is deliberately
 /// restricted to prevent modifications that could interfere with its strict validation rules.
+@Mojo(name = "verify", aggregator = true, requiresDependencyResolution = ResolutionScope.NONE)
+@Execute(phase = LifecyclePhase.NONE)
 public final class VerifyMojo extends BaseMojo {
 
     /// Defines the verification mode to be used for validating projects within the context of the Maven build process.
