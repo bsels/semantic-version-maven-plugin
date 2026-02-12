@@ -30,7 +30,9 @@ public final class DependencyGraphMojo extends BaseMojo {
 
     @Override
     protected void internalExecute() throws MojoExecutionException, MojoFailureException {
-        Path executionRootDirectory = Path.of(session.getExecutionRootDirectory());
+        Path executionRootDirectory = Path.of(session.getExecutionRootDirectory())
+                .toAbsolutePath();
+        System.out.println(executionRootDirectory);
         List<MavenProject> projectsInScope = getProjectsInScope().toList();
         Set<MavenArtifact> projectArtifacts = projectsInScope.stream()
                 .map(Utils::mavenProjectToArtifact)
@@ -54,12 +56,26 @@ public final class DependencyGraphMojo extends BaseMojo {
                         Utils::mavenProjectToArtifact,
                         project -> new Node(
                                 Utils.mavenProjectToArtifact(project),
-                                executionRootDirectory.relativize(project.getBasedir().toPath()),
+                                getProjectFolderAsString(project, executionRootDirectory),
                                 projectToDependenciesMapping.getOrDefault(Utils.mavenProjectToArtifact(project), List.of())
                         )
                 ));
 
+        // TODO Improve structure to needs
+
         printDependencyGraph(graph);
+    }
+
+    private String getProjectFolderAsString(MavenProject project, Path executionRootDirectory) {
+        Path projectBasePath = project.getBasedir().toPath().toAbsolutePath();
+        if (!useRelativePaths) {
+            return projectBasePath.toString();
+        }
+        String relativePath = executionRootDirectory.relativize(projectBasePath).toString();
+        if (relativePath.isBlank()) {
+            return ".";
+        }
+        return relativePath;
     }
 
     void printDependencyGraph(Object graph) throws MojoExecutionException {
@@ -70,7 +86,7 @@ public final class DependencyGraphMojo extends BaseMojo {
         }
     }
 
-    public record Node(MavenArtifact artifact, Path folder, List<MavenArtifact> dependencies) {
+    public record Node(MavenArtifact artifact, String folder, List<MavenArtifact> dependencies) {
 
         public Node {
             Objects.requireNonNull(artifact, "`artifact` must not be null");
