@@ -7,6 +7,7 @@ import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.VerificationMode;
 import io.github.bsels.semantic.version.utils.ProcessUtils;
+import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
@@ -15,6 +16,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.project.MavenProject;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
@@ -124,7 +126,7 @@ public final class VerifyMojo extends BaseMojo {
         }
 
         Set<MavenArtifact> projects = getProjectsInScope()
-                .map(project -> new MavenArtifact(project.getGroupId(), project.getArtifactId()))
+                .map(Utils::mavenProjectToArtifact)
                 .collect(Collectors.toSet());
 
         List<VersionMarkdown> versionMarkdowns = getVersionMarkdowns();

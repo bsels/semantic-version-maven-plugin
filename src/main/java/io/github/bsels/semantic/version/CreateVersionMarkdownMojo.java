@@ -107,7 +107,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
 
         Log log = getLog();
         List<MavenArtifact> projects = getProjectsInScope()
-                .map(mavenProject -> new MavenArtifact(mavenProject.getGroupId(), mavenProject.getArtifactId()))
+                .map(Utils::mavenProjectToArtifact)
                 .toList();
         if (projects.isEmpty()) {
             log.warn("No projects found in scope");

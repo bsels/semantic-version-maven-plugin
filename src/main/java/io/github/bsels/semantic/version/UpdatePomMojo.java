@@ -311,7 +311,7 @@ public final class UpdatePomMojo extends BaseMojo {
             throws MojoExecutionException, MojoFailureException {
         Path pom = project.getFile()
                 .toPath();
-        MavenArtifact artifact = new MavenArtifact(project.getGroupId(), project.getArtifactId());
+        MavenArtifact artifact = Utils.mavenProjectToArtifact(project);
 
         Document document = POMUtils.readPom(pom);
 

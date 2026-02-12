@@ -1,5 +1,6 @@
 package io.github.bsels.semantic.version.utils;
 
+import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.project.MavenProject;
@@ -58,6 +59,10 @@ public final class Utils {
     /// dynamically replaceable placeholders for date and version values.
     private static final Pattern PLACEHOLDER_FORMAT_EXTRACTOR = Pattern.compile("\\{(date(#([^{}]*))?|version)}");
 
+    /// A cached collection of DateTimeFormatter instances, where the key is a [String] representing
+    /// the date-time pattern and the value is a corresponding [DateTimeFormatter] object.
+    /// This map is used to optimize the creation of [DateTimeFormatter] objects by reusing previously created instances
+    /// for the same pattern, reducing the overhead of instantiating new formatters.
     private static final Map<String, DateTimeFormatter> CACHED_DATE_FORMATTERS = new HashMap<>();
 
     /// Utility class containing static constants and methods for various common operations.
@@ -321,5 +326,13 @@ public final class Utils {
     /// @return a collector that produces an immutable set of the collected elements
     public static <T> Collector<T, ?, Set<T>> asImmutableSet() {
         return Collectors.collectingAndThen(Collectors.toSet(), Set::copyOf);
+    }
+
+    /// Converts a [MavenProject] instance into a [MavenArtifact] instance.
+    ///
+    /// @param project the [MavenProject] to be converted; must provide valid group ID and artifact ID.
+    /// @return a [MavenArtifact] instance containing the group ID and artifact ID from the provided [MavenProject].
+    public static MavenArtifact mavenProjectToArtifact(MavenProject project) {
+        return new MavenArtifact(project.getGroupId(), project.getArtifactId());
     }
 }
