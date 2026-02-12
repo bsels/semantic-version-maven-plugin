@@ -1,5 +1,6 @@
 package io.github.bsels.semantic.version.utils;
 
+import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.project.MavenProject;
@@ -736,6 +737,24 @@ public class UtilsTest {
             );
 
             assertThat(result).isEqualTo("Release {unknown} on 2024-02-03");
+        }
+    }
+
+    @Nested
+    class MavenProjectToArtifactTest {
+
+        @Test
+        void validProject_ReturnsCorrectArtifact() {
+            Mockito.when(mavenProject.getGroupId())
+                    .thenReturn("io.github.bsels");
+            Mockito.when(mavenProject.getArtifactId())
+                    .thenReturn("semantic-version-maven-plugin");
+
+            MavenArtifact artifact = Utils.mavenProjectToArtifact(mavenProject);
+
+            assertThat(artifact).isNotNull();
+            assertThat(artifact.groupId()).isEqualTo("io.github.bsels");
+            assertThat(artifact.artifactId()).isEqualTo("semantic-version-maven-plugin");
         }
     }
 }
