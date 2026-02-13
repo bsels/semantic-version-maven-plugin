@@ -1110,6 +1110,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                     <artifactId>%1$s</artifactId>
                                                     <version>4.1.0-%1$s</version>
                                                 
+                                                    <packaging>pom</packaging>
+                                                
                                                     <modules>
                                                         <module>dependency</module>
                                                         <module>dependencyManagement</module>

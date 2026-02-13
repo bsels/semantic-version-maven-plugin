@@ -52,8 +52,8 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         
         DependencyGraphMojo.Node combinationNode = graph.get(combinationArtifact);
         assertThat(combinationNode.dependencies()).contains(
-                new MavenArtifact("org.example.itests.multi", "dependency"),
-                new MavenArtifact("org.example.itests.multi", "plugin")
+                new DependencyGraphMojo.MinDependency(new MavenArtifact("org.example.itests.multi", "dependency"), "dependency"),
+                new DependencyGraphMojo.MinDependency(new MavenArtifact("org.example.itests.multi", "plugin"), "plugin")
         );
         
         MavenArtifact dependencyArtifact = new MavenArtifact("org.example.itests.multi", "dependency");

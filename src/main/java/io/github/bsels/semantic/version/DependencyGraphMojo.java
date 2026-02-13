@@ -51,14 +51,26 @@ public final class DependencyGraphMojo extends BaseMojo {
                                 .toList()
                 ));
 
+        Map<MavenArtifact, String> artifactToFolderMapping = projectsInScope.stream()
+                .collect(Collectors.toMap(
+                        Utils::mavenProjectToArtifact,
+                        project -> getProjectFolderAsString(project, executionRootDirectory)
+                ));
+
         Map<MavenArtifact, Node> graph = projectsInScope.stream()
                 .collect(Collectors.toMap(
                         Utils::mavenProjectToArtifact,
-                        project -> new Node(
-                                Utils.mavenProjectToArtifact(project),
-                                getProjectFolderAsString(project, executionRootDirectory),
-                                projectToDependenciesMapping.getOrDefault(Utils.mavenProjectToArtifact(project), List.of())
-                        )
+                        project -> {
+                            MavenArtifact artifact = Utils.mavenProjectToArtifact(project);
+                            List<MinDependency> minDependencies = projectToDependenciesMapping.getOrDefault(artifact, List.of()).stream()
+                                    .map(depArtifact -> new MinDependency(depArtifact, artifactToFolderMapping.get(depArtifact)))
+                                    .toList();
+                            return new Node(
+                                    artifact,
+                                    artifactToFolderMapping.get(artifact),
+                                    minDependencies
+                            );
+                        }
                 ));
 
         // TODO Improve structure to needs
@@ -86,7 +98,14 @@ public final class DependencyGraphMojo extends BaseMojo {
         }
     }
 
-    public record Node(MavenArtifact artifact, String folder, List<MavenArtifact> dependencies) {
+    public record MinDependency(MavenArtifact artifact, String folder) {
+        public MinDependency {
+            Objects.requireNonNull(artifact, "`artifact` must not be null");
+            Objects.requireNonNull(folder, "`folder` must not be null");
+        }
+    }
+
+    public record Node(MavenArtifact artifact, String folder, List<MinDependency> dependencies) {
 
         public Node {
             Objects.requireNonNull(artifact, "`artifact` must not be null");
