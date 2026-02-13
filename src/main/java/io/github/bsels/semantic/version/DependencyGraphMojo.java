@@ -1,7 +1,5 @@
 package io.github.bsels.semantic.version;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
 import io.github.bsels.semantic.version.utils.Utils;
@@ -18,7 +16,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Mojo(name = "graph", aggregator = true, requiresDependencyResolution = ResolutionScope.NONE)
@@ -34,15 +31,18 @@ public final class DependencyGraphMojo extends BaseMojo {
                 .toAbsolutePath();
         System.out.println(executionRootDirectory);
         List<MavenProject> projectsInScope = getProjectsInScope().toList();
-        Set<MavenArtifact> projectArtifacts = projectsInScope.stream()
-                .map(Utils::mavenProjectToArtifact)
-                .collect(Collectors.toSet());
+        Map<MavenArtifact, String> projectArtifacts = projectsInScope.stream()
+                .collect(Collectors.toMap(
+                        Utils::mavenProjectToArtifact,
+                        project -> getProjectFolderAsString(project, executionRootDirectory)
+                ));
 
         Map<MavenArtifact, MavenProjectAndDocument> documents = readAllPoms(projectsInScope);
         Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping =
-                createDependencyToProjectArtifactMapping(documents.values(), projectArtifacts);
+                createDependencyToProjectArtifactMapping(documents.values(), projectArtifacts.keySet());
 
-        Map<MavenArtifact, List<MavenArtifact>> projectToDependenciesMapping = projectArtifacts.stream()
+        Map<MavenArtifact, List<MavenArtifact>> projectToDependenciesMapping = projectArtifacts.keySet()
+                .stream()
                 .collect(Collectors.toMap(
                         artifact -> artifact,
                         artifact -> dependencyToProjectArtifactMapping.entrySet().stream()
@@ -51,31 +51,23 @@ public final class DependencyGraphMojo extends BaseMojo {
                                 .toList()
                 ));
 
-        Map<MavenArtifact, String> artifactToFolderMapping = projectsInScope.stream()
-                .collect(Collectors.toMap(
-                        Utils::mavenProjectToArtifact,
-                        project -> getProjectFolderAsString(project, executionRootDirectory)
-                ));
-
         Map<MavenArtifact, Node> graph = projectsInScope.stream()
                 .collect(Collectors.toMap(
                         Utils::mavenProjectToArtifact,
                         project -> {
                             MavenArtifact artifact = Utils.mavenProjectToArtifact(project);
                             List<MinDependency> minDependencies = projectToDependenciesMapping.getOrDefault(artifact, List.of()).stream()
-                                    .map(depArtifact -> new MinDependency(depArtifact, artifactToFolderMapping.get(depArtifact)))
+                                    .map(depArtifact -> new MinDependency(depArtifact, projectArtifacts.get(depArtifact)))
                                     .toList();
                             return new Node(
                                     artifact,
-                                    artifactToFolderMapping.get(artifact),
+                                    projectArtifacts.get(artifact),
                                     minDependencies
                             );
                         }
                 ));
 
-        // TODO Improve structure to needs
-
-        printDependencyGraph(graph);
+        System.out.println(Utils.writeObjectAsJson(graph));
     }
 
     private String getProjectFolderAsString(MavenProject project, Path executionRootDirectory) {
@@ -88,14 +80,6 @@ public final class DependencyGraphMojo extends BaseMojo {
             return ".";
         }
         return relativePath;
-    }
-
-    void printDependencyGraph(Object graph) throws MojoExecutionException {
-        try {
-            System.out.println(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(graph));
-        } catch (JsonProcessingException e) {
-            throw new MojoExecutionException("Failed to serialize dependency graph", e);
-        }
     }
 
     public record MinDependency(MavenArtifact artifact, String folder) {
