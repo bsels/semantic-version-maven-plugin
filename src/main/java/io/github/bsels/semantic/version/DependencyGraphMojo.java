@@ -13,9 +13,12 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -23,14 +26,34 @@ import java.util.stream.Collectors;
 @Execute(phase = LifecyclePhase.NONE)
 public final class DependencyGraphMojo extends BaseMojo {
 
+    /// Indicates whether project folder paths should be resolved as relative paths with respect to
+    /// the execution root directory.
+    /// If set to `true`, the project paths will be returned as relative paths.
+    /// If set to `false`, absolute paths will be used instead.
+    /// This parameter is required and defaults to `true`.
+    ///
+    /// Configurable via the Maven property `versioning.relativePaths`.
     @Parameter(property = "versioning.relativePaths", required = true, defaultValue = "true")
     boolean useRelativePaths = true;
 
+    /// Executes the internal logic for creating a dependency graph representation of Maven projects in the current scope.
+    /// This method performs the following steps:
+    /// 1. Resolves the execution root directory and logs it for debugging.
+    /// 2. Retrieves all Maven projects in the current execution scope.
+    /// 3. Maps Maven projects to their corresponding artifacts and project folder paths.
+    /// 4. Parses and reads all POM files for the projects, creating a mapping of Maven artifacts to their parsed documents.
+    /// 5. Creates a dependency mapping for artifacts, associating project artifacts with their dependent artifacts.
+    /// 6. Resolves transitive dependencies for each project artifact and creates a mapping of project artifacts to their resolved dependencies.
+    /// 7. Prepares a directed graph representation of Maven project artifacts (`Node` instances) using the resolved dependency data.
+    /// 8. Produces the output of the dependency graph.
+    ///
+    /// @throws MojoExecutionException if an unexpected error occurs during execution.
+    /// @throws MojoFailureException   if the execution fails due to inconsistent or invalid Maven project data.
     @Override
     protected void internalExecute() throws MojoExecutionException, MojoFailureException {
         Path executionRootDirectory = Path.of(session.getExecutionRootDirectory())
                 .toAbsolutePath();
-        getLog().info("Execution root directory: %s".formatted(executionRootDirectory));
+        getLog().debug("Execution root directory: %s".formatted(executionRootDirectory));
         List<MavenProject> projectsInScope = getProjectsInScope().toList();
         Map<MavenArtifact, String> projectArtifacts = projectsInScope.stream()
                 .collect(Collectors.toMap(
@@ -56,28 +79,67 @@ public final class DependencyGraphMojo extends BaseMojo {
                         project -> prepareMavenProjectNode(project, projectToDependenciesMapping, projectArtifacts)
                 ));
 
+        produceGraphOutput(graph);
+    }
+
+    private void produceGraphOutput(Map<MavenArtifact, Node> graph) throws MojoExecutionException {
+        // TODO: Enhance with different outputs and switching between console and file output
         System.out.println(Utils.writeObjectAsJson(graph));
     }
 
     /// Resolves and collects all Maven artifacts that are dependent on the specified artifact within the provided
-    /// dependency mapping.
+    /// dependency mapping, including transitive dependencies.
     ///
-    /// This method filters through the `dependencyToProjectArtifactMapping` to find all entries
-    /// where the given `artifact` is present in the list of dependencies,
-    /// and then retrieves the corresponding project artifacts as a result.
+    /// This method performs a depth-first traversal to find all direct and transitive dependencies
+    /// of the given artifact. The dependencies are returned in topological order (build order),
+    /// where dependencies that need to be built first appear earlier in the list.
     ///
     /// @param artifact                           the Maven artifact whose dependents need to be collected
     /// @param dependencyToProjectArtifactMapping a mapping that associates project artifacts with their dependencies
-    /// @return a list of Maven artifacts that depend on the specified artifact
+    /// @return a list of Maven artifacts that depend on the specified artifact, sorted in build order
     private List<MavenArtifact> collectProjectDependencies(
             MavenArtifact artifact,
             Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping
     ) {
-        return dependencyToProjectArtifactMapping.entrySet()
+        Set<MavenArtifact> visited = new HashSet<>();
+        List<MavenArtifact> result = new ArrayList<>();
+        collectTransitiveDependencies(artifact, dependencyToProjectArtifactMapping, visited, result);
+        return List.copyOf(result);
+    }
+
+    /// Recursively collects transitive dependencies using depth-first search.
+    /// Dependencies are added to the result list in post-order (dependencies before dependents),
+    /// which ensures topological ordering for build purposes.
+    ///
+    /// @param artifact                           the current artifact being processed
+    /// @param dependencyToProjectArtifactMapping a mapping that associates project artifacts with their dependencies
+    /// @param visited                            set of already visited artifacts to avoid cycles
+    /// @param result                             list to accumulate dependencies in topological order
+    private void collectTransitiveDependencies(
+            MavenArtifact artifact,
+            Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping,
+            Set<MavenArtifact> visited,
+            List<MavenArtifact> result
+    ) {
+        if (visited.contains(artifact)) {
+            return;
+        }
+        visited.add(artifact);
+
+        // Find all direct dependencies of this artifact
+        List<MavenArtifact> directDependencies = dependencyToProjectArtifactMapping.entrySet()
                 .stream()
                 .filter(entry -> entry.getValue().contains(artifact))
                 .map(Map.Entry::getKey)
                 .toList();
+
+        // Recursively process each direct dependency
+        for (MavenArtifact dependency : directDependencies) {
+            collectTransitiveDependencies(dependency, dependencyToProjectArtifactMapping, visited, result);
+        }
+
+        // Add the current artifact after its dependencies (post-order)
+        result.add(artifact);
     }
 
     /// Returns the project folder path as a string.
