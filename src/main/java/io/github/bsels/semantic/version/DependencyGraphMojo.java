@@ -29,6 +29,18 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/// Represents a Maven Mojo goal for generating a dependency graph of Maven projects within the current execution scope.
+/// This goal facilitates the extraction, transformation, and representation of dependency relationships among Maven
+/// project artifacts and supports producing the graph output in a configurable format.
+///
+/// This Mojo is typically used during Maven builds to analyze project dependencies and produce insights
+/// into the structure of the dependency tree, which may assist in understanding transitive dependencies,
+/// resolving conflicts, or debugging build issues.
+///
+/// The generated dependency graph can include both direct and transitive dependencies and is represented
+/// as directed graph nodes, where each node corresponds to a Maven project artifact.
+///
+/// The final graph representation, including its format and location, is configurable via parameters.
 @Mojo(name = "graph", aggregator = true, requiresDependencyResolution = ResolutionScope.NONE)
 @Execute(phase = LifecyclePhase.NONE)
 public final class DependencyGraphMojo extends BaseMojo {
@@ -90,6 +102,15 @@ public final class DependencyGraphMojo extends BaseMojo {
     /// or command-line arguments.
     @Parameter(property = "versioning.outputFile")
     Path outputFile = null;
+
+    /// Default constructor for the `DependencyGraphMojo` class.
+    /// Initializes an instance by invoking the superclass constructor.
+    ///
+    /// This constructor is typically used by the Maven framework during the build process to instantiate
+    /// the goal implementation, enabling the execution of its logic.
+    public DependencyGraphMojo() {
+        super();
+    }
 
     /// Executes the internal logic for creating a dependency graph representation of Maven projects in the current scope.
     /// This method performs the following steps:
