@@ -19,6 +19,7 @@ A Maven plugin for automated semantic versioning with Markdown-based changelog m
     - [create](#create)
     - [update](#update)
     - [verify](#verify)
+    - [graph](#graph)
 - [Configuration Properties](#configuration-properties)
 - [Examples](#examples)
 - [License](#license)
@@ -246,6 +247,94 @@ mvn io.github.bsels:semantic-version-maven-plugin:verify \
   -Dversioning.verification.consistent=true
 ```
 
+---
+
+### graph
+
+**Full name**: `io.github.bsels:semantic-version-maven-plugin:graph`
+
+**Description**: Generates a JSON representation of the dependency graph for Maven projects within the current execution
+scope. It identifies internal dependencies between projects and can output the graph either to the console or to a
+specified file. The output includes transitive dependencies sorted in build order (topological order).
+
+**Phase**: Not bound to any lifecycle phase (standalone goal)
+
+#### Configuration Properties
+
+| Property                   | Type          | Default               | Description                                                                                                                                                                                                                                 |
+|----------------------------|---------------|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `versioning.graphOutput`   | `GraphOutput` | `ARTIFACT_AND_FOLDER` | Specifies the graph output format:<br/>• `ARTIFACT_ONLY`: Only Maven artifact identifiers<br/>• `FOLDER_ONLY`: Only project folder paths<br/>• `ARTIFACT_AND_FOLDER`: Both artifact identifiers and folder paths                            |
+| `versioning.outputFile`    | `Path`        | `-`                   | Path to the output file. If not specified, the graph is printed to the console.                                                                                                                                                             |
+| `versioning.relativePaths` | `boolean`     | `true`                | When `true`, project folder paths are resolved relative to the execution root; otherwise, absolute paths are used.                                                                                                                          |
+| `versioning.modus`         | `Modus`       | `PROJECT_VERSION`     | Project scope for the graph:<br/>• `PROJECT_VERSION`: All projects in multi-module builds<br/>• `REVISION_PROPERTY`: Only current project using the `revision` property<br/>• `PROJECT_VERSION_ONLY_LEAFS`: Only leaf projects (no modules) |
+
+#### Output Format Description
+
+The generated JSON is a map where each key is a project's artifact identifier (`groupId:artifactId`), and the value is a
+list of its internal dependencies.
+
+**ARTIFACT_ONLY**:
+
+```json
+{
+  "io.github.bsels:parent": [],
+  "io.github.bsels:child": [
+    "io.github.bsels:parent"
+  ]
+}
+```
+
+**FOLDER_ONLY**:
+
+```json
+{
+  "io.github.bsels:parent": [],
+  "io.github.bsels:child": [
+    "."
+  ]
+}
+```
+
+**ARTIFACT_AND_FOLDER**:
+
+```json
+{
+  "io.github.bsels:parent": [],
+  "io.github.bsels:child": [
+    {
+      "artifact": {
+        "groupId": "io.github.bsels",
+        "artifactId": "parent"
+      },
+      "folder": "."
+    }
+  ]
+}
+```
+
+#### Example Usage
+
+**Basic usage** (print to console):
+
+```bash
+mvn io.github.bsels:semantic-version-maven-plugin:graph
+```
+
+**Write to file with absolute paths**:
+
+```bash
+mvn io.github.bsels:semantic-version-maven-plugin:graph \
+  -Dversioning.outputFile=graph.json \
+  -Dversioning.relativePaths=false
+```
+
+**Artifact-only output**:
+
+```bash
+mvn io.github.bsels:semantic-version-maven-plugin:graph \
+  -Dversioning.graphOutput=ARTIFACT_ONLY
+```
+
 ## Configuration Properties
 
 ### Common Properties
@@ -289,6 +378,14 @@ These properties apply to `create`, `update`, and `verify` goals. The `verify` g
 |--------------------------------------|--------------------|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `versioning.verification.mode`       | `VerificationMode` | `ALL_PROJECTS` | Verification scope:<br/>• `NONE`: skip verification<br/>• `AT_LEAST_ONE_PROJECT`: require at least one version-marked project<br/>• `DEPENDENT_PROJECTS`: require all dependent projects to be version-marked<br/>• `ALL_PROJECTS`: all projects in scope must be version-marked |
 | `versioning.verification.consistent` | `boolean`          | `false`        | When `true`, all version-marked projects must share the same version bump type                                                                                                                                                                                                   |
+
+### graph-Specific Properties
+
+| Property                   | Type          | Default               | Description                                                                                                                                                                        |
+|----------------------------|---------------|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `versioning.graphOutput`   | `GraphOutput` | `ARTIFACT_AND_FOLDER` | Specifies the graph output format:<br/>• `ARTIFACT_ONLY`: Only artifact identifiers<br/>• `FOLDER_ONLY`: Only folder paths<br/>• `ARTIFACT_AND_FOLDER`: Artifacts and folder paths |
+| `versioning.outputFile`    | `Path`        | `-`                   | Path to the output file. If not specified, output is printed to the console.                                                                                                       |
+| `versioning.relativePaths` | `boolean`     | `true`                | When `true`, project paths are relative to execution root; otherwise, absolute.                                                                                                    |
 
 ## Examples
 
