@@ -2,6 +2,9 @@ package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
+import io.github.bsels.semantic.version.models.graph.ArtifactLocation;
+import io.github.bsels.semantic.version.models.graph.DetailedGraphNode;
+import io.github.bsels.semantic.version.parameters.GraphOutput;
 import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -12,12 +15,16 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -35,6 +42,54 @@ public final class DependencyGraphMojo extends BaseMojo {
     /// Configurable via the Maven property `versioning.relativePaths`.
     @Parameter(property = "versioning.relativePaths", required = true, defaultValue = "true")
     boolean useRelativePaths = true;
+
+    /// Specifies the format in which the dependency graph will be produced.
+    ///
+    /// This variable determines whether the dependency graph output includes:
+    /// - Only Maven artifact data ([GraphOutput#ARTIFACT_ONLY]), format:
+    ///  ```json
+    ///  {
+    ///     "{groupId}:{artifactId}": ["{groupId}:{artifactId}",...],
+    ///     ...
+    ///  }
+    ///  ```
+    /// - Only the folder paths of the projects ([GraphOutput#FOLDER_ONLY]), format
+    ///  ```json
+    ///  {
+    ///     "{groupId}:{artifactId}": ["{folder}",...],
+    ///     ...
+    ///  }
+    ///  ```
+    /// - Both Maven artifact data and folder paths ([GraphOutput#ARTIFACT_AND_FOLDER]), format
+    ///   ```json
+    ///   {
+    ///       "{groupId}:{artifactId}": [
+    ///           {
+    ///               "artifact": {
+    ///                   "groupId": "{groupId}",
+    ///                   "artifactId": "{artifactId}"
+    ///               },
+    ///               "folder": "{folder}"
+    ///           },...
+    ///       ],
+    ///       ...
+    ///   }
+    ///   ```
+    ///
+    /// The value of this field is required and defaults to [GraphOutput#ARTIFACT_AND_FOLDER].
+    /// It is set via the Maven plugin parameter `versioning.graphOutput`.
+    @Parameter(property = "versioning.graphOutput", required = true, defaultValue = "ARTIFACT_AND_FOLDER")
+    GraphOutput graphOutput = GraphOutput.ARTIFACT_AND_FOLDER;
+
+    /// Specifies the output file for the generated dependency graph.
+    ///
+    /// If this value is set to `null`,
+    /// the dependency graph output will be printed to the console instead of being written to an external file.
+    ///
+    /// Uses the Maven property `versioning.outputFile` to allow configuration via Maven's usage of properties
+    /// or command-line arguments.
+    @Parameter(property = "versioning.outputFile")
+    Path outputFile = null;
 
     /// Executes the internal logic for creating a dependency graph representation of Maven projects in the current scope.
     /// This method performs the following steps:
@@ -72,7 +127,7 @@ public final class DependencyGraphMojo extends BaseMojo {
                         artifact -> collectProjectDependencies(artifact, dependencyToProjectArtifactMapping)
                 ));
 
-        Map<MavenArtifact, Node> graph = projectArtifacts.keySet()
+        Map<MavenArtifact, DetailedGraphNode> graph = projectArtifacts.keySet()
                 .stream()
                 .collect(Collectors.toMap(
                         Function.identity(),
@@ -82,9 +137,60 @@ public final class DependencyGraphMojo extends BaseMojo {
         produceGraphOutput(graph);
     }
 
-    private void produceGraphOutput(Map<MavenArtifact, Node> graph) throws MojoExecutionException {
-        // TODO: Enhance with different outputs and switching between console and file output
-        System.out.println(Utils.writeObjectAsJson(graph));
+    /// Produces the output of the dependency graph for Maven artifacts based on the specified graph output type.
+    /// The method transforms the given dependency graph into a format determined by the output configuration
+    /// (artifact-only, folder-only, or a combination of both) and serializes the resulting data as JSON.
+    /// The JSON output is either written to a file or printed to the console.
+    ///
+    /// @param graph a mapping of Maven artifacts to their corresponding detailed graph nodes, representing the dependency relationships between the artifacts
+    /// @throws MojoExecutionException if an error occurs while transforming the graph or writing the output to a file
+    private void produceGraphOutput(Map<MavenArtifact, DetailedGraphNode> graph) throws MojoExecutionException {
+        Function<Object, String> mapper = Object::toString;
+        Object output = switch (graphOutput) {
+            case ARTIFACT_ONLY -> transformGraph(graph, mapper.compose(ArtifactLocation::artifact));
+            case FOLDER_ONLY -> transformGraph(graph, ArtifactLocation::folder);
+            case ARTIFACT_AND_FOLDER -> transformGraph(graph, Function.identity());
+        };
+
+        String objectAsJson = Utils.writeObjectAsJson(output);
+        if (outputFile != null) {
+            try (BufferedWriter writer = Files.newBufferedWriter(
+                    outputFile,
+                    StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.TRUNCATE_EXISTING
+            )) {
+                writer.write(objectAsJson);
+            } catch (IOException e) {
+                throw new MojoExecutionException("Unable to write to output file '%s'".formatted(outputFile), e);
+            }
+        } else {
+            System.out.println(objectAsJson);
+        }
+    }
+
+    /// Transforms a dependency graph of Maven artifacts into a new mapping where the dependencies
+    /// of each artifact are processed using the provided mapping function.
+    ///
+    /// @param <T>    the target type of the transformation
+    /// @param graph  a mapping of Maven artifacts to their detailed graph nodes, representing dependency relationships between artifacts
+    /// @param mapper a function that maps artifact locations (dependencies) to the desired target type
+    /// @return a transformed mapping of Maven artifacts to lists of processed dependencies where each dependency is mapped using the provided function
+    private <T> Map<MavenArtifact, List<T>> transformGraph(
+            Map<MavenArtifact, DetailedGraphNode> graph,
+            Function<ArtifactLocation, T> mapper
+    ) {
+        return graph.entrySet()
+                .stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue()
+                                .dependencies()
+                                .stream()
+                                .map(mapper)
+                                .toList()
+                ));
     }
 
     /// Resolves and collects all Maven artifacts that are dependent on the specified artifact within the provided
@@ -168,34 +274,18 @@ public final class DependencyGraphMojo extends BaseMojo {
     /// @param projectToDependenciesMapping a mapping of Maven projects to their respective dependencies; used to determine the dependencies of the provided artifact; must not be null
     /// @param projectArtifacts             a mapping of Maven artifacts to their corresponding folder paths; must not be null
     /// @return a `Node` instance representing the given artifact, its folder path, and its resolved dependencies
-    private Node prepareMavenProjectNode(
+    private DetailedGraphNode prepareMavenProjectNode(
             MavenArtifact artifact,
             Map<MavenArtifact, List<MavenArtifact>> projectToDependenciesMapping,
             Map<MavenArtifact, String> projectArtifacts
     ) {
-        List<MinDependency> minDependencies = projectToDependenciesMapping.getOrDefault(artifact, List.of()).stream()
-                .map(depArtifact -> new MinDependency(depArtifact, projectArtifacts.get(depArtifact)))
+        List<ArtifactLocation> minDependencies = projectToDependenciesMapping.getOrDefault(artifact, List.of()).stream()
+                .map(depArtifact -> new ArtifactLocation(depArtifact, projectArtifacts.get(depArtifact)))
                 .toList();
-        return new Node(
+        return new DetailedGraphNode(
                 artifact,
                 projectArtifacts.get(artifact),
                 minDependencies
         );
-    }
-
-    public record MinDependency(MavenArtifact artifact, String folder) {
-        public MinDependency {
-            Objects.requireNonNull(artifact, "`artifact` must not be null");
-            Objects.requireNonNull(folder, "`folder` must not be null");
-        }
-    }
-
-    public record Node(MavenArtifact artifact, String folder, List<MinDependency> dependencies) {
-
-        public Node {
-            Objects.requireNonNull(artifact, "`artifact` must not be null");
-            Objects.requireNonNull(folder, "`folder` must not be null");
-            Objects.requireNonNull(dependencies, "`dependencies` must not be null");
-        }
     }
 }
