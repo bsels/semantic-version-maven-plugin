@@ -77,7 +77,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
     class SingleProjectTests {
 
         @Test
-        void internalExecute_singleProject_artifactAndFolder_relativePaths_console() throws Exception {
+        void internalExecute_SingleProject_ArtifactAndFolder_RelativePaths_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("single");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -106,7 +106,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_singleProject_artifactOnly_relativePaths_console() throws Exception {
+        void internalExecute_SingleProject_ArtifactOnly_RelativePaths_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("single");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -135,7 +135,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_singleProject_folderOnly_relativePaths_console() throws Exception {
+        void internalExecute_SingleProject_FolderOnly_RelativePaths_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("single");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -164,7 +164,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_singleProject_absolutePaths_console() throws Exception {
+        void internalExecute_SingleProject_AbsolutePaths_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("single");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -193,7 +193,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_singleProject_writeToFile() throws Exception {
+        void internalExecute_SingleProject_WriteToFile() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("single");
             Path outputFile = Path.of("/tmp/graph-output.json");
@@ -227,7 +227,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
     class MultiProjectTests {
 
         @Test
-        void internalExecute_multiProject_artifactAndFolder_relativePaths_console() throws Exception {
+        void internalExecute_MultiProject_ArtifactAndFolder_RelativePaths_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("multi");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -282,7 +282,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_multiProject_artifactOnly_console() throws Exception {
+        void internalExecute_MultiProject_ArtifactOnly_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("multi");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -319,7 +319,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_multiProject_folderOnly_console() throws Exception {
+        void internalExecute_MultiProject_FolderOnly_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("multi");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -350,7 +350,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_multiProject_absolutePaths_console() throws Exception {
+        void internalExecute_MultiProject_AbsolutePaths_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("multi");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -381,7 +381,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_multiProject_writeToFile() throws Exception {
+        void internalExecute_MultiProject_WriteToFile() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("multi");
             Path outputFile = Path.of("/tmp/multi-graph.json");
@@ -413,7 +413,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
     class ChainedDependencyTests {
 
         @Test
-        void internalExecute_chainedDependency_artifactAndFolder_console() throws Exception {
+        void internalExecute_ChainedDependency_ArtifactAndFolder_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("chained-dependency");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -459,7 +459,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
 
         @ParameterizedTest
         @EnumSource(GraphOutput.class)
-        void internalExecute_chainedDependency_allGraphOutputs(GraphOutput graphOutput) throws Exception {
+        void internalExecute_ChainedDependency_AllGraphOutputs(GraphOutput graphOutput) throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("chained-dependency");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -479,7 +479,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
     class LeavesProjectTests {
 
         @Test
-        void internalExecute_leavesProject_artifactAndFolder_console() throws Exception {
+        void internalExecute_LeavesProject_ArtifactAndFolder_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("leaves");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -515,7 +515,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
     class MultiRecursiveProjectTests {
 
         @Test
-        void internalExecute_multiRecursiveProject_artifactAndFolder_console() throws Exception {
+        void internalExecute_MultiRecursiveProject_ArtifactAndFolder_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("multi-recursive");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -549,7 +549,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
     class RevisionProjectTests {
 
         @Test
-        void internalExecute_revisionMultiProject_artifactAndFolder_console() throws Exception {
+        void internalExecute_RevisionMultiProject_ArtifactAndFolder_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("revision", "multi");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -579,7 +579,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_revisionSingleProject_artifactAndFolder_console() throws Exception {
+        void internalExecute_RevisionSingleProject_ArtifactAndFolder_Console() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("revision", "single");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -611,7 +611,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
     class ExceptionTests {
 
         @Test
-        void internalExecute_ioExceptionWhenWritingFile_throwsMojoExecutionException() {
+        void internalExecute_IoExceptionWhenWritingFile_ThrowsMojoExecutionException() {
             // Arrange
             Path projectRoot = getResourcesPath("single");
             Path outputFile = Path.of("/tmp/failing-output.json");
@@ -633,7 +633,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_ioExceptionDuringWrite_throwsMojoExecutionException() throws Exception {
+        void internalExecute_IoExceptionDuringWrite_ThrowsMojoExecutionException() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("single");
             Path outputFile = Path.of("/tmp/write-error.json");
@@ -661,7 +661,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
     class EdgeCaseTests {
 
         @Test
-        void internalExecute_rootProjectPath_usesCurrentDirectory() throws Exception {
+        void internalExecute_RootProjectPath_UsesCurrentDirectory() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("single");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -685,7 +685,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_emptyDependencies_producesValidGraph() throws Exception {
+        void internalExecute_EmptyDependencies_ProducesValidGraph() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("single");
             classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
@@ -709,7 +709,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void internalExecute_multipleGraphOutputFormats_produceConsistentResults() throws Exception {
+        void internalExecute_MultipleGraphOutputFormats_ProduceConsistentResults() throws Exception {
             // Arrange
             Path projectRoot = getResourcesPath("multi");
 
