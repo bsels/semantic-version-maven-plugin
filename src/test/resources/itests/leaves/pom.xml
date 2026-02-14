@@ -7,6 +7,8 @@
     <artifactId>root</artifactId>
     <version>5.0.0-root</version>
 
+    <packaging>pom</packaging>
+
     <modules>
         <module>child-1</module>
         <module>intermediate</module>

@@ -7,6 +7,8 @@
     <artifactId>intermediate</artifactId>
     <version>5.0.0-intermediate</version>
 
+    <packaging>pom</packaging>
+
     <modules>
         <module>child-2</module>
         <module>child-3</module>
