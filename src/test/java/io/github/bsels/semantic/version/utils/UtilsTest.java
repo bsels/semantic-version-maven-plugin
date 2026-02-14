@@ -1,5 +1,7 @@
 package io.github.bsels.semantic.version.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.project.MavenProject;
@@ -736,6 +738,71 @@ public class UtilsTest {
             );
 
             assertThat(result).isEqualTo("Release {unknown} on 2024-02-03");
+        }
+    }
+
+    @Nested
+    class MavenProjectToArtifactTest {
+
+        @Test
+        void validProject_ReturnsCorrectArtifact() {
+            Mockito.when(mavenProject.getGroupId())
+                    .thenReturn("io.github.bsels");
+            Mockito.when(mavenProject.getArtifactId())
+                    .thenReturn("semantic-version-maven-plugin");
+
+            MavenArtifact artifact = Utils.mavenProjectToArtifact(mavenProject);
+            assertThat(artifact).isNotNull();
+            assertThat(artifact.groupId()).isEqualTo("io.github.bsels");
+            assertThat(artifact.artifactId()).isEqualTo("semantic-version-maven-plugin");
+        }
+    }
+
+    @Nested
+    class WriteObjectAsJsonTest {
+
+        @Test
+        void validObject_ReturnsJson() throws MojoExecutionException {
+            Map<String, String> map = Map.of("key", "value");
+            String json = Utils.writeObjectAsJson(map);
+
+            assertThat(json).contains("\"key\" : \"value\"");
+        }
+
+        @Test
+        void mavenArtifact_ReturnsJson() throws MojoExecutionException {
+            MavenArtifact artifact = new MavenArtifact("io.github.bsels", "semantic-version-maven-plugin");
+            String json = Utils.writeObjectAsJson(artifact);
+
+            assertThat(json).isEqualToIgnoringNewLines("""
+                    {
+                      "groupId" : "io.github.bsels",
+                      "artifactId" : "semantic-version-maven-plugin"
+                    }
+                    """);
+        }
+
+        @Test
+        void mavenArtifactAsKey_ReturnsJsonWithMavenArtifactAsKey() throws MojoExecutionException {
+            MavenArtifact artifact = new MavenArtifact("io.github.bsels", "semantic-version-maven-plugin");
+            Map<MavenArtifact, String> map = Map.of(artifact, "value");
+            String json = Utils.writeObjectAsJson(map);
+
+            assertThat(json).contains("\"io.github.bsels:semantic-version-maven-plugin\" : \"value\"");
+        }
+
+        @Test
+        void failingObject_ThrowsMojoExecutionException() {
+            Object failingObject = new Object() {
+                public String getFailingProperty() {
+                    throw new RuntimeException("Failing getter");
+                }
+            };
+
+            assertThatThrownBy(() -> Utils.writeObjectAsJson(failingObject))
+                    .isInstanceOf(MojoExecutionException.class)
+                    .hasMessage("Failed to serialize object to JSON")
+                    .hasCauseInstanceOf(JsonProcessingException.class);
         }
     }
 }

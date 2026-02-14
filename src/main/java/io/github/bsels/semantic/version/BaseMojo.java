@@ -62,7 +62,7 @@ import java.util.stream.Stream;
 ///
 /// Any issues encountered during plugin execution may result in a [MojoExecutionException]
 /// or a [MojoFailureException] being thrown.
-public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersionMarkdownMojo, UpdatePomMojo, VerifyMojo {
+public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersionMarkdownMojo, DependencyGraphMojo, UpdatePomMojo, VerifyMojo {
 
     /// A constant string representing the filename of the changelog file, "CHANGELOG.md".
     ///
@@ -305,7 +305,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     protected void validateMarkdowns(MarkdownMapping markdownMapping) throws MojoFailureException {
         Set<MavenArtifact> artifactsInMarkdown = markdownMapping.versionBumpMap().keySet();
         Stream<MavenProject> projectsInScope = getProjectsInScope();
-        Set<MavenArtifact> artifacts = projectsInScope.map(project -> new MavenArtifact(project.getGroupId(), project.getArtifactId()))
+        Set<MavenArtifact> artifacts = projectsInScope.map(Utils::mavenProjectToArtifact)
                 .collect(Utils.asImmutableSet());
 
         if (!artifacts.containsAll(artifactsInMarkdown)) {
@@ -418,7 +418,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
             throws MojoExecutionException, MojoFailureException {
         Map<MavenArtifact, MavenProjectAndDocument> documents = new HashMap<>();
         for (MavenProject project : projects) {
-            MavenArtifact mavenArtifact = new MavenArtifact(project.getGroupId(), project.getArtifactId());
+            MavenArtifact mavenArtifact = Utils.mavenProjectToArtifact(project);
             Path pomFile = project.getFile().toPath();
             MavenProjectAndDocument projectAndDocument = new MavenProjectAndDocument(
                     mavenArtifact,

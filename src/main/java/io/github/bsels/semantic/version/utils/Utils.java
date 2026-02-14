@@ -1,6 +1,14 @@
 package io.github.bsels.semantic.version.utils;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
+import io.github.bsels.semantic.version.utils.mapper.MavenArtifactArtifactOnlySerializer;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.project.MavenProject;
 
@@ -58,7 +66,17 @@ public final class Utils {
     /// dynamically replaceable placeholders for date and version values.
     private static final Pattern PLACEHOLDER_FORMAT_EXTRACTOR = Pattern.compile("\\{(date(#([^{}]*))?|version)}");
 
+    /// A cached collection of DateTimeFormatter instances, where the key is a [String] representing
+    /// the date-time pattern and the value is a corresponding [DateTimeFormatter] object.
+    /// This map is used to optimize the creation of [DateTimeFormatter] objects by reusing previously created instances
+    /// for the same pattern, reducing the overhead of instantiating new formatters.
     private static final Map<String, DateTimeFormatter> CACHED_DATE_FORMATTERS = new HashMap<>();
+
+    /// A statically initialized instance of [ObjectMapper] configured with custom serializers.
+    /// This instance is designed to handle serialization of [MavenArtifact] objects,
+    /// where both a key serializer and a general serializer are registered.
+    /// The custom serializers are provided by [MavenArtifactArtifactOnlySerializer].
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /// Utility class containing static constants and methods for various common operations.
     /// This class is not designed to be instantiated.
@@ -321,5 +339,27 @@ public final class Utils {
     /// @return a collector that produces an immutable set of the collected elements
     public static <T> Collector<T, ?, Set<T>> asImmutableSet() {
         return Collectors.collectingAndThen(Collectors.toSet(), Set::copyOf);
+    }
+
+    /// Converts a [MavenProject] instance into a [MavenArtifact] instance.
+    ///
+    /// @param project the [MavenProject] to be converted; must provide valid group ID and artifact ID.
+    /// @return a [MavenArtifact] instance containing the group ID and artifact ID from the provided [MavenProject].
+    public static MavenArtifact mavenProjectToArtifact(MavenProject project) {
+        return new MavenArtifact(project.getGroupId(), project.getArtifactId());
+    }
+
+    /// Serializes the given object into a JSON-formatted string.
+    ///
+    /// @param object the object to be serialized into JSON
+    /// @return a JSON-formatted string representation of the given object
+    /// @throws MojoExecutionException if an error occurs during serialization
+    public static String writeObjectAsJson(Object object) throws MojoExecutionException {
+        try {
+            return OBJECT_MAPPER.writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            throw new MojoExecutionException("Failed to serialize object to JSON", e);
+        }
     }
 }

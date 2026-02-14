@@ -1110,6 +1110,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                     <artifactId>%1$s</artifactId>
                                                     <version>4.1.0-%1$s</version>
                                                 
+                                                    <packaging>pom</packaging>
+                                                
                                                     <modules>
                                                         <module>dependency</module>
                                                         <module>dependencyManagement</module>
@@ -1283,6 +1285,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                 <artifactId>parent</artifactId>
                                                 <version>6.1.0-parent</version>
                                             
+                                                <packaging>pom</packaging>
+                                            
                                                 <modules>
                                                     <module>child-1</module>
                                                     <module>child-2</module>
@@ -1436,6 +1440,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                 <artifactId>parent</artifactId>
                                                 <version>${revision}</version>
                                             
+                                                <packaging>pom</packaging>
+                                            
                                                 <properties>
                                                     <revision>%s</revision>
                                                 </properties>
@@ -1520,6 +1526,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                 <groupId>org.example.itests.revision.multi</groupId>
                                                 <artifactId>parent</artifactId>
                                                 <version>${revision}</version>
+                                            
+                                                <packaging>pom</packaging>
                                             
                                                 <properties>
                                                     <revision>%s</revision>
@@ -1616,6 +1624,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                         <groupId>org.example.itests.revision.multi</groupId>
                                         <artifactId>parent</artifactId>
                                         <version>${revision}</version>
+                                    
+                                        <packaging>pom</packaging>
                                     
                                         <properties>
                                             <revision>%s</revision>
@@ -1873,6 +1883,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                 <artifactId>parent</artifactId>
                                                 <version>${revision}</version>
                                             
+                                                <packaging>pom</packaging>
+                                            
                                                 <properties>
                                                     <revision>%s</revision>
                                                 </properties>
@@ -1997,6 +2009,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                 <groupId>org.example.itests.revision.multi</groupId>
                                                 <artifactId>parent</artifactId>
                                                 <version>${revision}</version>
+                                            
+                                                <packaging>pom</packaging>
                                             
                                                 <properties>
                                                     <revision>4.0.0</revision>
@@ -2151,6 +2165,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                 <groupId>org.example.itests.revision.multi</groupId>
                                                 <artifactId>parent</artifactId>
                                                 <version>${revision}</version>
+                                            
+                                                <packaging>pom</packaging>
                                             
                                                 <properties>
                                                     <revision>4.0.0</revision>

@@ -1,6 +1,7 @@
 package io.github.bsels.semantic.version.utils.mapper;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonStreamContext;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import io.github.bsels.semantic.version.models.MavenArtifact;
@@ -47,7 +48,8 @@ public final class MavenArtifactArtifactOnlySerializer extends JsonSerializer<Ma
             JsonGenerator jsonGenerator,
             SerializerProvider serializerProvider
     ) throws IOException {
-        if (jsonGenerator.getOutputContext().hasCurrentName()) {
+        JsonStreamContext outputContext = jsonGenerator.getOutputContext();
+        if (outputContext.hasCurrentName() || outputContext.getParent() == null) {
             jsonGenerator.writeString(mavenArtifact.artifactId());
         } else {
             jsonGenerator.writeFieldName(mavenArtifact.artifactId());

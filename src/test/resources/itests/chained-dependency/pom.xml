@@ -3,14 +3,17 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.example.itests.leaves</groupId>
+    <groupId>org.example.itests.chained</groupId>
     <artifactId>root</artifactId>
-    <version>5.0.0-root</version>
+    <version>6.0.0-root</version>
 
     <packaging>pom</packaging>
 
     <modules>
-        <module>child-1</module>
-        <module>intermediate</module>
+        <module>a</module>
+        <module>b</module>
+        <module>c</module>
+        <module>d</module>
+        <module>e</module>
     </modules>
 </project>
