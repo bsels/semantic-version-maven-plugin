@@ -770,20 +770,25 @@ public class UtilsTest {
         }
 
         @Test
-        void mavenArtifact_ReturnsJsonWithArtifactIdOnly() throws MojoExecutionException {
+        void mavenArtifact_ReturnsJson() throws MojoExecutionException {
             MavenArtifact artifact = new MavenArtifact("io.github.bsels", "semantic-version-maven-plugin");
             String json = Utils.writeObjectAsJson(artifact);
 
-            assertThat(json).isEqualTo("\"semantic-version-maven-plugin\"");
+            assertThat(json).isEqualToIgnoringNewLines("""
+                    {
+                      "groupId" : "io.github.bsels",
+                      "artifactId" : "semantic-version-maven-plugin"
+                    }
+                    """);
         }
 
         @Test
-        void mavenArtifactAsKey_ReturnsJsonWithArtifactIdAsKey() throws MojoExecutionException {
+        void mavenArtifactAsKey_ReturnsJsonWithMavenArtifactAsKey() throws MojoExecutionException {
             MavenArtifact artifact = new MavenArtifact("io.github.bsels", "semantic-version-maven-plugin");
             Map<MavenArtifact, String> map = Map.of(artifact, "value");
             String json = Utils.writeObjectAsJson(map);
 
-            assertThat(json).contains("\"semantic-version-maven-plugin\" : \"value\"");
+            assertThat(json).contains("\"io.github.bsels:semantic-version-maven-plugin\" : \"value\"");
         }
 
         @Test

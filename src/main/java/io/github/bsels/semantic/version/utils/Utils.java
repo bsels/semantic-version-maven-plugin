@@ -76,17 +76,7 @@ public final class Utils {
     /// This instance is designed to handle serialization of [MavenArtifact] objects,
     /// where both a key serializer and a general serializer are registered.
     /// The custom serializers are provided by [MavenArtifactArtifactOnlySerializer].
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
-            .registerModule(
-                    new SimpleModule()
-                            .addKeySerializer(MavenArtifact.class, new JsonSerializer<MavenArtifact>() {
-                                @Override
-                                public void serialize(MavenArtifact value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-                                    gen.writeFieldName(value.artifactId());
-                                }
-                            })
-                            .addSerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
-            );
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /// Utility class containing static constants and methods for various common operations.
     /// This class is not designed to be instantiated.
