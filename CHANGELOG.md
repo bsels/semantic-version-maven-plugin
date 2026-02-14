@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.0 - 2026-02-45
+
+### Minor
+
+Added new `graph` goal, to list the different project and their internal dependencies.
+
+### Patch
+
+Updated the following project dependencies:
+
+- `maven-dependency-plugin` from `3.9.0` to `3.10.0`
+- `maven-compiler-plugin` from `3.14.1` to `3.15.0`
+- `assertj-core` from `3.27.6` to `3.27.7`
+
 ## 1.2.0 - 2026-01-25
 
 ### Minor
