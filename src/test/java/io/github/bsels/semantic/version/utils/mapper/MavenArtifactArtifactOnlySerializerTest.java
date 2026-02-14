@@ -38,4 +38,17 @@ public class MavenArtifactArtifactOnlySerializerTest {
         assertThat(json)
                 .isEqualTo("{\"" + ARTIFACT_ID + "\":\"value\"}");
     }
+
+    @Test
+    void serializeRoot_WritesArtifactIdString() throws Exception {
+        ObjectMapper mapper = new ObjectMapper()
+                .registerModule(new SimpleModule()
+                        .addSerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
+                );
+
+        String json = mapper.writeValueAsString(new MavenArtifact(GROUP_ID, ARTIFACT_ID));
+
+        assertThat(json)
+                .isEqualTo("\"" + ARTIFACT_ID + "\"");
+    }
 }
