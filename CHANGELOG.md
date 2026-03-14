@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.1 - 2026-03-73
+
+### Patch
+
+Bumped dependencies:
+
+- `maven-core` from **3.9.12** to **3.9.14**
+- `maven-surefire-plugin` from **3.5.4** to **3.5.5**
+- `junit-jupiter` from **6.0.2** to **6.0.3**
+- `mockito` from **5.21.0** to **5.23.0**
+
 ## 1.3.0 - 2026-02-45
 
 ### Minor
