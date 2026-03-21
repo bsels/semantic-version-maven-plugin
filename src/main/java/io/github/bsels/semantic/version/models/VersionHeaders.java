@@ -37,14 +37,14 @@ public record VersionHeaders(
     /// embedding placeholders for dynamic values such as version identifiers and dates.
     /// The template includes:
     /// - `{version}`: A placeholder to be replaced with the actual version number.
-    /// - `{date#YYYY-MM-DD}`: A placeholder for the date in "YYYY-MM-DD" format.
+    /// - `{date#yyyy-MM-dd}`: A placeholder for the date in "yyyy-MM-dd" format.
     ///
     /// The `VERSION_HEADER` serves as a customizable pattern for formatting
     /// and displaying version details in documentation or output logs.
     ///
     /// Example usages might replace the placeholders for real-world use cases to generate dynamically populated headers
     /// based on the current versioning context.
-    public static final String VERSION_HEADER = "{version} - {date#YYYY-MM-DD}";
+    public static final String VERSION_HEADER = "{version} - {date#yyyy-MM-dd}";
     /// A constant representing the "Major" version header identifier.
     ///
     /// This header is used to specify the major component within a versioning system,

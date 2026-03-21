@@ -118,7 +118,7 @@ public final class UpdatePomMojo extends BaseMojo {
     /// - `NEW_VERSION`: The new version of the project after the update.
     /// - `DRY_RUN`: A flag indicating whether the script is being executed in dry-run mode (true) or not (false).
     /// - `GIT_STASH`: A flag indicating whether the script should stash the files or not (true) or not (false).
-    /// - `EXECUTION_DATE`: The date and time when the script was executed formatted as ISO 8601: `YYYY-MM-DD`.
+    /// - `EXECUTION_DATE`: The date and time when the script was executed formatted as ISO 8601: `yyyy-MM-dd`.
     ///
     /// The scripts should be separated by the OS file path separator
     ///
@@ -140,11 +140,11 @@ public final class UpdatePomMojo extends BaseMojo {
     /// including placeholders that can be dynamically replaced.
     ///
     /// The default format includes the version number and the current date.
-    /// Placeholders like `{version}` and `{date#YYYY-MM-DD}` are used for injecting the version
+    /// Placeholders like `{version}` and `{date#yyyy-MM-dd}` are used for injecting the version
     /// and date details respectively.
     ///
     /// - `{version}`: Represents the version of the application or component.
-    /// - `{date#YYYY-MM-DD}`: Represents the current date in the specified format
+    /// - `{date#yyyy-MM-dd}`: Represents the current date in the specified format
     ///   (the date format is processed by the [DateTimeFormatter]).
     ///
     /// This property is mandatory and must be defined for versioning tasks.

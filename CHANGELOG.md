@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.1 - 2026-03-73
+## 1.3.1 - 2026-03-14
 
 ### Patch
 
@@ -11,7 +11,7 @@ Bumped dependencies:
 - `junit-jupiter` from **6.0.2** to **6.0.3**
 - `mockito` from **5.21.0** to **5.23.0**
 
-## 1.3.0 - 2026-02-45
+## 1.3.0 - 2026-02-14
 
 ### Minor
 

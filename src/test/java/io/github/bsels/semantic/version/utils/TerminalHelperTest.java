@@ -329,7 +329,7 @@ public class TerminalHelperTest {
                     .contains("1: Apple")
                     .contains("2: Banana")
                     .contains("3: Cherry")
-                    .contains("Enter fruit numbers separated by spaces, commas or semicolons:");
+                    .contains("Enter fruit numbers separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'):");
         }
 
         @Test
@@ -390,7 +390,7 @@ public class TerminalHelperTest {
             assertThat(result)
                     .hasSize(2)
                     .containsExactly(TestEnum.FIRST, TestEnum.THIRD);
-            assertThat(getOutput()).contains("Enter enum names or number separated by spaces, commas or semicolons:");
+            assertThat(getOutput()).contains("Enter enum names or number separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'):");
         }
 
         @Test
@@ -489,6 +489,62 @@ public class TerminalHelperTest {
             assertThat(result)
                     .hasSize(3)
                     .containsExactly("Apple", "Apple", "Banana");
+        }
+
+        @Test
+        void allInput_ReturnsAllChoices() {
+            setSystemIn("all\n");
+            List<String> choices = List.of("Apple", "Banana", "Cherry");
+
+            List<String> result = TerminalHelper.multiChoice("Select fruits:", "fruit", choices);
+
+            assertThat(result)
+                    .hasSize(3)
+                    .containsExactly("Apple", "Banana", "Cherry");
+        }
+
+        @Test
+        void aInput_ReturnsAllChoices() {
+            setSystemIn("a\n");
+            List<String> choices = List.of("Apple", "Banana", "Cherry");
+
+            List<String> result = TerminalHelper.multiChoice("Select fruits:", "fruit", choices);
+
+            assertThat(result)
+                    .hasSize(3)
+                    .containsExactly("Apple", "Banana", "Cherry");
+        }
+
+        @Test
+        void noneInput_ReturnsEmptyList() {
+            setSystemIn("none\n");
+            List<String> choices = List.of("Apple", "Banana", "Cherry");
+
+            List<String> result = TerminalHelper.multiChoice("Select fruits:", "fruit", choices);
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        void nInput_ReturnsEmptyList() {
+            setSystemIn("n\n");
+            List<String> choices = List.of("Apple", "Banana", "Cherry");
+
+            List<String> result = TerminalHelper.multiChoice("Select fruits:", "fruit", choices);
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        void allInputCaseInsensitive_ReturnsAllChoices() {
+            setSystemIn("ALL\n");
+            List<String> choices = List.of("Apple", "Banana", "Cherry");
+
+            List<String> result = TerminalHelper.multiChoice("Select fruits:", "fruit", choices);
+
+            assertThat(result)
+                    .hasSize(3)
+                    .containsExactly("Apple", "Banana", "Cherry");
         }
     }
 }
