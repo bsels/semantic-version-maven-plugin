@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2 - 2026-03-21
+
+### Patch
+
+Fixed default date formatting
+
 ## 1.3.1 - 2026-03-14
 
 ### Patch
