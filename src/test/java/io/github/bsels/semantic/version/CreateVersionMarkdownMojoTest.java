@@ -225,7 +225,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                               5: org.example.itests.multi:excluded
                               6: org.example.itests.multi:plugin
                               7: org.example.itests.multi:plugin-management
-                            Enter project numbers separated by spaces, commas or semicolons: \
+                            Enter project numbers separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'): \
                             """);
 
             assertThat(mockedOutputFiles)
@@ -276,7 +276,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                               5: org.example.itests.multi:excluded
                               6: org.example.itests.multi:plugin
                               7: org.example.itests.multi:plugin-management
-                            Enter project numbers separated by spaces, commas or semicolons: Selected projects: org.example.itests.multi:parent
+                            Enter project numbers separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'): Selected projects: org.example.itests.multi:parent
                             Select semantic version bump for org.example.itests.multi:parent:\s
                               1: PATCH
                               2: MINOR
@@ -356,7 +356,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                               5: org.example.itests.multi:excluded
                               6: org.example.itests.multi:plugin
                               7: org.example.itests.multi:plugin-management
-                            Enter project numbers separated by spaces, commas or semicolons: Selected projects: org.example.itests.multi:parent, org.example.itests.multi:dependency, org.example.itests.multi:plugin
+                            Enter project numbers separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'): Selected projects: org.example.itests.multi:parent, org.example.itests.multi:dependency, org.example.itests.multi:plugin
                             Select semantic version bump for org.example.itests.multi:parent:\s
                               1: PATCH
                               2: MINOR
