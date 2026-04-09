@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.3 - 2026-04-09
+
+### Patch
+
+Updated project dependencies:
+
+- Bumped `commonmark` from **0.27.1** to **0.28.0**
+- Bumped `jackson-databind` / `jackson-dataformat-yaml` from **2.21.0** to **2.21.2**
+- Added an override for `plexus-utils` to **3.6.1** to address transitive dependency concerns
+
 ## 1.3.2 - 2026-03-21
 
 ### Patch
