@@ -67,9 +67,9 @@
         <!-- https://central.sonatype.com/artifact/org.assertj/assertj-core -->
         <assertj.version>3.27.7</assertj.version>
         <!-- https://central.sonatype.com/artifact/org.commonmark/commonmark -->
-        <commonmark.version>0.27.1</commonmark.version>
+        <commonmark.version>0.28.0</commonmark.version>
         <!-- https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind -->
-        <jackson.version>2.21.0</jackson.version>
+        <jackson.version>2.21.2</jackson.version>
         <!-- https://central.sonatype.com/artifact/org.junit.jupiter/junit-jupiter-api -->
         <junit.version>6.0.3</junit.version>
         <!-- https://central.sonatype.com/artifact/org.apache.maven.plugin-tools/maven-plugin-annotations -->
@@ -230,6 +230,13 @@
     </build>
 
     <dependencies>
+        <!-- region Override transitive dependencies for CVEs -->
+        <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-utils</artifactId>
+            <version>3.6.1</version>
+        </dependency>
+        <!-- endregion -->
         <!-- region Dependencies -->
         <dependency>
             <groupId>org.apache.maven</groupId>
