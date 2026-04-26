@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.4 - 2026-04-26
+
+### Patch
+
+Bumped `maven-core` from **3.9.14** to **3.9.15**
+
 ## 1.3.3 - 2026-04-09
 
 ### Patch
