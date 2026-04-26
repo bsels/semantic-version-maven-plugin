@@ -43,7 +43,7 @@
         <!-- https://central.sonatype.com/artifact/org.jacoco/jacoco-maven-plugin -->
         <jacoco.version>0.8.14</jacoco.version>
         <!-- https://central.sonatype.com/artifact/org.apache.maven/maven-core -->
-        <maven.plugin.api.version>3.9.14</maven.plugin.api.version>
+        <maven.plugin.api.version>3.9.15</maven.plugin.api.version>
         <!-- https://central.sonatype.com/artifact/org.apache.maven.plugins/maven-enforcer-plugin -->
         <maven.enforcer.plugin.version>3.6.2</maven.enforcer.plugin.version>
         <!-- https://central.sonatype.com/artifact/org.apache.maven.plugins/maven-dependency-plugin -->
