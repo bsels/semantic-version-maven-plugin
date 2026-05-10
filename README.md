@@ -140,6 +140,7 @@ versions, updates dependencies in multi-module projects, and merges changelog en
 | `versioning.minor.header`            | `String`             | `Minor`                                                   | Header label for minor changes in the changelog                                                                                                                                                                                                                                      |
 | `versioning.patch.header`            | `String`             | `Patch`                                                   | Header label for patch changes in the changelog                                                                                                                                                                                                                                      |
 | `versioning.other.header`            | `String`             | `Other`                                                   | Header label for non-semantic changes in the changelog                                                                                                                                                                                                                               |
+| `versioning.suffix`                  | `String`             | `-`                                                       | Optional suffix to append to the bumped version (e.g., `-BETA`, `-RC1`). If it doesn't start with a dash, one will be automatically added.                                                                                                                                           |
 | `versioning.git`                     | `Git`                | `NO_GIT`                                                  | Defines the git operation mode:<br/>• `NO_GIT`: no git operations will be performed<br/>• `STASH`: added changed files to the git stash<br/>• `COMMIT`: commit all changed files with the configured commit message                                                                  |
 
 #### Example Usage
@@ -204,6 +205,13 @@ mvn io.github.bsels:semantic-version-maven-plugin:update \
 ```bash
 mvn io.github.bsels:semantic-version-maven-plugin:update \
   -Dversioning.modus=REVISION_PROPERTY
+```
+
+**With version suffix**:
+
+```bash
+mvn io.github.bsels:semantic-version-maven-plugin:update \
+  -Dversioning.suffix=BETA
 ```
 
 ---
@@ -371,6 +379,7 @@ These properties apply to `create`, `update`, and `verify` goals. The `verify` g
 | `versioning.minor.header`            | `String`      | `Minor`                                                   | Header label for minor changes in the changelog                                                                                                                                                                                                                                                                                                |
 | `versioning.patch.header`            | `String`      | `Patch`                                                   | Header label for patch changes in the changelog                                                                                                                                                                                                                                                                                                |
 | `versioning.other.header`            | `String`      | `Other`                                                   | Header label for non-semantic changes in the changelog                                                                                                                                                                                                                                                                                         |
+| `versioning.suffix`                  | `String`      | `-`                                                       | Optional suffix to append to the bumped version (e.g., `-BETA`, `-RC1`). If it doesn't start with a dash, one will be automatically added.                                                                                                                                                                                                    |
 
 ### verify-Specific Properties
 
