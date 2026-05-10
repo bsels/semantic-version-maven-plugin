@@ -205,6 +205,15 @@ public final class UpdatePomMojo extends BaseMojo {
             defaultValue = DEFAULT_DEPENDENCY_BUMP_MESSAGE
     )
     String dependencyBumpMessage = DEFAULT_DEPENDENCY_BUMP_MESSAGE;
+    /// Represents an optional suffix to be appended to the version during a bump.
+    /// This suffix can be used to signify specific build types, such as alpha, beta, or SNAPSHOT.
+    ///
+    /// The suffix, if provided, will be appended to the version after the semantic version bump is applied.
+    /// If the suffix does not start with a dash, one will be automatically added.
+    ///
+    /// The property is configurable via the Maven property `versioning.suffix`.
+    @Parameter(property = "versioning.suffix", required = false)
+    String suffix;
 
     /// A list that holds file system paths pointing to script files.
     /// Will be derived on execution from the `scripts` parameter.
@@ -504,7 +513,7 @@ public final class UpdatePomMojo extends BaseMojo {
     ///
     /// @param semanticVersionBump the type of semantic version change to apply (e.g., major, minor, patch)
     /// @param document            the XML document representing the project's POM file
-    /// @return an [Optional] containing a [VersionChange] object representing the original and updated version, or an empty [Optional] if no update was performed
+    /// @return an [Optional] containing an [VersionChange] object representing the original and updated version, or an empty [Optional] if no update was performed
     /// @throws MojoExecutionException if an error occurs while updating the version
     private Optional<VersionChange> updateProjectVersion(
             SemanticVersionBump semanticVersionBump,
@@ -519,7 +528,7 @@ public final class UpdatePomMojo extends BaseMojo {
             log.info("No version update required");
             return Optional.empty();
         }
-        POMUtils.updateVersion(versionNode, semanticVersionBump);
+        POMUtils.updateVersion(versionNode, semanticVersionBump, suffix);
         return Optional.of(new VersionChange(originalVersion, versionNode.getTextContent()));
     }
 

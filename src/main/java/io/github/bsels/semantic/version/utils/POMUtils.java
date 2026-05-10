@@ -276,6 +276,29 @@ public final class POMUtils {
         }
     }
 
+    /// Updates the version value of the given XML node based on the specified semantic version bump type
+    /// and an optional suffix.
+    /// The method retrieves the current semantic version from the node, increments the version according
+    /// to the provided bump type, optionally applies the suffix, and updates the node with the new version value.
+    ///
+    /// @param nodeElement the XML node whose version value is to be updated; must not be null
+    /// @param bump        the type of semantic version increment to be applied; must not be null
+    /// @param suffix      an optional suffix for the version; if not null, it will be appended to the version
+    /// @throws NullPointerException     if either nodeElement or bump is null
+    /// @throws IllegalArgumentException if the content of nodeElement cannot be parsed into a valid semantic version
+    public static void updateVersion(Node nodeElement, SemanticVersionBump bump, String suffix)
+            throws NullPointerException, IllegalArgumentException {
+        Objects.requireNonNull(nodeElement, "`nodeElement` must not be null");
+        Objects.requireNonNull(bump, "`bump` must not be null");
+
+        SemanticVersion version = SemanticVersion.of(nodeElement.getTextContent());
+        SemanticVersion updatedVersion = version.bump(bump);
+        if (suffix != null && !suffix.isBlank()) {
+            updatedVersion = updatedVersion.withSuffix(suffix.startsWith("-") ? suffix : "-" + suffix);
+        }
+        nodeElement.setTextContent(updatedVersion.toString());
+    }
+
     /// Updates the version value of the given XML node based on the specified semantic version bump type.
     /// The method retrieves the current semantic version from the node, increments the version according
     /// to the provided bump type, and updates the node with the new version value.
@@ -284,14 +307,10 @@ public final class POMUtils {
     /// @param bump        the type of semantic version increment to be applied; must not be null
     /// @throws NullPointerException     if either nodeElement or bump is null
     /// @throws IllegalArgumentException if the content of nodeElement cannot be parsed into a valid semantic version
+    /// @see #updateVersion(Node, SemanticVersionBump, String)
     public static void updateVersion(Node nodeElement, SemanticVersionBump bump)
             throws NullPointerException, IllegalArgumentException {
-        Objects.requireNonNull(nodeElement, "`nodeElement` must not be null");
-        Objects.requireNonNull(bump, "`bump` must not be null");
-
-        SemanticVersion version = SemanticVersion.of(nodeElement.getTextContent());
-        SemanticVersion updatedVersion = version.bump(bump);
-        nodeElement.setTextContent(updatedVersion.toString());
+        updateVersion(nodeElement, bump, null);
     }
 
     /// Extracts Maven artifacts and their corresponding nodes from the given XML document.
