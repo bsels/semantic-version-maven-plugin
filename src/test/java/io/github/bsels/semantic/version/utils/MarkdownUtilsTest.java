@@ -1,7 +1,5 @@
 package io.github.bsels.semantic.version.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionHeaders;
@@ -23,6 +21,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import tools.jackson.core.JacksonException;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -769,7 +768,7 @@ public class MarkdownUtilsTest {
                 assertThatThrownBy(() -> MarkdownUtils.readVersionMarkdown(log, CHANGELOG_PATH, IDENTIFIER, GROUP_ID))
                         .isInstanceOf(MojoExecutionException.class)
                         .hasMessage("YAML front matter does not contain valid maven artifacts and semantic version bump")
-                        .hasRootCauseInstanceOf(JsonProcessingException.class)
+                        .hasRootCauseInstanceOf(JacksonException.class)
                         .hasRootCauseMessage(
                                 """
                                         Cannot deserialize Map key of type \
@@ -987,10 +986,10 @@ public class MarkdownUtilsTest {
             assertThatThrownBy(() -> MarkdownUtils.createVersionBumpsHeader(log, bumps, IDENTIFIER))
                     .isInstanceOf(MojoExecutionException.class)
                     .hasMessage("Unable to construct version bump YAML")
-                    .hasRootCauseInstanceOf(JsonMappingException.class)
+                    .hasRootCauseInstanceOf(JacksonException.class)
                     .hasRootCauseMessage("""
-                            Null key for a Map not allowed in JSON (use a converting NullKeySerializer?) \
-                            (through reference chain: java.util.HashMap["null"])\
+                            Null key for a Map not allowed in JSON (use a converting NullKeySerializer?)
+                             at [No location information] (through reference chain: java.util.HashMap["null"])\
                             """);
         }
 

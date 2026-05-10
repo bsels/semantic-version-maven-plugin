@@ -1,7 +1,5 @@
 package io.github.bsels.semantic.version;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.graph.ArtifactLocation;
 import io.github.bsels.semantic.version.parameters.GraphOutput;
@@ -18,6 +16,8 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;

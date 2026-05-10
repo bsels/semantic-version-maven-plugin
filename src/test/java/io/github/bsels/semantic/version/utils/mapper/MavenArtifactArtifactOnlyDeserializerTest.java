@@ -1,9 +1,9 @@
 package io.github.bsels.semantic.version.utils.mapper;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.module.SimpleModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -22,9 +22,15 @@ public class MavenArtifactArtifactOnlyDeserializerTest {
     @Test
     void deserializeValue_ReturnsMavenArtifact() throws Exception {
         ObjectMapper mapper = new ObjectMapper()
-                .registerModule(new SimpleModule()
-                        .addDeserializer(MavenArtifact.class, new MavenArtifactArtifactOnlyDeserializer(GROUP_ID))
-                );
+                .rebuild()
+                .addModule(
+                        new SimpleModule()
+                                .addDeserializer(
+                                        MavenArtifact.class,
+                                        new MavenArtifactArtifactOnlyDeserializer(GROUP_ID)
+                                )
+                )
+                .build();
 
         MavenArtifact artifact = mapper.readValue("\"" + ARTIFACT_ID + "\"", MavenArtifact.class);
 

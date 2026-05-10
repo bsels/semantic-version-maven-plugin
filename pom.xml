@@ -68,8 +68,8 @@
         <assertj.version>3.27.7</assertj.version>
         <!-- https://central.sonatype.com/artifact/org.commonmark/commonmark -->
         <commonmark.version>0.28.0</commonmark.version>
-        <!-- https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind -->
-        <jackson.version>2.21.2</jackson.version>
+        <!-- https://central.sonatype.com/artifact/tools.jackson/jackson-bom -->
+        <jackson.version>3.1.3</jackson.version>
         <!-- https://central.sonatype.com/artifact/org.junit.jupiter/junit-jupiter-api -->
         <junit.version>6.0.3</junit.version>
         <!-- https://central.sonatype.com/artifact/org.apache.maven.plugin-tools/maven-plugin-annotations -->
@@ -229,6 +229,18 @@
         </plugins>
     </build>
 
+    <dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>tools.jackson</groupId>
+            <artifactId>jackson-bom</artifactId>
+            <version>${jackson.version}</version>
+            <scope>import</scope>
+            <type>pom</type>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
     <dependencies>
         <!-- region Override transitive dependencies for CVEs -->
         <dependency>
@@ -261,14 +273,12 @@
             <version>${commonmark.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <groupId>tools.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
         <!-- endregion -->
         <!-- region Test dependencies -->

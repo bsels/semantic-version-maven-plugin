@@ -1,6 +1,5 @@
 package io.github.bsels.semantic.version.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -16,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.core.JacksonException;
 
 import java.io.IOException;
 import java.nio.file.CopyOption;
@@ -802,7 +802,7 @@ public class UtilsTest {
             assertThatThrownBy(() -> Utils.writeObjectAsJson(failingObject))
                     .isInstanceOf(MojoExecutionException.class)
                     .hasMessage("Failed to serialize object to JSON")
-                    .hasCauseInstanceOf(JsonProcessingException.class);
+                    .hasCauseInstanceOf(JacksonException.class);
         }
     }
 }

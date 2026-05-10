@@ -1,10 +1,11 @@
 package io.github.bsels.semantic.version.utils.mapper;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonStreamContext;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.TokenStreamContext;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
 
 import java.io.IOException;
 
@@ -21,7 +22,7 @@ import java.io.IOException;
 /// framework.
 ///
 /// Thread Safety: This class is stateless and thread-safe.
-public final class MavenArtifactArtifactOnlySerializer extends JsonSerializer<MavenArtifact> {
+public final class MavenArtifactArtifactOnlySerializer extends ValueSerializer<MavenArtifact> {
 
     /// Constructs a new instance of `MavenArtifactArtifactOnlySerializer`.
     ///
@@ -36,23 +37,22 @@ public final class MavenArtifactArtifactOnlySerializer extends JsonSerializer<Ma
         super();
     }
 
-    /// Serializes a [MavenArtifact] instance by writing its artifact ID as a JSON string.
+    /// Serializes an [MavenArtifact] instance by writing its artifact ID as a JSON string.
     ///
     /// @param mavenArtifact      the [MavenArtifact] instance to serialize; must not be null
     /// @param jsonGenerator      the [JsonGenerator] used to write JSON content; must not be null
     /// @param serializerProvider the [SerializerProvider] that can be used to get serializers for serializing other types of objects if necessary; must not be null
-    /// @throws IOException if an I/O error occurs during JSON generation
     @Override
     public void serialize(
             MavenArtifact mavenArtifact,
             JsonGenerator jsonGenerator,
-            SerializerProvider serializerProvider
-    ) throws IOException {
-        JsonStreamContext outputContext = jsonGenerator.getOutputContext();
+            SerializationContext serializerProvider
+    ) {
+        TokenStreamContext outputContext = jsonGenerator.streamWriteContext();
         if (outputContext.hasCurrentName() || outputContext.getParent() == null) {
             jsonGenerator.writeString(mavenArtifact.artifactId());
         } else {
-            jsonGenerator.writeFieldName(mavenArtifact.artifactId());
+            jsonGenerator.writeName(mavenArtifact.artifactId());
         }
     }
 }

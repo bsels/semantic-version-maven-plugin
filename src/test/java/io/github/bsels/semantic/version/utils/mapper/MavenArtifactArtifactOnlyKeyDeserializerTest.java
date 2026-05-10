@@ -1,10 +1,10 @@
 package io.github.bsels.semantic.version.utils.mapper;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.module.SimpleModule;
 
 import java.util.Map;
 
@@ -23,14 +23,16 @@ public class MavenArtifactArtifactOnlyKeyDeserializerTest {
     }
 
     @Test
-    void deserializeKey_ReturnsMavenArtifact() throws Exception {
+    void deserializeKey_ReturnsMavenArtifact() {
         ObjectMapper mapper = new ObjectMapper()
-                .registerModule(new SimpleModule()
+                .rebuild()
+                .addModule(new SimpleModule()
                         .addKeyDeserializer(
                                 MavenArtifact.class,
                                 new MavenArtifactArtifactOnlyKeyDeserializer(GROUP_ID)
                         )
-                );
+                )
+                .build();
 
         Map<MavenArtifact, String> artifacts = mapper.readValue(
                 "{\"" + ARTIFACT_ID + "\":\"value\"}",

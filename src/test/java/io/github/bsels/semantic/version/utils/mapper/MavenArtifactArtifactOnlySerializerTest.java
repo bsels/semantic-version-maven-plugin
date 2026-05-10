@@ -1,9 +1,9 @@
 package io.github.bsels.semantic.version.utils.mapper;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.module.SimpleModule;
 
 import java.util.Map;
 
@@ -14,11 +14,13 @@ public class MavenArtifactArtifactOnlySerializerTest {
     private static final String ARTIFACT_ID = "artifactId";
 
     @Test
-    void serializeValue_WritesArtifactIdString() throws Exception {
+    void serializeValue_WritesArtifactIdString() {
         ObjectMapper mapper = new ObjectMapper()
-                .registerModule(new SimpleModule()
+                .rebuild()
+                .addModule(new SimpleModule()
                         .addSerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
-                );
+                )
+                .build();
 
         String json = mapper.writeValueAsString(Map.of("artifact", new MavenArtifact(GROUP_ID, ARTIFACT_ID)));
 
@@ -27,11 +29,13 @@ public class MavenArtifactArtifactOnlySerializerTest {
     }
 
     @Test
-    void serializeKey_WritesArtifactIdFieldName() throws Exception {
+    void serializeKey_WritesArtifactIdFieldName() {
         ObjectMapper mapper = new ObjectMapper()
-                .registerModule(new SimpleModule()
+                .rebuild()
+                .addModule(new SimpleModule()
                         .addKeySerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
-                );
+                )
+                .build();
 
         String json = mapper.writeValueAsString(Map.of(new MavenArtifact(GROUP_ID, ARTIFACT_ID), "value"));
 
@@ -40,11 +44,13 @@ public class MavenArtifactArtifactOnlySerializerTest {
     }
 
     @Test
-    void serializeRoot_WritesArtifactIdString() throws Exception {
+    void serializeRoot_WritesArtifactIdString() {
         ObjectMapper mapper = new ObjectMapper()
-                .registerModule(new SimpleModule()
+                .rebuild()
+                .addModule(new SimpleModule()
                         .addSerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
-                );
+                )
+                .build();
 
         String json = mapper.writeValueAsString(new MavenArtifact(GROUP_ID, ARTIFACT_ID));
 

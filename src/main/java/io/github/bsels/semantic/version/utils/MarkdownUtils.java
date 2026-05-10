@@ -1,12 +1,5 @@
 package io.github.bsels.semantic.version.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.type.MapType;
-import com.fasterxml.jackson.databind.type.TypeFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionHeaders;
@@ -28,6 +21,13 @@ import org.commonmark.parser.IncludeSourceSpans;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.Renderer;
 import org.commonmark.renderer.markdown.MarkdownRenderer;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.module.SimpleModule;
+import tools.jackson.databind.type.MapType;
+import tools.jackson.databind.type.TypeFactory;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -60,14 +60,15 @@ public final class MarkdownUtils {
     ///
     /// This constant is defined as a static field within the utility class,
     /// ensuring it cannot be modified during runtime and is globally accessible.
-    private static final MapType MAVEN_ARTIFACT_BUMP_MAP_TYPE = TypeFactory.defaultInstance()
+    private static final MapType MAVEN_ARTIFACT_BUMP_MAP_TYPE = TypeFactory.createDefaultInstance()
             .constructMapType(HashMap.class, MavenArtifact.class, SemanticVersionBump.class);
 
     /// A static and final [ObjectMapper] instance configured as a [YAMLMapper].
     /// This variable is intended for parsing and generating YAML content.
     /// It provides a convenient singleton for YAML operations within the context of the MarkdownUtils utility class.
-    private static final ObjectMapper YAML_MAPPER = new YAMLMapper()
-            .configure(YAMLGenerator.Feature.WRITE_DOC_START_MARKER, false);
+    private static final ObjectMapper YAML_MAPPER = YAMLMapper.builder()
+            .disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
+            .build();
 
     /// A pre-configured Jackson [ObjectMapper] instance for processing YAML data.
     /// This [ObjectMapper] is designed specifically for serializing [MavenArtifact] objects
@@ -78,12 +79,13 @@ public final class MarkdownUtils {
     /// The [ObjectMapper] is initialized as a copy of the default YAML_MAPPER and extended
     /// with a custom SimpleModule that registers the [MavenArtifactArtifactOnlySerializer].
     /// This configuration modifies the serialization behavior to focus exclusively on artifact-specific properties.
-    private static final ObjectMapper YAML_MAPPER_ARTIFACT_ONLY_SERIALIZER = YAML_MAPPER.copy()
-            .registerModule(
+    private static final ObjectMapper YAML_MAPPER_ARTIFACT_ONLY_SERIALIZER = YAML_MAPPER.rebuild()
+            .addModules(
                     new SimpleModule()
                             .addKeySerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
                             .addSerializer(MavenArtifact.class, new MavenArtifactArtifactOnlySerializer())
-            );
+            )
+            .build();
 
     /// A statically defined parser built for processing CommonMark-based Markdown with certain custom configurations.
     /// This parser is configured to:
@@ -153,7 +155,7 @@ public final class MarkdownUtils {
             log.debug("YAML front matter:\n%s".formatted(yaml.indent(4).stripTrailing()));
             bumps = prepareObjectMapperDeserialization(identifier, groupId)
                     .readValue(yaml, MAVEN_ARTIFACT_BUMP_MAP_TYPE);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new MojoExecutionException(
                     "YAML front matter does not contain valid maven artifacts and semantic version bump", e
             );
@@ -353,7 +355,7 @@ public final class MarkdownUtils {
             yaml = prepareObjectMapperSerialization(identifier)
                     .writeValueAsString(bumps).stripTrailing();
             log.debug("Version bumps YAML:\n%s\n".formatted(yaml.indent(4).stripTrailing()));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new MojoExecutionException("Unable to construct version bump YAML", e);
         }
         return new YamlFrontMatterBlock(yaml);
@@ -367,14 +369,15 @@ public final class MarkdownUtils {
     private static ObjectMapper prepareObjectMapperDeserialization(ArtifactIdentifier identifier, String groupId) {
         return switch (identifier) {
             case GROUP_ID_AND_ARTIFACT_ID -> YAML_MAPPER;
-            case ONLY_ARTIFACT_ID -> YAML_MAPPER.copy()
-                    .registerModule(
+            case ONLY_ARTIFACT_ID -> YAML_MAPPER.rebuild()
+                    .addModules(
                             new SimpleModule()
                                     .addKeyDeserializer(
                                             MavenArtifact.class,
                                             new MavenArtifactArtifactOnlyKeyDeserializer(groupId)
                                     )
-                    );
+                    )
+                    .build();
         };
     }
 
