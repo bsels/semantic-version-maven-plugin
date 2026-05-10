@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 - 2026-05-10
+
+### Minor
+
+Bumped Jackson from 2.x.x to 3.x.x
+
+Add support for an optional version suffix in the `update` goal via the `versioning.suffix` property.
+
 ## 1.3.4 - 2026-04-26
 
 ### Patch
