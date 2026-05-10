@@ -41,7 +41,7 @@ public final class MavenArtifactArtifactOnlySerializer extends ValueSerializer<M
     ///
     /// @param mavenArtifact      the [MavenArtifact] instance to serialize; must not be null
     /// @param jsonGenerator      the [JsonGenerator] used to write JSON content; must not be null
-    /// @param serializerProvider the [SerializerProvider] that can be used to get serializers for serializing other types of objects if necessary; must not be null
+    /// @param serializerProvider the [SerializationContext] that can be used to get serializers for serializing other types of objects if necessary; must not be null
     @Override
     public void serialize(
             MavenArtifact mavenArtifact,
