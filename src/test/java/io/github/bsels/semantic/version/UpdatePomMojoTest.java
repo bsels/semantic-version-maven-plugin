@@ -2888,6 +2888,179 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
+        @CsvSource({
+                "patch, -beta, 1.0.1-beta",
+                "minor, alpha, 1.1.0-alpha",
+                "major, '', 2.0.0",
+                "patch, ' ', 1.0.1"
+        })
+        void fileBasedVersionBumpWithSuffix_Valid(String bumpType, String suffix, String expectedVersion) {
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "single", bumpType);
+            classUnderTest.suffix = suffix;
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(9)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.single:project:1.0.0"),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("versioning", "single", bumpType, "versioning.md")
+                            )),
+                            validateLogRecordDebug("""
+                                    YAML front matter:
+                                        'org.example.itests.single:project': %s\
+                                    """.formatted(bumpType)),
+                            validateLogRecordDebug("""
+                                    Maven artifacts and semantic version bumps:
+                                    {org.example.itests.single:project=%s}\
+                                    """.formatted(bumpType.toUpperCase())),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo("Updating version with a %s semantic version".formatted(bumpType.toUpperCase())),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("single", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog")
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(2)
+                    .containsKey(getResourcesPath("single", "pom.xml"))
+                    .containsKey(getResourcesPath("single", "CHANGELOG.md"));
+                    // File based versioning files are NOT in mockedOutputFiles because they are deleted, not written by writePom/writeMarkdownFile
+                    // Wait, they ARE written when they are updated?
+                    // No, internalExecute says:
+                    // if (!dryRun && changedProjects > 0 && VersionBump.FILE_BASED.equals(versionBump)) {
+                    //     List<Path> paths = versionMarkdowns.stream()...toList();
+                    //     Utils.deleteFilesIfExists(paths);
+                    //     stashFiles(paths);
+                    // }
+                    // So they are deleted.
+
+            assertThat(mockedOutputFiles.get(getResourcesPath("single", "pom.xml")).toString())
+                    .isEqualToIgnoringNewLines("""
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                <modelVersion>4.0.0</modelVersion>
+                                <groupId>org.example.itests.single</groupId>
+                                <artifactId>project</artifactId>
+                                <version>%s</version>
+                            </project>
+                            """.formatted(expectedVersion)
+                    );
+
+            assertThat(mockedOutputFiles.get(getResourcesPath("single", "CHANGELOG.md")).toString())
+                    .isEqualToIgnoringNewLines("""
+                            # Changelog
+                            
+                            ## %s - 2025-01-01
+                            
+                            ### %s
+                            
+                            %s versioning applied.
+                            
+                            ## 1.0.0 - 2026-01-01
+                            
+                            Initial release.
+                            """.formatted(
+                                    expectedVersion,
+                                    bumpType.substring(0, 1).toUpperCase() + bumpType.substring(1).toLowerCase(),
+                                    bumpType.substring(0, 1).toUpperCase() + bumpType.substring(1).toLowerCase()
+                            )
+                    );
+
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isNotEmpty()
+                    .hasSize(1)
+                    .containsExactly(getResourcesPath("versioning", "single", bumpType, "versioning.md"));
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
+        }
+
+        @ParameterizedTest
+        @CsvSource({
+                "PATCH, -beta, 1.0.1-beta",
+                "MINOR, alpha, 1.1.0-alpha",
+                "MAJOR, '', 2.0.0",
+                "PATCH, ' ', 1.0.1"
+        })
+        void fixedVersionBumpWithSuffix_Valid(VersionBump versionBump, String suffix, String expectedVersion) {
+            classUnderTest.versionBump = versionBump;
+            classUnderTest.suffix = suffix;
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(testLog.getLogRecords())
+                    .hasSize(7)
+                    .satisfiesExactly(
+                            validateLogRecordInfo("Execution for project: org.example.itests.single:project:1.0.0"),
+                            validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
+                                    getResourcesPath("single", ".versioning")
+                            )),
+                            validateLogRecordInfo("Single project in scope"),
+                            validateLogRecordInfo("Updating version with a %s semantic version".formatted(versionBump)),
+                            validateLogRecordInfo("Read 5 lines from %s".formatted(
+                                    getResourcesPath("single", "CHANGELOG.md")
+                            )),
+                            validateLogRecordDebug("Original changelog"),
+                            validateLogRecordDebug("Updated changelog")
+                    );
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(2)
+                    .hasEntrySatisfying(
+                            getResourcesPath("single", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            <?xml version="1.0" encoding="UTF-8"?>
+                                            <project xmlns="http://maven.apache.org/POM/4.0.0" \
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                                            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 \
+                                            http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                                                <modelVersion>4.0.0</modelVersion>
+                                                <groupId>org.example.itests.single</groupId>
+                                                <artifactId>project</artifactId>
+                                                <version>%s</version>
+                                            </project>
+                                            """.formatted(expectedVersion)
+                                    )
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("single", "CHANGELOG.md"),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualToIgnoringNewLines("""
+                                            # Changelog
+                                            
+                                            ## %s - 2025-01-01
+                                            
+                                            ### Other
+                                            
+                                            Project version bumped as result of dependency bumps
+                                            
+                                            ## 1.0.0 - 2026-01-01
+                                            
+                                            Initial release.
+                                            """.formatted(expectedVersion)
+                                    )
+                    );
+            assertThat(mockedCopiedFiles)
+                    .isEmpty();
+            assertThat(mockedDeletedFiles)
+                    .isEmpty();
+            assertThat(mockedExecutedProcesses)
+                    .isEmpty();
+        }
+
+        @ParameterizedTest
         @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBump_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;

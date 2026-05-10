@@ -1,8 +1,8 @@
 package io.github.bsels.semantic.version.utils.mapper;
 
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.KeyDeserializer;
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.KeyDeserializer;
 
 import java.util.Objects;
 

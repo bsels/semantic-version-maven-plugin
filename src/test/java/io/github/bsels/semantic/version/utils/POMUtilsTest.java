@@ -179,6 +179,30 @@ public class POMUtilsTest {
                     .setTextContent(expectedVersion);
             Mockito.verifyNoMoreInteractions(nodeMock);
         }
+
+        @ParameterizedTest
+        @CsvSource({
+                "1.2.3,MAJOR,alpha,2.0.0-alpha",
+                "1.2.3,MINOR,beta,1.3.0-beta",
+                "1.2.3,PATCH,-SNAPSHOT,1.2.4-SNAPSHOT",
+                "1.2.3,NONE,rc1,1.2.3-rc1",
+                "1.2.3-SNAPSHOT,MAJOR,release,2.0.0-release",
+                "1.2.3-SNAPSHOT,MINOR,,1.3.0-SNAPSHOT",
+                "1.2.3-SNAPSHOT,PATCH,' ',1.2.4-SNAPSHOT"
+        })
+        void happyFlowWithSuffix_Success(String currentVersion, SemanticVersionBump bump, String suffix, String expectedVersion) {
+            Mockito.when(nodeMock.getTextContent())
+                    .thenReturn(currentVersion);
+
+            assertThatNoException()
+                    .isThrownBy(() -> POMUtils.updateVersion(nodeMock, bump, suffix));
+
+            Mockito.verify(nodeMock, Mockito.times(1))
+                    .getTextContent();
+            Mockito.verify(nodeMock, Mockito.times(1))
+                    .setTextContent(expectedVersion);
+            Mockito.verifyNoMoreInteractions(nodeMock);
+        }
     }
 
     @Nested

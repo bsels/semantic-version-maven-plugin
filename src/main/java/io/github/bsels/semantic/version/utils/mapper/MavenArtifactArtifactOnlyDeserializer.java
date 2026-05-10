@@ -1,9 +1,9 @@
 package io.github.bsels.semantic.version.utils.mapper;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.ValueDeserializer;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -22,7 +22,7 @@ import java.util.Objects;
 /// Thread Safety:
 /// Instances of this deserializer are thread-safe, as the `groupId` is immutable
 /// and the deserialization process does not rely on any shared mutable state.
-public class MavenArtifactArtifactOnlyDeserializer extends JsonDeserializer<MavenArtifact> {
+public class MavenArtifactArtifactOnlyDeserializer extends ValueDeserializer<MavenArtifact> {
     /// Represents the predefined group ID associated with a Maven artifact.
     ///
     /// This field is used to specify the group ID that will be combined with an artifact ID
@@ -52,9 +52,8 @@ public class MavenArtifactArtifactOnlyDeserializer extends JsonDeserializer<Mave
     /// @param p    the `JsonParser` used to parse the JSON input; must not be null
     /// @param ctxt the `DeserializationContext` that can be used to access information about the deserialization process; must not be null
     /// @return a new `MavenArtifact` instance constructed with the predefined group ID and the artifact ID obtained from the JSON input
-    /// @throws IOException if an I/O error occurs during parsing
     @Override
-    public MavenArtifact deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+    public MavenArtifact deserialize(JsonParser p, DeserializationContext ctxt) {
         String artifactId = p.readValueAs(String.class);
         return new MavenArtifact(groupId, artifactId);
     }
