@@ -50,7 +50,7 @@ Add the plugin to your `pom.xml`:
         <plugin>
             <groupId>io.github.bsels</groupId>
             <artifactId>semantic-version-maven-plugin</artifactId>
-            <version>1.4.0</version>
+            <version>1.4.1</version>
         </plugin>
     </plugins>
 </build>
@@ -451,7 +451,7 @@ Configure the plugin directly in `pom.xml`:
         <plugin>
             <groupId>io.github.bsels</groupId>
             <artifactId>semantic-version-maven-plugin</artifactId>
-            <version>1.4.0</version>
+            <version>1.4.1</version>
             <configuration>
                 <modus>PROJECT_VERSION</modus>
                 <versionDirectory>.versioning</versionDirectory>
