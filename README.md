@@ -58,6 +58,11 @@ Add the plugin to your `pom.xml`:
 
 ## Goals
 
+- **create**: Creates a version Markdown file for specifying version bumps.
+- **update**: Updates POM file versions and CHANGELOG.md files based on version Markdown files.
+- **verify**: Verifies that version Markdown files are consistent with the project scope.
+- **graph**: Generates a JSON representation of the project dependency graph.
+
 ### create
 
 **Full name**: `io.github.bsels:semantic-version-maven-plugin:create`
