@@ -32,7 +32,7 @@ jobs:
           ./mvnw --no-transfer-progress --batch-mode install -Dgpg.skip
           CURRENT_VERSION=$(./mvnw --no-transfer-progress --batch-mode help:evaluate -Dexpression=project.version -q -DforceStdout)
           ./mvnw --no-transfer-progress --batch-mode io.github.bsels:semantic-version-maven-plugin:$CURRENT_VERSION:update \
-          -Dversioning.update.scripts=./update-readme.sh -Dversioning.git=COMMIT
+          -Dversioning.update.scripts=./update-readme.sh:./update-deprecation-version.sh -Dversioning.git=COMMIT
           VERSION=$(./mvnw --no-transfer-progress --batch-mode help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Create tag and push

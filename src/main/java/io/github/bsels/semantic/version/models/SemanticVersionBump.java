@@ -16,6 +16,7 @@ import java.util.Objects;
 /// - PATCH: Indicates a patch version increment, which may introduce backward-compatible bug fixes.
 /// - MINOR: Indicates a minor version increment, which may add functionality in a backward-compatible manner.
 /// - MAJOR: Indicates a major version increment, which may introduce breaking changes.
+/// - SUFFIX_ONLY: Indicates that only the version suffix is to be updated.
 public enum SemanticVersionBump {
     /// Indicates that no version increment is to occur.
     /// This value is used in the context of semantic versioning when the version should remain unchanged.
@@ -29,7 +30,10 @@ public enum SemanticVersionBump {
     /// Indicates a major version increment in the context of semantic versioning.
     /// A major increment typically introduces breaking changes, making backward compatibility
     /// with earlier versions unlikely.
-    MAJOR;
+    MAJOR,
+    /// Indicates that only the version suffix is to be updated.
+    /// The major, minor, and patch components of the version remain unchanged.
+    SUFFIX_ONLY;
 
     /// Converts a string representation of a semantic version bump to its corresponding enum value.
     ///

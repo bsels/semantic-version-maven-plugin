@@ -425,7 +425,9 @@ public class ProcessUtilsTest {
                     .containsEntry("CURRENT_VERSION", "1.2.3")
                     .containsEntry("NEW_VERSION", "2.0.0")
                     .containsEntry("DRY_RUN", "true")
-                    .containsEntry("GIT_STASH", "false");
+                    .containsEntry("GIT_STASH", "false")
+                    .containsEntry("GIT_STAGING", "false")
+                    .containsEntry("PROJECT_PATH", projectPath.toAbsolutePath().toString());
             assertThat(environment.get("EXECUTION_DATE"))
                     .isIn(before.toString(), after.toString());
         }
@@ -630,27 +632,27 @@ public class ProcessUtilsTest {
     }
 
     @Nested
-    class GitStashFilesTest {
+    class GitStageFilesTest {
         private static final Path TEST_POM = Path.of("pom.xml");
         private static final Path TEST_CHANGELOG = Path.of("CHANGELOG.md");
 
         @Test
         void nullFiles_ThrowsNullPointerException() {
-            assertThatThrownBy(() -> ProcessUtils.gitStashFiles(null))
+            assertThatThrownBy(() -> ProcessUtils.gitStageFiles(null))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`files` must not be null");
         }
 
         @Test
         void emptyFiles_ThrowsIllegalArgumentException() {
-            assertThatThrownBy(() -> ProcessUtils.gitStashFiles(List.of()))
+            assertThatThrownBy(() -> ProcessUtils.gitStageFiles(List.of()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("`files` must not be empty");
         }
 
         @Test
         void nullFileInFiles_ThrowsNullPointerException() {
-            assertThatThrownBy(() -> ProcessUtils.gitStashFiles(Collections.singletonList(null)))
+            assertThatThrownBy(() -> ProcessUtils.gitStageFiles(Collections.singletonList(null)))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`file` in `files` must not be null");
         }
@@ -670,9 +672,9 @@ public class ProcessUtilsTest {
                                 .thenThrow(IOException.class);
                     }
             )) {
-                assertThatThrownBy(() -> ProcessUtils.gitStashFiles(List.of(TEST_POM)))
+                assertThatThrownBy(() -> ProcessUtils.gitStageFiles(List.of(TEST_POM)))
                         .isInstanceOf(MojoExecutionException.class)
-                        .hasMessage("Unable to add files to Git stash")
+                        .hasMessage("Unable to add files to Git staging")
                         .hasRootCauseInstanceOf(IOException.class);
             }
 
@@ -697,9 +699,9 @@ public class ProcessUtilsTest {
                                 .thenThrow(InterruptedException.class);
                     }
             )) {
-                assertThatThrownBy(() -> ProcessUtils.gitStashFiles(List.of(TEST_CHANGELOG)))
+                assertThatThrownBy(() -> ProcessUtils.gitStageFiles(List.of(TEST_CHANGELOG)))
                         .isInstanceOf(MojoExecutionException.class)
-                        .hasMessage("Unable to add files to Git stash")
+                        .hasMessage("Unable to add files to Git staging")
                         .hasRootCauseInstanceOf(InterruptedException.class);
             }
 
@@ -723,9 +725,9 @@ public class ProcessUtilsTest {
                                 .thenReturn(1);
                     }
             )) {
-                assertThatThrownBy(() -> ProcessUtils.gitStashFiles(List.of(TEST_POM, TEST_CHANGELOG)))
+                assertThatThrownBy(() -> ProcessUtils.gitStageFiles(List.of(TEST_POM, TEST_CHANGELOG)))
                         .isInstanceOf(MojoExecutionException.class)
-                        .hasMessage("Unable to add files to Git stash");
+                        .hasMessage("Unable to add files to Git staging");
             }
 
             assertThat(command.get())
@@ -749,7 +751,7 @@ public class ProcessUtilsTest {
                     }
             )) {
                 assertThatNoException()
-                        .isThrownBy(() -> ProcessUtils.gitStashFiles(List.of(TEST_CHANGELOG, TEST_POM)));
+                        .isThrownBy(() -> ProcessUtils.gitStageFiles(List.of(TEST_CHANGELOG, TEST_POM)));
             }
 
             assertThat(command.get())

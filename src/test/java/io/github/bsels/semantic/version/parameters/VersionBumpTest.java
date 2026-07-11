@@ -11,9 +11,9 @@ public class VersionBumpTest {
     @Test
     void numberOfEnumElements_Return3() {
         assertThat(VersionBump.values())
-                .hasSize(4)
+                .hasSize(5)
                 .extracting(VersionBump::name)
-                .containsExactlyInAnyOrder("FILE_BASED", "MAJOR", "MINOR", "PATCH");
+                .containsExactlyInAnyOrder("FILE_BASED", "MAJOR", "MINOR", "PATCH", "SUFFIX_ONLY");
     }
 
     @ParameterizedTest

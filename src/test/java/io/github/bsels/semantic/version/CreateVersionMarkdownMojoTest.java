@@ -390,7 +390,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
             if (Git.NO_GIT == gitMode) {
                 assertThat(mockedExecutedProcesses)
                         .isEmpty();
-            } else if (Git.STASH == gitMode) {
+            } else if (Git.STASH == gitMode || Git.STAGING == gitMode) {
                 assertThat(mockedExecutedProcesses)
                         .hasSize(1)
                         .containsExactly(List.of("git", "add", getVersioningMarkdown().toString()));
@@ -677,7 +677,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
             if (Git.NO_GIT == gitMode) {
                 assertThat(mockedExecutedProcesses)
                         .isEmpty();
-            } else if (Git.STASH == gitMode) {
+            } else if (Git.STASH == gitMode || Git.STAGING == gitMode) {
                 assertThat(mockedExecutedProcesses)
                         .hasSize(1)
                         .containsExactly(List.of("git", "add", getSingleVersioningMarkdown().toString()));

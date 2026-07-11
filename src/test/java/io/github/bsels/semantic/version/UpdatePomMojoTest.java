@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -206,6 +207,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBump_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -244,9 +248,10 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
 
             String expectedVersion = switch (versionBump) {
                 case FILE_BASED -> throw new AssertionError("Should not be called");
-                case MAJOR -> "6.0.0";
-                case MINOR -> "5.1.0";
-                case PATCH -> "5.0.1";
+                case MAJOR -> "6.0.0-child-%d";
+                case MINOR -> "5.1.0-child-%d";
+                case PATCH -> "5.0.1-child-%d";
+                case SUFFIX_ONLY -> "5.0.0-BETA";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(6);
@@ -258,6 +263,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 } else {
                     path = getResourcesPath("leaves", "intermediate", "child-%d".formatted(index));
                 }
+                String currentExpectedVersion = expectedVersion.formatted(index);
                 assertThat(mockedOutputFiles)
                         .hasEntrySatisfying(
                                 path.resolve("pom.xml"),
@@ -271,9 +277,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                     <modelVersion>4.0.0</modelVersion>
                                                     <groupId>org.example.itests.leaves</groupId>
                                                     <artifactId>child-%1$d</artifactId>
-                                                    <version>%2$s-child-%1$d</version>
+                                                    <version>%2$s</version>
                                                 </project>
-                                                """.formatted(index, expectedVersion)
+                                                """.formatted(index, currentExpectedVersion)
                                         )
                         )
                         .hasEntrySatisfying(
@@ -282,7 +288,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                         .isEqualToIgnoringNewLines("""
                                                 # Changelog
                                                 
-                                                ## %2$s-child-%1$d - 2025-01-01
+                                                ## %2$s - 2025-01-01
                                                 
                                                 ### Other
                                                 
@@ -291,7 +297,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                                 ## 5.0.0-child-%1$d - 2026-01-01
                                                 
                                                 Initial child %1$d release.
-                                                """.formatted(index, expectedVersion)
+                                                """.formatted(index, currentExpectedVersion)
                                         )
                         );
             }
@@ -882,7 +888,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             if (Git.NO_GIT == gitMode) {
                 assertThat(mockedExecutedProcesses)
                         .isEmpty();
-            } else if (Git.STASH == gitMode) {
+            } else if (Git.STASH == gitMode || Git.STAGING == gitMode) {
                 assertThat(mockedExecutedProcesses)
                         .hasSize(7)
                         .contains(
@@ -1398,6 +1404,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBump_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -1423,6 +1432,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "4.0.0";
                 case MINOR -> "3.1.0";
                 case PATCH -> "3.0.1";
+                case SUFFIX_ONLY -> "3.0.0-BETA";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -1485,6 +1495,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         void fixedVersionBumpWithBackup_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.backupFiles = true;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -1510,6 +1523,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "4.0.0";
                 case MINOR -> "3.1.0";
                 case PATCH -> "3.0.1";
+                case SUFFIX_ONLY -> "3.0.0-BETA";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -1593,6 +1607,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         void fixedVersionBumpDryRun_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -1602,6 +1619,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "4.0.0";
                 case MINOR -> "3.1.0";
                 case PATCH -> "3.0.1";
+                case SUFFIX_ONLY -> "3.0.0-BETA";
             };
 
             assertThat(testLog.getLogRecords())
@@ -1675,6 +1693,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         void dryRunStringWriteCloseFailure_ThrowMojoExecutionException(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             IOException ioException = new IOException("Unable to open output stream for writing");
             try (MockedConstruction<StringWriter> ignored = Mockito.mockConstruction(
@@ -2242,6 +2263,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBump_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -2267,6 +2291,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "3.0.0";
                 case MINOR -> "2.1.0";
                 case PATCH -> "2.0.1";
+                case SUFFIX_ONLY -> "2.0.0-BETA";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -2322,6 +2347,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         void fixedVersionBumpWithBackup_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.backupFiles = true;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -2347,6 +2375,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "3.0.0";
                 case MINOR -> "2.1.0";
                 case PATCH -> "2.0.1";
+                case SUFFIX_ONLY -> "2.0.0-BETA";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -2423,6 +2452,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         void fixedVersionBumpDryRun_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -2432,6 +2464,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "3.0.0";
                 case MINOR -> "2.1.0";
                 case PATCH -> "2.0.1";
+                case SUFFIX_ONLY -> "2.0.0-BETA";
             };
 
             assertThat(testLog.getLogRecords())
@@ -2496,6 +2529,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         void dryRunStringWriteCloseFailure_ThrowMojoExecutionException(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             IOException ioException = new IOException("Unable to open output stream for writing");
             try (MockedConstruction<StringWriter> ignored = Mockito.mockConstruction(
@@ -3064,6 +3100,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBump_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -3089,6 +3128,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "2.0.0";
                 case MINOR -> "1.1.0";
                 case PATCH -> "1.0.1";
+                case SUFFIX_ONLY -> "1.0.0-BETA";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -3140,6 +3180,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         void fixedVersionBumpWithBackup_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.backupFiles = true;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -3165,6 +3208,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "2.0.0";
                 case MINOR -> "1.1.0";
                 case PATCH -> "1.0.1";
+                case SUFFIX_ONLY -> "1.0.0-BETA";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -3237,6 +3281,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         void fixedVersionBumpDryRun_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             assertThatNoException()
                     .isThrownBy(classUnderTest::execute);
@@ -3246,6 +3293,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "2.0.0";
                 case MINOR -> "1.1.0";
                 case PATCH -> "1.0.1";
+                case SUFFIX_ONLY -> "1.0.0-BETA";
             };
 
             assertThat(testLog.getLogRecords())
@@ -3306,6 +3354,9 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         void dryRunStringWriteCloseFailure_ThrowMojoExecutionException(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
+            if (versionBump == VersionBump.SUFFIX_ONLY) {
+                classUnderTest.suffix = "BETA";
+            }
 
             IOException ioException = new IOException("Unable to open output stream for writing");
             try (MockedConstruction<StringWriter> ignored = Mockito.mockConstruction(
@@ -3344,6 +3395,17 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedExecutedProcesses)
                     .isEmpty();
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        void suffixOnlyWithoutSuffix_ThrowMojoFailureException(String suffix) {
+            classUnderTest.versionBump = VersionBump.SUFFIX_ONLY;
+            classUnderTest.suffix = suffix;
+
+            assertThatThrownBy(classUnderTest::execute)
+                    .isInstanceOf(MojoFailureException.class)
+                    .hasMessage("`versioning.suffix` is required when using `SUFFIX_ONLY` bump strategy");
         }
 
         @Test

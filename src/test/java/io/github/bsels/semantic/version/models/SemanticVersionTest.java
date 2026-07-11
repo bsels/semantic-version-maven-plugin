@@ -87,27 +87,34 @@ public class SemanticVersionTest {
 
         @ParameterizedTest
         @CsvSource({
+                "1.2.3,NONE,1.2.3",
+                "1.2.3,SUFFIX_ONLY,1.2.3",
+                "1.2.3-alpha,SUFFIX_ONLY,1.2.3-alpha",
+                "1.2.3-alpha,NONE,1.2.3-alpha"
+        })
+        void validBump_ReturnsSameObject(String oldVersion, SemanticVersionBump bump, String expectedNewVersion) {
+            SemanticVersion semanticVersion = SemanticVersion.of(oldVersion);
+            SemanticVersion expected = SemanticVersion.of(expectedNewVersion);
+            assertThat(semanticVersion.bump(bump))
+                    .isSameAs(semanticVersion)
+                    .isEqualTo(expected);
+        }
+
+        @ParameterizedTest
+        @CsvSource({
                 "1.2.3,MAJOR,2.0.0",
                 "1.2.3,MINOR,1.3.0",
                 "1.2.3,PATCH,1.2.4",
-                "1.2.3,NONE,1.2.3",
                 "1.2.3-alpha,MAJOR,2.0.0-alpha",
                 "1.2.3-alpha,MINOR,1.3.0-alpha",
-                "1.2.3-alpha,PATCH,1.2.4-alpha",
-                "1.2.3-alpha,NONE,1.2.3-alpha"
+                "1.2.3-alpha,PATCH,1.2.4-alpha"
         })
         void validBump_ReturnsNewObject(String oldVersion, SemanticVersionBump bump, String expectedNewVersion) {
             SemanticVersion semanticVersion = SemanticVersion.of(oldVersion);
             SemanticVersion expected = SemanticVersion.of(expectedNewVersion);
-            if (SemanticVersionBump.NONE.equals(bump)) {
-                assertThat(semanticVersion.bump(bump))
-                        .isSameAs(semanticVersion)
-                        .isEqualTo(expected);
-            } else {
-                assertThat(semanticVersion.bump(bump))
-                        .isNotSameAs(semanticVersion)
-                        .isEqualTo(expected);
-            }
+            assertThat(semanticVersion.bump(bump))
+                    .isNotSameAs(semanticVersion)
+                    .isEqualTo(expected);
         }
     }
 
