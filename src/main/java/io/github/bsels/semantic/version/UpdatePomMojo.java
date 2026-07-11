@@ -117,12 +117,17 @@ public final class UpdatePomMojo extends BaseMojo {
     /// - `CURRENT_VERSION`: The current version of the project.
     /// - `NEW_VERSION`: The new version of the project after the update.
     /// - `DRY_RUN`: A flag indicating whether the script is being executed in dry-run mode (true) or not (false).
-    /// - `GIT_STASH`: A flag indicating whether the script should stage the files or not (true) or not (false). Deprecated: use `GIT_STAGING` instead.
+    /// - `GIT_STASH`: A flag indicating whether the script should stage the files or not (true) or not (false).
+    ///   Deprecated since {DEPRECATION_VERSION}: use `GIT_STAGING` instead.
     /// - `GIT_STAGING`: A flag indicating whether the script should stage the files or not (true) or not (false).
     /// - `PROJECT_PATH`: The absolute path to the module directory.
     /// - `EXECUTION_DATE`: The date and time when the script was executed formatted as ISO 8601: `yyyy-MM-dd`.
     ///
-    /// The scripts should be separated by the OS file path separator
+    /// For example, this can be used to automate deprecation version management and readme updates:
+    /// `-Dversioning.update.scripts=./update-deprecation-version.sh:./update-readme.sh`
+    /// (adjusting the paths to the root).
+    ///
+    /// The scripts should be separated by the OS file path separator (`:` on Unix-like systems, `;` on Windows).
     ///
     /// This parameter is optional.
     @Parameter(property = "versioning.update.scripts", required = false)

@@ -10,8 +10,8 @@ public enum Git {
     NO_GIT,
     /// Represents a staging state in a Git repository.
     /// This enum value is used to indicate that the current instance corresponds to a staging state.
-    /// @deprecated use [#STAGING] instead.
-    @Deprecated(since = "1.5.0", forRemoval = true)
+    /// @deprecated use [#STAGING] instead. Since {DEPRECATION_VERSION}.
+    @Deprecated(since = "{DEPRECATION_VERSION}", forRemoval = true)
     STASH,
     /// Represents the state where changes are staged in a Git repository.
     /// This enum value indicates that the current instance corresponds to a staging state.
@@ -34,8 +34,8 @@ public enum Git {
     /// Determines if the current instance represents a staging state.
     ///
     /// @return `true` if the current instance is either [#STASH], [#STAGING] or [#COMMIT], otherwise `false`.
-    /// @deprecated use [#isStaging()] instead.
-    @Deprecated(since = "1.5.0", forRemoval = true)
+    /// @deprecated use [#isStaging()] instead. Since {DEPRECATION_VERSION}.
+    @Deprecated(since = "{DEPRECATION_VERSION}", forRemoval = true)
     public boolean isStash() {
         return isStaging();
     }
