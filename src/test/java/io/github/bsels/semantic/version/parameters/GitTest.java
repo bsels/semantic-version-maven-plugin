@@ -12,9 +12,9 @@ public class GitTest {
     @Test
     void numberOfEnumElements_Return3() {
         assertThat(Git.values())
-                .hasSize(3)
+                .hasSize(4)
                 .extracting(Git::name)
-                .containsExactlyInAnyOrder("NO_GIT", "COMMIT", "STASH");
+                .containsExactlyInAnyOrder("NO_GIT", "COMMIT", "STASH", "STAGING");
     }
 
     @ParameterizedTest
@@ -35,11 +35,14 @@ public class GitTest {
     @CsvSource({
             "NO_GIT,false,false",
             "STASH,true,false",
+            "STAGING,true,false",
             "COMMIT,true,true"
     })
-    void mode_ExpectedValue(Git git, boolean isStash, boolean isCommit) {
+    void mode_ExpectedValue(Git git, boolean isStaging, boolean isCommit) {
         assertThat(git.isStash())
-                .isEqualTo(isStash);
+                .isEqualTo(isStaging);
+        assertThat(git.isStaging())
+                .isEqualTo(isStaging);
         assertThat(git.isCommit())
                 .isEqualTo(isCommit);
     }
