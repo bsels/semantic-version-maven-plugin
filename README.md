@@ -22,6 +22,9 @@ A Maven plugin for automated semantic versioning with Markdown-based changelog m
     - [graph](#graph)
 - [Configuration Properties](#configuration-properties)
 - [Examples](#examples)
+- [GitHub Action Integration](#github-action-integration)
+    - [Release Workflow](#release-workflow)
+    - [Pull Request Workflow](#pull-request-workflow)
 - [License](#license)
 
 ## Overview
@@ -467,6 +470,100 @@ Configure the plugin directly in `pom.xml`:
         </plugin>
     </plugins>
 </build>
+```
+
+## GitHub Action Integration
+
+### Release Workflow
+
+You can automate your release process by integrating this plugin into a GitHub Action workflow.
+Below is an example workflow that triggers on a push to the `main` branch, updates versions based on Markdown files,
+commits changes, and creates a GitHub release.
+
+```yaml
+name: Push create release
+on:
+  push:
+    branches: [ main ]
+permissions:
+  contents: write
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Git user
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Run versioning
+        id: bumpVersion
+        run: |
+          set -e
+          # Run the update goal to apply version bumps and commit changes
+          mvn io.github.bsels:semantic-version-maven-plugin:update -Dversioning.git=COMMIT
+          # Capture the new version for subsequent steps
+          VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create tag and push
+        run: |
+          git tag "v${{ steps.bumpVersion.outputs.version }}"
+          git push
+          git push origin tag "v${{ steps.bumpVersion.outputs.version }}"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ format('v{0}', steps.bumpVersion.outputs.version) }}
+        run: |
+          gh release create "$tag" \
+              --repo="$GITHUB_REPOSITORY" \
+              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
+              --generate-notes
+```
+
+### Pull Request Workflow
+
+To ensure that every pull request includes the necessary versioning files,
+you can use the `verify` goal in your PR workflow.
+This example fails the build if the versioning specifications are missing or inconsistent.
+
+```yaml
+name: Pull Request Build
+on:
+  pull_request:
+    branches: [ main ]
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build verify versioning
+        run: |
+          # Run the verify goal to check for consistent versioning files
+          mvn io.github.bsels:semantic-version-maven-plugin:verify
 ```
 
 ## License
