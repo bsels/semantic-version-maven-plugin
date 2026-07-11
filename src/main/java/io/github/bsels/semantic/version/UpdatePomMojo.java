@@ -120,7 +120,7 @@ public final class UpdatePomMojo extends BaseMojo {
     /// - `NEW_VERSION`: The new version of the project after the update.
     /// - `DRY_RUN`: A flag indicating whether the script is being executed in dry-run mode (true) or not (false).
     /// - `GIT_STASH`: A flag indicating whether the script should stage the files or not (true) or not (false).
-    ///   Deprecated since {DEPRECATION_VERSION}: use `GIT_STAGING` instead.
+    ///   Deprecated since 1.5.0: use `GIT_STAGING` instead.
     /// - `GIT_STAGING`: A flag indicating whether the script should stage the files or not (true) or not (false).
     /// - `PROJECT_PATH`: The absolute path to the module directory.
     /// - `EXECUTION_DATE`: The date and time when the script was executed formatted as ISO 8601: `yyyy-MM-dd`.

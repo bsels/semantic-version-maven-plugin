@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.5.0 - 2026-07-11
+
+### Minor
+
+Deprecations and Enhancements:
+
+- Deprecated `Git.STASH` configuration property in favor of `Git.STAGING`.
+- Added `PROJECT_PATH` and `GIT_STAGING` environment variables to the `versioning.update.scripts` execution context.
+- Supported multi-script execution in `versioning.update.scripts` using the OS-native path separator (e.g., `:` on Unix, `;` on Windows).
+- Added `update-deprecation-version.sh` maintenance script to automate version injection in deprecation notices.
+
+Features:
+
+- Added `SUFFIX_ONLY` version bump strategy to update only the version suffix while keeping major, minor,
+  and patch components unchanged.
+- Enforced mandatory `versioning.suffix` when using `SUFFIX_ONLY` strategy.
+
+### Patch
+
+Dependencies:
+
+- Updated Jackson dependencies to version 3.2.1.
+
 ## 1.4.2 - 2026-07-04
 
 ### Patch
