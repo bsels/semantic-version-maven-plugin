@@ -122,7 +122,7 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
             case MAJOR -> new SemanticVersion(major + 1, 0, 0, suffix);
             case MINOR -> new SemanticVersion(major, minor + 1, 0, suffix);
             case PATCH -> new SemanticVersion(major, minor, patch + 1, suffix);
-            case NONE -> this;
+            case NONE, SUFFIX_ONLY -> this;
         };
     }
 

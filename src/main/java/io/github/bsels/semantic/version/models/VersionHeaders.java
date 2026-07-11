@@ -112,7 +112,7 @@ public record VersionHeaders(
     /// - Major: [#MAJOR_HEADER]
     /// - Minor: [#MINOR_HEADER]
     /// - Patch: [#PATCH_HEADER]
-    /// - Other: [#OTHER_HEADER
+    /// - Other: [#OTHER_HEADER]
     ///
     /// The purpose of this constructor is to provide a standardized way to create a VersionHeaders
     /// instance with commonly used headers. All header fields are guaranteed to be non-null.
@@ -134,7 +134,7 @@ public record VersionHeaders(
             case MAJOR -> major;
             case MINOR -> minor;
             case PATCH -> patch;
-            case NONE -> other;
+            case NONE, SUFFIX_ONLY -> other;
         };
     }
 }

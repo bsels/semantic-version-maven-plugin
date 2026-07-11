@@ -14,5 +14,8 @@ public enum VersionBump {
     MINOR,
     /// Represents a version increment of the patch component in semantic versioning.
     /// A patch increment is typically used for backwards-compatible bug fixes.
-    PATCH
+    PATCH,
+    /// `SUFFIX_ONLY` represents a mode where only the version suffix is updated.
+    /// The major, minor, and patch components of the version remain unchanged.
+    SUFFIX_ONLY
 }

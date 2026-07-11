@@ -24,9 +24,9 @@ public class SemanticVersionBumpTest {
         @Test
         void numberOfEnumElements_Return3() {
             assertThat(SemanticVersionBump.values())
-                    .hasSize(4)
+                    .hasSize(5)
                     .extracting(SemanticVersionBump::name)
-                    .containsExactlyInAnyOrder("MAJOR", "MINOR", "PATCH", "NONE");
+                    .containsExactlyInAnyOrder("MAJOR", "MINOR", "PATCH", "NONE", "SUFFIX_ONLY");
         }
 
         @ParameterizedTest
@@ -67,7 +67,10 @@ public class SemanticVersionBumpTest {
                 "PATCH,PATCH",
                 "none,NONE",
                 "None,NONE",
-                "NONE,NONE"
+                "NONE,NONE",
+                "suffix_only,SUFFIX_ONLY",
+                "Suffix_Only,SUFFIX_ONLY",
+                "SUFFIX_ONLY,SUFFIX_ONLY"
         })
         void validInput_ReturnsCorrectValue(String input, SemanticVersionBump expected) {
             assertThat(SemanticVersionBump.fromString(input))

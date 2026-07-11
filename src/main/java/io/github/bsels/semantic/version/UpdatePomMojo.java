@@ -87,6 +87,8 @@ public final class UpdatePomMojo extends BaseMojo {
     ///   used for adding new backward-compatible features.
     /// - [VersionBump#PATCH]: Represents an increment to the patch version component,
     ///   used for backward-compatible bug fixes.
+    /// - [VersionBump#SUFFIX_ONLY]: Represents a mode where only the version suffix is updated,
+    ///   leaving major, minor, and patch components unchanged.
     @Parameter(property = "versioning.bump", required = true, defaultValue = "FILE_BASED")
     VersionBump versionBump = VersionBump.FILE_BASED;
 
@@ -288,6 +290,10 @@ public final class UpdatePomMojo extends BaseMojo {
         List<VersionMarkdown> versionMarkdowns = getVersionMarkdowns();
         MarkdownMapping mapping = getMarkdownMapping(versionMarkdowns);
         validateMarkdowns(mapping);
+
+        if (VersionBump.SUFFIX_ONLY.equals(versionBump) && (suffix == null || suffix.isBlank())) {
+            throw new MojoFailureException("`versioning.suffix` is required when using `SUFFIX_ONLY` bump strategy");
+        }
 
         List<MavenProject> projectsInScope = getProjectsInScope()
                 .collect(Utils.asImmutableList());
@@ -658,6 +664,7 @@ public final class UpdatePomMojo extends BaseMojo {
             case MAJOR -> SemanticVersionBump.MAJOR;
             case MINOR -> SemanticVersionBump.MINOR;
             case PATCH -> SemanticVersionBump.PATCH;
+            case SUFFIX_ONLY -> SemanticVersionBump.SUFFIX_ONLY;
         };
     }
 

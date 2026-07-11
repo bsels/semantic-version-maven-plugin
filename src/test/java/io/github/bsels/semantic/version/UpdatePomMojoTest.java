@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -203,7 +204,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBump_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
 
@@ -247,6 +248,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "6.0.0";
                 case MINOR -> "5.1.0";
                 case PATCH -> "5.0.1";
+                case SUFFIX_ONLY -> "5.0.0";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(6);
@@ -1395,7 +1397,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBump_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
 
@@ -1423,6 +1425,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "4.0.0";
                 case MINOR -> "3.1.0";
                 case PATCH -> "3.0.1";
+                case SUFFIX_ONLY -> "3.0.0";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -1481,7 +1484,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBumpWithBackup_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.backupFiles = true;
@@ -1510,6 +1513,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "4.0.0";
                 case MINOR -> "3.1.0";
                 case PATCH -> "3.0.1";
+                case SUFFIX_ONLY -> "3.0.0";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -1589,7 +1593,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBumpDryRun_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
@@ -1602,6 +1606,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "4.0.0";
                 case MINOR -> "3.1.0";
                 case PATCH -> "3.0.1";
+                case SUFFIX_ONLY -> "3.0.0";
             };
 
             assertThat(testLog.getLogRecords())
@@ -1671,7 +1676,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void dryRunStringWriteCloseFailure_ThrowMojoExecutionException(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
@@ -2239,7 +2244,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBump_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
 
@@ -2267,6 +2272,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "3.0.0";
                 case MINOR -> "2.1.0";
                 case PATCH -> "2.0.1";
+                case SUFFIX_ONLY -> "2.0.0";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -2318,7 +2324,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBumpWithBackup_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.backupFiles = true;
@@ -2347,6 +2353,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "3.0.0";
                 case MINOR -> "2.1.0";
                 case PATCH -> "2.0.1";
+                case SUFFIX_ONLY -> "2.0.0";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -2419,7 +2426,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBumpDryRun_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
@@ -2432,6 +2439,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "3.0.0";
                 case MINOR -> "2.1.0";
                 case PATCH -> "2.0.1";
+                case SUFFIX_ONLY -> "2.0.0";
             };
 
             assertThat(testLog.getLogRecords())
@@ -2492,7 +2500,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void dryRunStringWriteCloseFailure_ThrowMojoExecutionException(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
@@ -3061,7 +3069,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBump_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
 
@@ -3089,6 +3097,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "2.0.0";
                 case MINOR -> "1.1.0";
                 case PATCH -> "1.0.1";
+                case SUFFIX_ONLY -> "1.0.0";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -3136,7 +3145,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBumpWithBackup_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.backupFiles = true;
@@ -3165,6 +3174,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "2.0.0";
                 case MINOR -> "1.1.0";
                 case PATCH -> "1.0.1";
+                case SUFFIX_ONLY -> "1.0.0";
             };
             assertThat(mockedOutputFiles)
                     .hasSize(2)
@@ -3233,7 +3243,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void fixedVersionBumpDryRun_Valid(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
@@ -3246,6 +3256,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                 case MAJOR -> "2.0.0";
                 case MINOR -> "1.1.0";
                 case PATCH -> "1.0.1";
+                case SUFFIX_ONLY -> "1.0.0";
             };
 
             assertThat(testLog.getLogRecords())
@@ -3302,7 +3313,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = VersionBump.class, names = {"FILE_BASED"}, mode = EnumSource.Mode.EXCLUDE)
+        @EnumSource(value = VersionBump.class, names = {"FILE_BASED", "SUFFIX_ONLY"}, mode = EnumSource.Mode.EXCLUDE)
         void dryRunStringWriteCloseFailure_ThrowMojoExecutionException(VersionBump versionBump) {
             classUnderTest.versionBump = versionBump;
             classUnderTest.dryRun = true;
@@ -3344,6 +3355,17 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
             assertThat(mockedExecutedProcesses)
                     .isEmpty();
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        void suffixOnlyWithoutSuffix_ThrowMojoFailureException(String suffix) {
+            classUnderTest.versionBump = VersionBump.SUFFIX_ONLY;
+            classUnderTest.suffix = suffix;
+
+            assertThatThrownBy(classUnderTest::execute)
+                    .isInstanceOf(MojoFailureException.class)
+                    .hasMessage("`versioning.suffix` is required when using `SUFFIX_ONLY` bump strategy");
         }
 
         @Test
