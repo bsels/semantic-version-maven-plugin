@@ -117,7 +117,9 @@ public final class UpdatePomMojo extends BaseMojo {
     /// - `CURRENT_VERSION`: The current version of the project.
     /// - `NEW_VERSION`: The new version of the project after the update.
     /// - `DRY_RUN`: A flag indicating whether the script is being executed in dry-run mode (true) or not (false).
-    /// - `GIT_STASH`: A flag indicating whether the script should stash the files or not (true) or not (false).
+    /// - `GIT_STASH`: A flag indicating whether the script should stage the files or not (true) or not (false). Deprecated: use `GIT_STAGING` instead.
+    /// - `GIT_STAGING`: A flag indicating whether the script should stage the files or not (true) or not (false).
+    /// - `PROJECT_PATH`: The absolute path to the module directory.
     /// - `EXECUTION_DATE`: The date and time when the script was executed formatted as ISO 8601: `yyyy-MM-dd`.
     ///
     /// The scripts should be separated by the OS file path separator
@@ -303,7 +305,7 @@ public final class UpdatePomMojo extends BaseMojo {
                     .filter(Objects::nonNull)
                     .toList();
             Utils.deleteFilesIfExists(paths);
-            stashFiles(paths);
+            stageFiles(paths);
         }
         commit(commitMessage.formatted(changedProjects));
     }
@@ -396,7 +398,7 @@ public final class UpdatePomMojo extends BaseMojo {
                     projectPath,
                     versionChange,
                     dryRun,
-                    git.isStash()
+                    git.isStaging()
             );
         }
     }
@@ -576,7 +578,7 @@ public final class UpdatePomMojo extends BaseMojo {
         } else {
             POMUtils.writePom(document, pom, backupFiles);
         }
-        stashFiles(List.of(pom));
+        stageFiles(List.of(pom));
     }
 
     /// Updates the Markdown file by reading the current changelog, merging version-specific Markdown changes,

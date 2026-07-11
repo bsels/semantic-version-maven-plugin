@@ -58,15 +58,15 @@ public final class ProcessUtils {
                 .orElseGet(ProcessUtils::fallbackOsEditor);
     }
 
-    /// Stages the specified files for a Git stash operation.
+    /// Stages the specified files for a Git operation.
     /// This method ensures the given list of files is non-null, non-empty, and contains no null elements.
     /// It executes a Git command to add the provided files to staging.
     ///
-    /// @param files the list of file paths to be stashed; must not be null, empty, or contain null elements
+    /// @param files the list of file paths to be staged; must not be null, empty, or contain null elements
     /// @throws NullPointerException     if the `files` list or any element within the list is null
     /// @throws IllegalArgumentException if the `files` list is empty
     /// @throws MojoExecutionException   if the Git command execution fails
-    public static void gitStashFiles(List<Path> files)
+    public static void gitStageFiles(List<Path> files)
             throws IllegalArgumentException, NullPointerException, MojoExecutionException {
         Objects.requireNonNull(files, "`files` must not be null");
         files.forEach(file -> Objects.requireNonNull(file, "`file` in `files` must not be null"));
@@ -77,7 +77,7 @@ public final class ProcessUtils {
                 Stream.of("git", "add"),
                 files.stream().map(Path::toString)
         ).toList();
-        executeGitCommand(command, "Unable to add files to Git stash");
+        executeGitCommand(command, "Unable to add files to Git staging");
     }
 
     /// Commits staged changes in a Git repository with the given commit message.
@@ -107,17 +107,17 @@ public final class ProcessUtils {
 
     /// Executes the given script within the context of a specified project directory and applies version-related
     /// environment variables.
-    /// Optionally, the execution can be a dry run or include Git stash behavior.
+    /// Optionally, the execution can be a dry run or include Git staging behavior.
     ///
     /// @param script        the path to the script to be executed; must not be null
     /// @param projectPath   the path to the project directory in which the script is executed; must not be null
     /// @param versionChange an instance of [VersionChange] representing the old and new version values; must not be null
     /// @param dryRun        a boolean flag indicating whether the operation should simulate changes without applying them
-    /// @param stash         a boolean flag indicating whether Git stash behavior should be applied during execution
+    /// @param stage         a boolean flag indicating whether Git staging behavior should be applied during execution
     /// @throws NullPointerException   if any of the `script`, `projectPath`, or `versionChange` arguments are null
     /// @throws MojoExecutionException if an I/O or interruption error occurs during script execution, or if the process exits with a non-zero status code
     public static void executeScripts(
-            Path script, Path projectPath, VersionChange versionChange, boolean dryRun, boolean stash
+            Path script, Path projectPath, VersionChange versionChange, boolean dryRun, boolean stage
     ) throws NullPointerException, MojoExecutionException {
         Objects.requireNonNull(script, "`script` must not be null");
         Objects.requireNonNull(projectPath, "`projectPath` must not be null");
@@ -129,7 +129,9 @@ public final class ProcessUtils {
             environment.put("CURRENT_VERSION", versionChange.oldVersion());
             environment.put("NEW_VERSION", versionChange.newVersion());
             environment.put("DRY_RUN", Boolean.toString(dryRun));
-            environment.put("GIT_STASH", Boolean.toString(stash));
+            environment.put("GIT_STASH", Boolean.toString(stage));
+            environment.put("GIT_STAGING", Boolean.toString(stage));
+            environment.put("PROJECT_PATH", projectPath.toAbsolutePath().toString());
             environment.put("EXECUTION_DATE", LocalDate.now().toString());
             Process process = processBuilder.directory(projectPath.toFile())
                     .inheritIO()

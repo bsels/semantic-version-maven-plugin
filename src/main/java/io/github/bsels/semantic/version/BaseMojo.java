@@ -362,7 +362,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
         } else {
             MarkdownUtils.writeMarkdownFile(markdownFile, markdownNode, backupFiles);
         }
-        stashFiles(List.of(markdownFile));
+        stageFiles(List.of(markdownFile));
     }
 
     /// Simulates writing to a file by using a [StringWriter].
@@ -384,13 +384,13 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
         }
     }
 
-    /// Stashes the provided list of file paths using Git if stashing is enabled and not in dry-run mode.
+    /// Stages the provided list of file paths using Git if staging is enabled and not in dry-run mode.
     ///
-    /// @param files the list of file paths to be stashed
-    /// @throws MojoExecutionException if an error occurs during the stashing process
-    protected void stashFiles(List<Path> files) throws MojoExecutionException {
-        if (!dryRun && git.isStash()) {
-            ProcessUtils.gitStashFiles(files);
+    /// @param files the list of file paths to be staged
+    /// @throws MojoExecutionException if an error occurs during the staging process
+    protected void stageFiles(List<Path> files) throws MojoExecutionException {
+        if (!dryRun && git.isStaging()) {
+            ProcessUtils.gitStageFiles(files);
         }
     }
 

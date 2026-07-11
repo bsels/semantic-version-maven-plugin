@@ -882,7 +882,7 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             if (Git.NO_GIT == gitMode) {
                 assertThat(mockedExecutedProcesses)
                         .isEmpty();
-            } else if (Git.STASH == gitMode) {
+            } else if (Git.STASH == gitMode || Git.STAGING == gitMode) {
                 assertThat(mockedExecutedProcesses)
                         .hasSize(7)
                         .contains(
