@@ -69,7 +69,7 @@
         <!-- https://central.sonatype.com/artifact/org.commonmark/commonmark -->
         <commonmark.version>0.29.0</commonmark.version>
         <!-- https://central.sonatype.com/artifact/tools.jackson/jackson-bom -->
-        <jackson.version>3.2.0</jackson.version>
+        <jackson.version>3.2.1</jackson.version>
         <!-- https://central.sonatype.com/artifact/org.junit.jupiter/junit-jupiter-api -->
         <junit.version>6.1.1</junit.version>
         <!-- https://central.sonatype.com/artifact/org.apache.maven.plugin-tools/maven-plugin-annotations -->
