@@ -4,6 +4,10 @@ import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionHeaders;
+import io.github.bsels.semantic.version.template.TemplateDefinition;
+import io.github.bsels.semantic.version.template.TemplatePrompter;
+import io.github.bsels.semantic.version.template.TemplateRenderer;
+import io.github.bsels.semantic.version.template.TemplateResolver;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.ProcessUtils;
 import io.github.bsels.semantic.version.utils.TerminalHelper;
@@ -130,7 +134,8 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
         commit(commitMessage.formatted(selectedProjects.size()));
     }
 
-    /// Creates a changelog entry by either taking user input directly or by leveraging an external editor.
+    /// Creates a changelog entry from a configured template, direct input, or an external editor.
+    /// When `.versioning/template.md` exists, the template flow is strict and replaces both free-form paths.
     /// This method prompts the user to enter multiline input for the changelog entry, where two consecutive empty lines
     /// terminate the input.
     /// If the user enters an empty line initially,
@@ -140,6 +145,13 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
     /// @throws MojoExecutionException if an error occurs during the execution of the changelog entry creation.
     /// @throws MojoFailureException   if the operation to create or process the changelog fails.
     private Node createChangelogEntry() throws MojoExecutionException, MojoFailureException {
+        Optional<TemplateDefinition> template = TemplateResolver.resolve(getLog(), getVersioningFolder());
+        if (template.isPresent()) {
+            List<Map<String, String>> values = TemplatePrompter.promptForValues(template.get());
+            String rendered = TemplateRenderer.render(template.get(), values);
+            getLog().debug("Rendered changelog entry from template:%n%s".formatted(rendered));
+            return MarkdownUtils.parseMarkdown(rendered);
+        }
         Optional<String> input = TerminalHelper.readMultiLineInput(
                 """
                         Please type the changelog entry here (enter empty line to open external editor, \
