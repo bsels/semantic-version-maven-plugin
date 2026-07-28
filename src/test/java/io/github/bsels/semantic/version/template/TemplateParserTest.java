@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.regex.PatternSyntaxException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -119,8 +120,127 @@ public class TemplateParserTest {
 			assertThatThrownBy(() -> TemplateParser.parse(
 					new SystemStreamLog(),
 					"- {description}"
-			)).isInstanceOf(MojoFailureException.class)
-					.hasMessageContaining("front matter");
+			)).isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template must start with a YAML front matter block (`---`)");
+		}
+
+		@Test
+		void unclosedFrontMatter_Throws() {
+			String template = """
+					---
+					variables:
+					  description: {}
+					{description}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template YAML front matter block is not closed (`---`)");
+		}
+
+		@Test
+		void emptyFrontMatter_Throws() {
+			String template = """
+					---
+					---
+					body
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template front matter must not be empty");
+		}
+
+		@Test
+		void nullFrontMatter_Throws() {
+			String template = """
+					---
+					null
+					---
+					body
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template front matter must not be empty");
+		}
+
+		@Test
+		void malformedYaml_ThrowsWithJacksonCause() {
+			String template = """
+					---
+					variables: [unclosed
+					---
+					body
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessageStartingWith("Template front matter is not valid:")
+					.hasCauseInstanceOf(tools.jackson.core.JacksonException.class);
+		}
+
+		@Test
+		void missingVariablesAndRemote_Throws() {
+			String template = """
+					---
+					repeatable: true
+					---
+					static body
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage(
+							"Template front matter must declare `variables` (or a `remote` reference)"
+					);
+		}
+
+		@Test
+		void emptyVariables_Throws() {
+			String template = """
+					---
+					variables: {}
+					---
+					static body
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage(
+							"Template front matter must declare `variables` (or a `remote` reference)"
+					);
+		}
+
+		@Test
+		void invalidVariableName_Throws() {
+			String template = """
+					---
+					variables:
+					  issue-key: {}
+					---
+					{issueKey}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template variable name `issue-key` is not valid");
+		}
+
+		@Test
+		void blankVariablePrompt_Throws() {
+			String template = """
+					---
+					variables:
+					  issueKey:
+					    prompt: " "
+					---
+					{issueKey}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Prompt of template variable `issueKey` must not be blank");
 		}
 
 		@Test
@@ -134,9 +254,11 @@ public class TemplateParserTest {
 					""";
 
 			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isInstanceOf(MojoFailureException.class)
-					.hasMessageContaining("descriptionTypo")
-					.hasMessageContaining("issueKey");
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage(
+							"Template body references undeclared placeholder(s) [descriptionTypo]; "
+									+ "declared variables: [issueKey]"
+					);
 		}
 
 		@Test
@@ -151,8 +273,11 @@ public class TemplateParserTest {
 					""";
 
 			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isInstanceOf(MojoFailureException.class)
-					.hasMessageContaining("issueKey");
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessageStartingWith(
+							"Pattern of template variable `issueKey` is not a valid regular expression:"
+					)
+					.hasCauseInstanceOf(PatternSyntaxException.class);
 		}
 
 		@Test
@@ -167,8 +292,53 @@ public class TemplateParserTest {
 					""";
 
 			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isInstanceOf(MojoFailureException.class)
-					.hasMessageContaining("remote");
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage(
+							"Template front matter must not combine `remote` with `variables` or `repeatable`"
+					);
+		}
+
+		@Test
+		void remoteCombinedWithRepeatable_Throws() {
+			String template = """
+					---
+					remote: git@github.com:org/standards.git
+					repeatable: false
+					---
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage(
+							"Template front matter must not combine `remote` with `variables` or `repeatable`"
+					);
+		}
+
+		@Test
+		void blankRemote_Throws() {
+			String template = """
+					---
+					remote: " "
+					---
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template `remote` must not be blank");
+		}
+
+		@Test
+		void blankRemotePath_Throws() {
+			String template = """
+					---
+					remote: git@github.com:org/standards.git
+					path: " "
+					---
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Remote template `path` must not be blank");
 		}
 
 		@Test

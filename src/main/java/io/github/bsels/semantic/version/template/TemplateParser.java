@@ -115,6 +115,9 @@ public final class TemplateParser {
 	/// @return deserialized front matter
 	/// @throws MojoFailureException if YAML is malformed
 	private static FrontMatter readFrontMatter(String yaml) throws MojoFailureException {
+		if (yaml.isBlank()) {
+			throw new MojoFailureException("Template front matter must not be empty");
+		}
 		try {
 			return YAML_MAPPER.readValue(yaml, FrontMatter.class);
 		} catch (JacksonException e) {
