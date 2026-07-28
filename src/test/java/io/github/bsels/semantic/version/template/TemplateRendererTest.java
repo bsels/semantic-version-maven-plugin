@@ -27,6 +27,13 @@ public class TemplateRendererTest {
 	class RenderTest {
 
 		@Test
+		void emptyValueSets_ThrowsIllegalArgumentException() {
+			assertThatThrownBy(() -> TemplateRenderer.render(DEFINITION, List.of()))
+					.isExactlyInstanceOf(IllegalArgumentException.class)
+					.hasMessage("`valueSets` must not be empty");
+		}
+
+		@Test
 		void singleValueSet_SubstitutesEveryOccurrence() {
 			String rendered = TemplateRenderer.render(
 					DEFINITION,
@@ -65,8 +72,8 @@ public class TemplateRendererTest {
 			assertThatThrownBy(() -> TemplateRenderer.render(
 					DEFINITION,
 					List.of(Map.of("issueKey", "ISSUE-235"))
-			)).isInstanceOf(IllegalArgumentException.class)
-					.hasMessageContaining("description");
+			)).isExactlyInstanceOf(IllegalArgumentException.class)
+					.hasMessage("Missing value for template variable `description`");
 		}
 
 		@Test
