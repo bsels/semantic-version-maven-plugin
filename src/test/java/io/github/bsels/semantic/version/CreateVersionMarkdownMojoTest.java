@@ -303,6 +303,53 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
         }
 
+        @Test
+        void selectSingleProject_TemplatePresent_RendersTemplatedChangelog() {
+            classUnderTest.dryRun = false;
+            Path templateFile = getResourcesPath("multi", ".versioning", "template.md");
+            filesMockedStatic.when(() -> Files.exists(templateFile)).thenReturn(true);
+            filesMockedStatic.when(() -> Files.readString(templateFile)).thenReturn("""
+                    ---
+                    variables:
+                      issueKey:
+                        prompt: "Jira issue key"
+                        pattern: "[A-Z]+-\\\\d+"
+                      description: {}
+                    ---
+                    - [{issueKey}](https://example.com/browse/{issueKey})
+                        - {description}
+                    """);
+
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
+                    Scanner.class,
+                    (mock, context) -> {
+                        Mockito.when(mock.hasNextLine()).thenReturn(true);
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.nextLine()).thenReturn("1");
+                        } else if (context.getCount() == 2) {
+                            Mockito.when(mock.nextLine()).thenReturn("patch");
+                        } else {
+                            Mockito.when(mock.nextLine()).thenReturn("AI-235", "Setup repository");
+                        }
+                    }
+            )) {
+                assertThatNoException().isThrownBy(classUnderTest::execute);
+            }
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(1)
+                    .hasEntrySatisfying(
+                            getVersioningMarkdown(),
+                            writer -> assertThat(writer.toString())
+                                    .contains("- [AI-235](https://example.com/browse/AI-235)")
+                                    .contains("    - Setup repository")
+                    );
+            assertThat(outputStream.toString())
+                    .doesNotContain("Please type the changelog entry here")
+                    .contains("Jira issue key: ")
+                    .contains("description: ");
+        }
+
         @ParameterizedTest
         @EnumSource(value = Git.class)
         void selectMultipleProjects_Valid(Git gitMode) {
