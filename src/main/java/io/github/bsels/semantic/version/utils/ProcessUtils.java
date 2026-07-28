@@ -6,6 +6,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -103,6 +104,32 @@ public final class ProcessUtils {
     /// @throws MojoExecutionException if an I/O error, process interruption, or non-zero exit status occurs during the execution of the `git status` command.
     public static void gitStatus() throws MojoExecutionException {
         executeGitCommand(List.of("git", "status"), "Unable to get Git status");
+    }
+
+    /// Creates a shallow, single-branch clone of a remote repository.
+    ///
+    /// @param remote          git URL of the repository; must not be null
+    /// @param ref             branch or tag to clone; may be null for the default branch
+    /// @param targetDirectory directory to clone into; must not be null
+    /// @throws NullPointerException   if `remote` or `targetDirectory` is null
+    /// @throws MojoExecutionException if git cannot clone the repository
+    public static void gitShallowClone(String remote, String ref, Path targetDirectory)
+            throws NullPointerException, MojoExecutionException {
+        Objects.requireNonNull(remote, "`remote` must not be null");
+        Objects.requireNonNull(targetDirectory, "`targetDirectory` must not be null");
+        List<String> command = new ArrayList<>(List.of(
+                "git", "clone", "--depth", "1", "--single-branch"
+        ));
+        if (ref != null && !ref.isBlank()) {
+            command.add("--branch");
+            command.add(ref);
+        }
+        command.add(remote);
+        command.add(targetDirectory.toString());
+        executeGitCommand(
+                command,
+                "Unable to clone remote template repository `%s`".formatted(remote)
+        );
     }
 
     /// Executes the given script within the context of a specified project directory and applies version-related

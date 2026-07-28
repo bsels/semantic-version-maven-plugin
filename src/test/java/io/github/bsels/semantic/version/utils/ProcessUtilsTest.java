@@ -365,6 +365,110 @@ public class ProcessUtilsTest {
     }
 
     @Nested
+    class GitShallowCloneTest {
+        @Test
+        void nullRemote_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> ProcessUtils.gitShallowClone(
+                    null,
+                    "main",
+                    Path.of("target-dir")
+            )).isInstanceOf(NullPointerException.class)
+                    .hasMessage("`remote` must not be null");
+        }
+
+        @Test
+        void nullTargetDirectory_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> ProcessUtils.gitShallowClone(
+                    "git@github.com:org/repo.git",
+                    "main",
+                    null
+            )).isInstanceOf(NullPointerException.class)
+                    .hasMessage("`targetDirectory` must not be null");
+        }
+
+        @Test
+        void ref_ExecutesCloneWithBranch() throws Exception {
+            AtomicReference<List<String>> executedCommand = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class,
+                    (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList())).thenAnswer(invocation -> {
+                            executedCommand.set(invocation.getArgument(0));
+                            return mock;
+                        });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                    }
+            )) {
+                Mockito.when(process.waitFor()).thenReturn(0);
+
+                ProcessUtils.gitShallowClone(
+                        "git@github.com:org/repo.git",
+                        "main",
+                        Path.of("target-dir")
+                );
+            }
+
+            assertThat(executedCommand.get()).containsExactly(
+                    "git", "clone", "--depth", "1", "--single-branch",
+                    "--branch", "main", "git@github.com:org/repo.git", "target-dir"
+            );
+        }
+
+        @Test
+        void noRef_ExecutesCloneWithoutBranch() throws Exception {
+            AtomicReference<List<String>> executedCommand = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class,
+                    (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList())).thenAnswer(invocation -> {
+                            executedCommand.set(invocation.getArgument(0));
+                            return mock;
+                        });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                    }
+            )) {
+                Mockito.when(process.waitFor()).thenReturn(0);
+
+                ProcessUtils.gitShallowClone(
+                        "git@github.com:org/repo.git",
+                        null,
+                        Path.of("target-dir")
+                );
+            }
+
+            assertThat(executedCommand.get()).containsExactly(
+                    "git", "clone", "--depth", "1", "--single-branch",
+                    "git@github.com:org/repo.git", "target-dir"
+            );
+        }
+
+        @Test
+        void nonZeroExit_ThrowsMojoExecutionException() throws Exception {
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class,
+                    (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList())).thenReturn(mock);
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                    }
+            )) {
+                Mockito.when(process.waitFor()).thenReturn(1);
+
+                assertThatThrownBy(() -> ProcessUtils.gitShallowClone(
+                        "git@github.com:org/repo.git",
+                        "main",
+                        Path.of("target-dir")
+                )).isInstanceOf(MojoExecutionException.class)
+                        .hasMessage(
+                                "Unable to clone remote template repository `git@github.com:org/repo.git`"
+                        );
+            }
+        }
+    }
+
+    @Nested
     class ExecuteScriptsTest {
 
         @Test
