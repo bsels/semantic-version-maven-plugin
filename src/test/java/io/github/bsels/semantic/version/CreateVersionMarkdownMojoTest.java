@@ -304,21 +304,14 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
         }
 
         @Test
-        void selectSingleProject_TemplatePresent_RendersTemplatedChangelog() {
+        void selectSingleProject_TemplatePresent_RendersTemplatedChangelog() throws Exception {
             classUnderTest.dryRun = false;
             Path templateFile = getResourcesPath("multi", ".versioning", "template.md");
+            String templateContent = Files.readString(
+                    getResourcesPath("changelog-templates", "local.md")
+            );
             filesMockedStatic.when(() -> Files.exists(templateFile)).thenReturn(true);
-            filesMockedStatic.when(() -> Files.readString(templateFile)).thenReturn("""
-                    ---
-                    variables:
-                      issueKey:
-                        prompt: "Jira issue key"
-                        pattern: "[A-Z]+-\\\\d+"
-                      description: {}
-                    ---
-                    - [{issueKey}](https://example.com/browse/{issueKey})
-                        - {description}
-                    """);
+            filesMockedStatic.when(() -> Files.readString(templateFile)).thenReturn(templateContent);
 
             try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
                     Scanner.class,
@@ -329,7 +322,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                         } else if (context.getCount() == 2) {
                             Mockito.when(mock.nextLine()).thenReturn("patch");
                         } else {
-                            Mockito.when(mock.nextLine()).thenReturn("AI-235", "Setup repository");
+                            Mockito.when(mock.nextLine()).thenReturn("ISSUE-235", "Setup repository");
                         }
                     }
             )) {
@@ -341,13 +334,13 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                     .hasEntrySatisfying(
                             getVersioningMarkdown(),
                             writer -> assertThat(writer.toString())
-                                    .contains("- [AI-235](https://example.com/browse/AI-235)")
+                                    .contains("- [ISSUE-235](https://company.atlassian.net/browse/ISSUE-235)")
                                     .contains("    - Setup repository")
                     );
             assertThat(outputStream.toString())
                     .doesNotContain("Please type the changelog entry here")
                     .contains("Jira issue key: ")
-                    .contains("description: ");
+                    .contains("What changed?: ");
         }
 
         @ParameterizedTest
