@@ -147,7 +147,7 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
     private Node createChangelogEntry() throws MojoExecutionException, MojoFailureException {
         Optional<TemplateDefinition> template = TemplateResolver.resolve(getLog(), getVersioningFolder());
         if (template.isPresent()) {
-            List<Map<String, String>> values = TemplatePrompter.promptForValues(template.get());
+            Map<String, Object> values = TemplatePrompter.promptForValues(template.get());
             String rendered = TemplateRenderer.render(template.get(), values);
             getLog().debug("Rendered changelog entry from template:%n%s".formatted(rendered));
             return MarkdownUtils.parseMarkdown(rendered);

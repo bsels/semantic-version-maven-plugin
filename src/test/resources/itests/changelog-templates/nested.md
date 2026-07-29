@@ -6,10 +6,14 @@ variables:
   description:
     prompt: "What changed?"
 sections:
-  entries:
-    addPrompt: "Add another entry?"
+  issues:
+    addPrompt: "Add another issue?"
+  descriptions:
+    addPrompt: "More descriptions?"
 ---
-{{#entries}}
+{{#issues}}
 - [{{issueKey}}](https://company.atlassian.net/browse/{{issueKey}})
+{{#descriptions}}
     - {{description}}
-{{/entries}}
+{{/descriptions}}
+{{/issues}}

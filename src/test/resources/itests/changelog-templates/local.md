@@ -6,5 +6,5 @@ variables:
   description:
     prompt: "What changed?"
 ---
-- [{issueKey}](https://company.atlassian.net/browse/{issueKey})
-    - {description}
+- [{{issueKey}}](https://company.atlassian.net/browse/{{issueKey}})
+    - {{description}}

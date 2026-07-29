@@ -308,7 +308,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
             classUnderTest.dryRun = false;
             Path templateFile = getResourcesPath("multi", ".versioning", "template.md");
             String templateContent = Files.readString(
-                    getResourcesPath("changelog-templates", "local.md")
+                    getResourcesPath("changelog-templates", "repeatable.md")
             );
             filesMockedStatic.when(() -> Files.exists(templateFile)).thenReturn(true);
             filesMockedStatic.when(() -> Files.readString(templateFile)).thenReturn(templateContent);
@@ -322,7 +322,7 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                         } else if (context.getCount() == 2) {
                             Mockito.when(mock.nextLine()).thenReturn("patch");
                         } else {
-                            Mockito.when(mock.nextLine()).thenReturn("ISSUE-235", "Setup repository");
+                            Mockito.when(mock.nextLine()).thenReturn("ISSUE-235", "Setup repository", "n");
                         }
                     }
             )) {
@@ -340,7 +340,8 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
             assertThat(outputStream.toString())
                     .doesNotContain("Please type the changelog entry here")
                     .contains("Jira issue key: ")
-                    .contains("What changed?: ");
+                    .contains("What changed?: ")
+                    .contains("Add another entry? [y/N]: ");
         }
 
         @ParameterizedTest

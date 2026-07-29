@@ -25,13 +25,13 @@ variables:
 ### Security
 
 > [!IMPORTANT]
-> **{severity} severity:** {summary}
+> **{{severity}} severity:** {{summary}}
 
 | Detail | Value |
 |---|---|
-| Advisory | [{advisory}](https://github.com/{repository}/security/advisories/{advisory}) |
-| CVE | [{cve}](https://www.cve.org/CVERecord?id={cve}) |
-| Affected versions | `{affectedVersions}` |
-| Patched version | `{patchedVersion}` |
+| Advisory | [{{advisory}}](https://github.com/{{repository}}/security/advisories/{{advisory}}) |
+| CVE | [{{cve}}](https://www.cve.org/CVERecord?id={{cve}}) |
+| Affected versions | `{{affectedVersions}}` |
+| Patched version | `{{patchedVersion}}` |
 
-**Mitigation:** {mitigation}
+**Mitigation:** {{mitigation}}

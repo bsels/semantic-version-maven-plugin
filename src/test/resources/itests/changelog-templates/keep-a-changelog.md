@@ -18,8 +18,8 @@ variables:
     prompt: "Pull request number"
     pattern: "\\d+"
 ---
-### {changeType}
+### {{changeType}}
 
-- **{component}:** {summary}
-    - Issue: [#{issue}](https://github.com/{repository}/issues/{issue})
-    - Pull request: [#{pullRequest}](https://github.com/{repository}/pull/{pullRequest})
+- **{{component}}:** {{summary}}
+    - Issue: [#{{issue}}](https://github.com/{{repository}}/issues/{{issue}})
+    - Pull request: [#{{pullRequest}}](https://github.com/{{repository}}/pull/{{pullRequest}})

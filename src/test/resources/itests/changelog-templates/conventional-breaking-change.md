@@ -25,7 +25,7 @@ variables:
 ---
 ### Breaking Changes 🛠
 
-- **{type}({scope})!** {summary}
-    - **BREAKING CHANGE:** {migration}
-    - Pull request: [#{pullRequest}](https://github.com/{repository}/pull/{pullRequest}) by [@{author}](https://github.com/{author})
-    - Tracking issue: [{issueKey}](https://company.atlassian.net/browse/{issueKey})
+- **{{type}}({{scope}})!** {{summary}}
+    - **BREAKING CHANGE:** {{migration}}
+    - Pull request: [#{{pullRequest}}](https://github.com/{{repository}}/pull/{{pullRequest}}) by [@{{author}}](https://github.com/{{author}})
+    - Tracking issue: [{{issueKey}}](https://company.atlassian.net/browse/{{issueKey}})
