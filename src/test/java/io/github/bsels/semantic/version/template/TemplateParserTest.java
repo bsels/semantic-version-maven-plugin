@@ -35,6 +35,16 @@ public class TemplateParserTest {
 	class ParseTest {
 
 		@Test
+		void nullArguments_ThrowWithParameterName() {
+			assertThatThrownBy(() -> TemplateParser.parse(null, ""))
+					.isExactlyInstanceOf(NullPointerException.class)
+					.hasMessage("`log` must not be null");
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), null))
+					.isExactlyInstanceOf(NullPointerException.class)
+					.hasMessage("`content` must not be null");
+		}
+
+		@Test
 		void sectionedTemplate_ReturnsDefinitionAndPromptPlanInDocumentOrder() throws Exception {
 			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
 					new SystemStreamLog(),
@@ -147,6 +157,26 @@ public class TemplateParserTest {
 		}
 
 		@Test
+		void nullVariableDeclaration_DefaultsPromptAndPattern() throws MojoFailureException {
+			String template = """
+					---
+					variables:
+					  description:
+					---
+					{{description}}
+					""";
+
+			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
+					new SystemStreamLog(),
+					template
+			);
+
+			assertThat(definition.variables()).containsExactly(
+					new TemplateVariable("description", "description", null)
+			);
+		}
+
+		@Test
 		void sectionWithoutVariables_NeedsNoVariableDeclarations() throws MojoFailureException {
 			String template = """
 					---
@@ -164,6 +194,25 @@ public class TemplateParserTest {
 			assertThat(definition.variables()).isEmpty();
 			assertThat(definition.promptPlan())
 					.containsExactly(new SectionNode("separators", List.of()));
+		}
+
+		@Test
+		void nullSectionDeclaration_UsesDefaultAddPrompt() throws MojoFailureException {
+			String template = """
+					---
+					sections:
+					  entries:
+					---
+					{{#entries}}entry{{/entries}}
+					""";
+
+			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
+					new SystemStreamLog(),
+					template
+			);
+
+			assertThat(definition.sectionAddPrompts())
+					.containsExactlyEntriesOf(java.util.Map.of("entries", "Add another entries?"));
 		}
 
 		@Test
@@ -204,6 +253,77 @@ public class TemplateParserTest {
 			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
 					.isExactlyInstanceOf(MojoFailureException.class)
 					.hasMessageContaining("not supported in changelog templates");
+		}
+
+		@Test
+		void customDelimiters_Throw() {
+			String template = """
+					---
+					variables:
+					  description: {}
+					---
+					{{=<% %>=}}<%description%>
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Mustache custom delimiters are not supported in changelog templates");
+		}
+
+		@Test
+		void tripleMustacheAmpersandAndComment_BuildOneVariableNode() throws MojoFailureException {
+			String template = """
+					---
+					variables:
+					  description: {}
+					---
+					{{! This comment is ignored }}
+					{{{description}}} {{&description}}
+					""";
+
+			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
+					new SystemStreamLog(),
+					template
+			);
+
+			assertThat(definition.promptPlan())
+					.containsExactly(new VariableNode("description"));
+		}
+
+		@ParameterizedTest
+		@ValueSource(strings = {
+				"{{invalid-name}}",
+				"{{#invalid-name}}content{{/invalid-name}}"
+		})
+		void invalidNameInBody_Throws(String body) {
+			String template = """
+					---
+					variables: {}
+					---
+					%s
+					""".formatted(body);
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessageMatching("Template (variable|section) name `invalid-name` is not valid");
+		}
+
+		@Test
+		void unmatchedOpeningDelimiter_IsLiteralText() throws MojoFailureException {
+			String template = """
+					---
+					variables: {}
+					---
+					literal {{
+					""";
+
+			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
+					new SystemStreamLog(),
+					template
+			);
+
+			assertThat(definition.promptPlan()).isEmpty();
+			assertThat(definition.body()).isEqualTo("literal {{\n");
 		}
 
 		@Test
@@ -257,6 +377,52 @@ public class TemplateParserTest {
 							"Pattern of template variable `issueKey` is not a valid regular expression:"
 					)
 					.hasCauseInstanceOf(PatternSyntaxException.class);
+		}
+
+		@Test
+		void invalidVariableName_Throws() {
+			String template = """
+					---
+					variables:
+					  issue-key: {}
+					---
+					{{issueKey}}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template variable name `issue-key` is not valid");
+		}
+
+		@Test
+		void blankVariablePrompt_Throws() {
+			String template = """
+					---
+					variables:
+					  issueKey:
+					    prompt: " "
+					---
+					{{issueKey}}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Prompt of template variable `issueKey` must not be blank");
+		}
+
+		@Test
+		void invalidSectionName_Throws() {
+			String template = """
+					---
+					sections:
+					  entry-list: {}
+					---
+					static body
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template section name `entry-list` is not valid");
 		}
 
 		@Test
@@ -325,11 +491,47 @@ public class TemplateParserTest {
 		}
 
 		@Test
+		void remoteCombinedWithVariables_Throws() {
+			String template = """
+					---
+					remote: git@github.com:org/standards.git
+					variables: {}
+					---
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage(
+							"Template front matter must not combine `remote` with `variables` or `sections`"
+					);
+		}
+
+		@Test
+		void blankRemote_Throws() {
+			String template = """
+					---
+					remote: " "
+					---
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template `remote` must not be blank");
+		}
+
+		@Test
 		void missingFrontMatter_Throws() {
 			assertThatThrownBy(() -> TemplateParser.parse(
 					new SystemStreamLog(),
 					"{{description}}"
 			)).isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template must start with a YAML front matter block (`---`)");
+		}
+
+		@Test
+		void emptyContent_ThrowsMissingFrontMatter() {
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), ""))
+					.isExactlyInstanceOf(MojoFailureException.class)
 					.hasMessage("Template must start with a YAML front matter block (`---`)");
 		}
 
@@ -351,6 +553,20 @@ public class TemplateParserTest {
 		void emptyFrontMatter_Throws() {
 			String template = """
 					---
+					---
+					body
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Template front matter must not be empty");
+		}
+
+		@Test
+		void nullFrontMatter_Throws() {
+			String template = """
+					---
+					null
 					---
 					body
 					""";
