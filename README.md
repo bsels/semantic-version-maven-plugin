@@ -127,27 +127,42 @@ variables and renders the Markdown body instead of accepting free-form input or 
 
 ```markdown
 ---
-repeatable: true
 variables:
   issueKey:
     prompt: "Jira issue key"
     pattern: "[A-Z]+-\\d+"
   description:
     prompt: "What changed?"
+sections:
+  issues:
+    addPrompt: "Add another issue?"
+  descriptions:
+    addPrompt: "More descriptions?"
 ---
-- [{issueKey}](https://company.atlassian.net/browse/{issueKey})
-    - {description}
+{{#issues}}
+- [{{issueKey}}](https://company.atlassian.net/browse/{{issueKey}})
+{{#descriptions}}
+    - {{description}}
+{{/descriptions}}
+{{/issues}}
 ```
 
-| Setting                    | Type                    | Default       | Description                                                            |
-|----------------------------|-------------------------|---------------|------------------------------------------------------------------------|
-| `repeatable`               | `boolean`               | `false`       | Ask `Add another entry? [y/N]` after each rendered block.              |
-| `variables.<name>.prompt`  | `String`                | Variable name | Text displayed when collecting the placeholder value.                  |
-| `variables.<name>.pattern` | Java regular expression | -             | The complete input value must match; invalid input is requested again. |
+| Setting                     | Type                    | Default               | Description                                                            |
+|-----------------------------|-------------------------|-----------------------|------------------------------------------------------------------------|
+| `variables.<name>.prompt`   | `String`                | Variable name         | Text displayed when collecting the variable value.                     |
+| `variables.<name>.pattern`  | Java regular expression | -                     | The complete input value must match; invalid input is requested again. |
+| `sections.<name>.addPrompt` | `String`                | `Add another <name>?` | Text displayed after each completed section iteration.                 |
 
-Variables are prompted in declaration order. Blank values and values that do not match their
-pattern are requested again. Undeclared placeholders are rejected, while declared variables that
-are not used in the body produce a warning and are skipped.
+`{{name}}` inserts a variable. `{{#name}}...{{/name}}` defines a repeatable section, and
+sections can be nested. Every section collects at least one iteration; after each iteration its
+add-another question accepts `y` or `Y` to collect another. Sections do not need to be declared in
+front matter unless their question should be customized.
+
+Variables and section questions are prompted in body order, not declaration order. A variable
+used more than once in the same block is prompted only at its first occurrence. Blank values and
+values that do not match their pattern are requested again. Undeclared variables are rejected,
+while declared variables that are not used in the body produce a warning and are skipped.
+Partials, parents, blocks, inverted sections, and custom delimiters are not supported.
 
 A local template can instead point to a template in another git repository:
 
@@ -176,7 +191,8 @@ Without `.versioning/template.md`, the `create` goal behaves as before.
 
 Ready-to-use examples are available for
 [local templates](src/test/resources/itests/changelog-templates/local.md),
-[repeatable templates](src/test/resources/itests/changelog-templates/repeatable.md), and
+[sectioned templates](src/test/resources/itests/changelog-templates/repeatable.md),
+[nested sections](src/test/resources/itests/changelog-templates/nested.md), and
 [remote references](src/test/resources/itests/changelog-templates/remote-reference.md).
 More advanced examples cover
 [Keep a Changelog categories](src/test/resources/itests/changelog-templates/keep-a-changelog.md),
