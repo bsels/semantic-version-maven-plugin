@@ -1,33 +1,40 @@
 package io.github.bsels.semantic.version.template;
 
+import com.samskivert.mustache.Mustache;
+import com.samskivert.mustache.MustacheException;
+import com.samskivert.mustache.Template;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-/// Parses changelog entry templates with YAML front matter and a Markdown body.
+/// Parses changelog entry templates with YAML front matter and a Markdown Mustache body.
 public final class TemplateParser {
 
 	/// Delimiter line of a YAML front matter block.
 	private static final String FRONT_MATTER_DELIMITER = "---";
 
-	/// Pattern matching supported `{name}` placeholders.
-	private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z][A-Za-z0-9]*)}");
+	/// Supported variable and section names.
+	private static final Pattern NAME = Pattern.compile("[A-Za-z][A-Za-z0-9]*");
 
 	/// YAML mapper for deserializing front matter.
-	private static final ObjectMapper YAML_MAPPER = YAMLMapper.builder().build();
+	private static final ObjectMapper YAML_MAPPER = YAMLMapper.builder()
+			.enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+			.build();
 
 	/// No instance needed.
 	private TemplateParser() {
@@ -56,13 +63,19 @@ public final class TemplateParser {
 		if (frontMatter == null) {
 			throw new MojoFailureException("Template front matter must not be empty");
 		}
+		if (frontMatter.repeatable() != null) {
+			throw new MojoFailureException(
+					"`repeatable` is no longer supported; mark the repeating block with a "
+							+ "{{#section}} in the template body"
+			);
+		}
 		if (frontMatter.remote() != null) {
 			if (frontMatter.remote().isBlank()) {
 				throw new MojoFailureException("Template `remote` must not be blank");
 			}
-			if (frontMatter.variables() != null || frontMatter.repeatable() != null) {
+			if (frontMatter.variables() != null || frontMatter.sections() != null) {
 				throw new MojoFailureException(
-						"Template front matter must not combine `remote` with `variables` or `repeatable`"
+						"Template front matter must not combine `remote` with `variables` or `sections`"
 				);
 			}
 			String path = frontMatter.path() == null
@@ -74,19 +87,20 @@ public final class TemplateParser {
 			return new RemoteTemplateReference(frontMatter.remote(), path, frontMatter.ref());
 		}
 
-		if (frontMatter.variables() == null || frontMatter.variables().isEmpty()) {
-			throw new MojoFailureException("Template front matter must declare `variables` (or a `remote` reference)");
-		}
-		List<TemplateVariable> variables = buildVariables(frontMatter.variables());
-		validatePlaceholders(log, variables, body);
-		return new TemplateDefinition(Boolean.TRUE.equals(frontMatter.repeatable()), variables, body);
+		Map<String, FrontMatter.VariableDeclaration> variableDeclarations = frontMatter.variables() == null
+				? Map.of()
+				: frontMatter.variables();
+		List<TemplateVariable> variables = buildVariables(variableDeclarations);
+		TemplateAnalysis analysis = analyzeBody(body);
+		validateVariables(log, variables, analysis.usedVariables());
+		Map<String, String> sectionAddPrompts = buildSectionAddPrompts(
+				frontMatter.sections(),
+				analysis.usedSections()
+		);
+		return new TemplateDefinition(body, variables, sectionAddPrompts, analysis.promptPlan());
 	}
 
 	/// Splits YAML front matter from the Markdown body.
-	///
-	/// @param content raw template content
-	/// @return YAML and Markdown body
-	/// @throws MojoFailureException if front matter is missing or unclosed
 	private static String[] splitFrontMatter(String content) throws MojoFailureException {
 		List<String> lines = content.lines().toList();
 		if (lines.isEmpty() || !FRONT_MATTER_DELIMITER.equals(lines.get(0).strip())) {
@@ -110,10 +124,6 @@ public final class TemplateParser {
 	}
 
 	/// Deserializes YAML front matter.
-	///
-	/// @param yaml YAML text
-	/// @return deserialized front matter
-	/// @throws MojoFailureException if YAML is malformed
 	private static FrontMatter readFrontMatter(String yaml) throws MojoFailureException {
 		if (yaml.isBlank()) {
 			throw new MojoFailureException("Template front matter must not be empty");
@@ -126,19 +136,13 @@ public final class TemplateParser {
 	}
 
 	/// Builds variables and compiles validation patterns.
-	///
-	/// @param declarations raw variable declarations
-	/// @return variables in declaration order
-	/// @throws MojoFailureException if a name or regex is invalid
 	private static List<TemplateVariable> buildVariables(
 			Map<String, FrontMatter.VariableDeclaration> declarations
 	) throws MojoFailureException {
 		List<TemplateVariable> variables = new ArrayList<>(declarations.size());
 		for (Map.Entry<String, FrontMatter.VariableDeclaration> entry : declarations.entrySet()) {
 			String name = entry.getKey();
-			if (!name.matches("[A-Za-z][A-Za-z0-9]*")) {
-				throw new MojoFailureException("Template variable name `%s` is not valid".formatted(name));
-			}
+			validateName("variable", name);
 			FrontMatter.VariableDeclaration declaration = entry.getValue();
 			String prompt = declaration != null && declaration.prompt() != null
 					? declaration.prompt()
@@ -163,30 +167,145 @@ public final class TemplateParser {
 		return variables;
 	}
 
-	/// Validates body placeholders and warns about unused declarations.
-	///
-	/// @param log       Maven log
-	/// @param variables declared variables
-	/// @param body      template body
-	/// @throws MojoFailureException if the body references an undeclared placeholder
-	private static void validatePlaceholders(
+	/// Compiles and visits the body, then constructs its nested prompt plan.
+	private static TemplateAnalysis analyzeBody(String body) throws MojoFailureException {
+		if (body.contains("{{=")) {
+			throw unsupportedTag("custom delimiters", null);
+		}
+		Set<String> usedVariables = new HashSet<>();
+		Set<String> usedSections = new HashSet<>();
+		try {
+			Template template = Mustache.compiler().escapeHTML(false).compile(body);
+			template.visit(new Mustache.Visitor() {
+				@Override
+				public void visitText(String text) {
+					// Text does not produce prompts.
+				}
+
+				@Override
+				public void visitVariable(String name) {
+					validateVisitedName("variable", name);
+					usedVariables.add(name);
+				}
+
+				@Override
+				public boolean visitInclude(String name) {
+					throw new UnsupportedTagException("partial", name);
+				}
+
+				@Override
+				public boolean visitParent(String name) {
+					throw new UnsupportedTagException("parent", name);
+				}
+
+				@Override
+				public boolean visitBlock(String name) {
+					throw new UnsupportedTagException("block", name);
+				}
+
+				@Override
+				public boolean visitSection(String name) {
+					validateVisitedName("section", name);
+					usedSections.add(name);
+					return true;
+				}
+
+				@Override
+				public boolean visitInvertedSection(String name) {
+					throw new UnsupportedTagException("inverted section", name);
+				}
+			});
+		} catch (UnsupportedTagException e) {
+			throw unsupportedTag(e.type, e.name);
+		} catch (InvalidNameException e) {
+			throw new MojoFailureException(
+					"Template %s name `%s` is not valid".formatted(e.type, e.name)
+			);
+		} catch (MustacheException e) {
+			throw new MojoFailureException("Template body is not valid: %s".formatted(e.getMessage()), e);
+		}
+		return new TemplateAnalysis(
+				buildPromptPlan(body),
+				Set.copyOf(usedVariables),
+				Set.copyOf(usedSections)
+		);
+	}
+
+	/// Builds nesting from the fixed-delimiter body after JMustache has validated its syntax.
+	private static List<PromptNode> buildPromptPlan(String body) throws MojoFailureException {
+		MutableBlock root = new MutableBlock(null);
+		Deque<MutableBlock> blocks = new ArrayDeque<>();
+		blocks.push(root);
+		int cursor = 0;
+		while (true) {
+			int start = body.indexOf("{{", cursor);
+			if (start == -1) {
+				break;
+			}
+			boolean triple = body.startsWith("{{{", start);
+			String close = triple ? "}}}" : "}}";
+			int end = body.indexOf(close, start + (triple ? 3 : 2));
+			if (end == -1) {
+				break;
+			}
+			String tag = body.substring(start + (triple ? 3 : 2), end).strip();
+			cursor = end + close.length();
+			if (tag.isEmpty() || tag.charAt(0) == '!') {
+				continue;
+			}
+			char marker = triple ? ' ' : tag.charAt(0);
+			boolean variable = triple || "#/&^><$=".indexOf(marker) == -1 || marker == '&';
+			String name = switch (marker) {
+				case '#', '/', '&', '^', '>', '<', '$', '=' -> tag.substring(1).strip();
+				default -> tag;
+			};
+			if (marker == '#') {
+				MutableBlock section = new MutableBlock(name);
+				blocks.peek().entries.add(section);
+				blocks.push(section);
+			} else if (marker == '/') {
+				MutableBlock section = blocks.pop();
+				if (!section.name.equals(name)) {
+					throw new MojoFailureException("Template body is not valid: mismatched section `%s`".formatted(name));
+				}
+			} else if (variable) {
+				MutableBlock block = blocks.peek();
+				if (block.variables.add(name)) {
+					block.entries.add(new VariableNode(name));
+				}
+			}
+		}
+		return toPromptNodes(root.entries);
+	}
+
+	/// Converts mutable parser entries to the public immutable prompt plan.
+	private static List<PromptNode> toPromptNodes(List<Object> entries) {
+		List<PromptNode> nodes = new ArrayList<>(entries.size());
+		for (Object entry : entries) {
+			if (entry instanceof PromptNode node) {
+				nodes.add(node);
+			} else {
+				MutableBlock section = (MutableBlock) entry;
+				nodes.add(new SectionNode(section.name, toPromptNodes(section.entries)));
+			}
+		}
+		return List.copyOf(nodes);
+	}
+
+	/// Verifies declarations against variables discovered in the body.
+	private static void validateVariables(
 			Log log,
 			List<TemplateVariable> variables,
-			String body
+			Set<String> used
 	)
 			throws MojoFailureException {
 		Set<String> declared = new HashSet<>();
 		variables.forEach(variable -> declared.add(variable.name()));
-		Set<String> used = new HashSet<>();
-		Matcher matcher = PLACEHOLDER.matcher(body);
-		while (matcher.find()) {
-			used.add(matcher.group(1));
-		}
 		Set<String> undeclared = new HashSet<>(used);
 		undeclared.removeAll(declared);
 		if (!undeclared.isEmpty()) {
 			throw new MojoFailureException(
-					"Template body references undeclared placeholder(s) %s; declared variables: %s"
+					"Template body references undeclared variable(s) %s; declared variables: %s"
 							.formatted(undeclared.stream().sorted().toList(), declared.stream().sorted().toList())
 			);
 		}
@@ -197,26 +316,133 @@ public final class TemplateParser {
 		}
 	}
 
+	/// Resolves configured and default add-another prompts for used sections.
+	private static Map<String, String> buildSectionAddPrompts(
+			Map<String, FrontMatter.SectionDeclaration> declarations,
+			Set<String> usedSections
+	)
+			throws MojoFailureException {
+		if (declarations != null) {
+			for (Map.Entry<String, FrontMatter.SectionDeclaration> entry : declarations.entrySet()) {
+				String name = entry.getKey();
+				validateName("section", name);
+				if (entry.getValue() != null
+						&& entry.getValue().addPrompt() != null
+						&& entry.getValue().addPrompt().isBlank()) {
+					throw new MojoFailureException(
+							"Add prompt of template section `%s` must not be blank".formatted(name)
+					);
+				}
+			}
+		}
+		Map<String, String> prompts = new LinkedHashMap<>();
+		for (String name : usedSections.stream().sorted().toList()) {
+			FrontMatter.SectionDeclaration declaration = declarations == null ? null : declarations.get(name);
+			String prompt = declaration != null && declaration.addPrompt() != null
+					? declaration.addPrompt()
+					: "Add another %s?".formatted(name);
+			prompts.put(name, prompt);
+		}
+		return prompts;
+	}
+
+	/// Validates a declared name.
+	private static void validateName(
+			String type,
+			String name
+	) throws MojoFailureException {
+		if (name == null || !NAME.matcher(name).matches()) {
+			throw new MojoFailureException("Template %s name `%s` is not valid".formatted(type, name));
+		}
+	}
+
+	/// Validates a name from a visitor callback without a checked exception.
+	private static void validateVisitedName(
+			String type,
+			String name
+	) {
+		if (!NAME.matcher(name).matches()) {
+			throw new InvalidNameException(type, name);
+		}
+	}
+
+	/// Creates the standard unsupported-tag failure.
+	private static MojoFailureException unsupportedTag(
+			String type,
+			String name
+	) {
+		String label = name == null ? type : "%s `%s`".formatted(type, name);
+		return new MojoFailureException(
+				"Mustache %s are not supported in changelog templates".formatted(label)
+		);
+	}
+
 	/// Raw template front matter.
-	///
-	/// @param repeatable whether the body may be rendered repeatedly; may be null
-	/// @param variables  declared variables in declaration order; may be null
-	/// @param remote     remote git URL; may be null
-	/// @param path       path inside the remote repository; may be null
-	/// @param ref        branch or tag; may be null
 	record FrontMatter(
 			Boolean repeatable,
 			LinkedHashMap<String, VariableDeclaration> variables,
+			LinkedHashMap<String, SectionDeclaration> sections,
 			String remote,
 			String path,
 			String ref
 	) {
 
 		/// Raw declaration of one variable.
-		///
-		/// @param prompt  prompt text; may be null
-		/// @param pattern validation regex; may be null
 		record VariableDeclaration(String prompt, String pattern) {
+		}
+
+		/// Raw declaration of one section.
+		record SectionDeclaration(String addPrompt) {
+		}
+	}
+
+	/// Compiled information extracted from the body.
+	private record TemplateAnalysis(
+			List<PromptNode> promptPlan,
+			Set<String> usedVariables,
+			Set<String> usedSections
+	) {
+	}
+
+	/// Mutable block used only while reconstructing section nesting.
+	private static final class MutableBlock {
+
+		private final String name;
+		private final List<Object> entries = new ArrayList<>();
+		private final Set<String> variables = new HashSet<>();
+
+		private MutableBlock(String name) {
+			this.name = name;
+		}
+	}
+
+	/// Signals an unsupported visitor callback.
+	private static final class UnsupportedTagException extends RuntimeException {
+
+		private final String type;
+		private final String name;
+
+		private UnsupportedTagException(
+				String type,
+				String name
+		) {
+			this.type = type;
+			this.name = name;
+		}
+	}
+
+	/// Signals an unsupported variable or section name from a visitor callback.
+	private static final class InvalidNameException extends RuntimeException {
+
+		private final String type;
+		private final String name;
+
+		private InvalidNameException(
+				String type,
+				String name
+		) {
+			this.type = type;
+			this.name = name;
 		}
 	}
 }

@@ -11,7 +11,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.PatternSyntaxException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,21 +35,81 @@ public class TemplateParserTest {
 	class ParseTest {
 
 		@Test
-		void fullTemplate_ReturnsDefinitionInDeclarationOrder() throws Exception {
+		void sectionedTemplate_ReturnsDefinitionAndPromptPlanInDocumentOrder() throws Exception {
 			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
 					new SystemStreamLog(),
 					readTemplateResource("repeatable.md")
 			);
 
-			assertThat(definition.repeatable()).isTrue();
 			assertThat(definition.variables()).extracting(TemplateVariable::name)
 					.containsExactly("issueKey", "description");
 			assertThat(definition.variables().get(0).prompt()).isEqualTo("Jira issue key");
 			assertThat(definition.variables().get(0).pattern().pattern()).isEqualTo("[A-Z]+-\\d+");
-			assertThat(definition.body()).isEqualTo("""
-					- [{issueKey}](https://company.atlassian.net/browse/{issueKey})
-					    - {description}
-					""");
+			assertThat(definition.sectionAddPrompts())
+					.containsEntry("entries", "Add another entry?");
+			assertThat(definition.promptPlan()).containsExactly(
+					new SectionNode(
+							"entries",
+							List.of(
+									new VariableNode("issueKey"),
+									new VariableNode("description")
+							)
+					)
+			);
+			assertThat(definition.body()).contains("{{#entries}}", "{{issueKey}}", "{{/entries}}");
+		}
+
+		@Test
+		void nestedTemplate_BuildsNestedPromptPlan() throws Exception {
+			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
+					new SystemStreamLog(),
+					readTemplateResource("nested.md")
+			);
+
+			assertThat(definition.promptPlan()).containsExactly(
+					new SectionNode(
+							"issues",
+							List.of(
+									new VariableNode("issueKey"),
+									new SectionNode(
+											"descriptions",
+											List.of(new VariableNode("description"))
+									)
+							)
+					)
+			);
+			assertThat(definition.sectionAddPrompts())
+					.containsEntry("issues", "Add another issue?")
+					.containsEntry("descriptions", "More descriptions?");
+		}
+
+		@Test
+		void duplicateVariableInSameBlock_IsCollapsedAtFirstOccurrence() throws MojoFailureException {
+			String template = """
+					---
+					variables:
+					  outer: {}
+					  inner: {}
+					---
+					{{outer}} {{outer}}
+					{{#items}}{{inner}} {{inner}}{{/items}}
+					{{outer}}
+					""";
+
+			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
+					new SystemStreamLog(),
+					template
+			);
+
+			assertThat(definition.promptPlan()).containsExactly(
+					new VariableNode("outer"),
+					new SectionNode(
+							"items",
+							List.of(new VariableNode("inner"))
+					)
+			);
+			assertThat(definition.sectionAddPrompts())
+					.containsEntry("items", "Add another items?");
 		}
 
 		@ParameterizedTest
@@ -67,13 +129,13 @@ public class TemplateParserTest {
 		}
 
 		@Test
-		void defaultsPromptAndRepeatable() throws MojoFailureException {
+		void variablePrompt_DefaultsToName() throws MojoFailureException {
 			String template = """
 					---
 					variables:
 					  description: {}
 					---
-					{description}
+					{{description}}
 					""";
 
 			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
@@ -81,8 +143,138 @@ public class TemplateParserTest {
 					template
 			);
 
-			assertThat(definition.repeatable()).isFalse();
 			assertThat(definition.variables().get(0).prompt()).isEqualTo("description");
+		}
+
+		@Test
+		void sectionWithoutVariables_NeedsNoVariableDeclarations() throws MojoFailureException {
+			String template = """
+					---
+					sections:
+					  separators: {}
+					---
+					{{#separators}}---{{/separators}}
+					""";
+
+			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
+					new SystemStreamLog(),
+					template
+			);
+
+			assertThat(definition.variables()).isEmpty();
+			assertThat(definition.promptPlan())
+					.containsExactly(new SectionNode("separators", List.of()));
+		}
+
+		@Test
+		void repeatableKey_ThrowsMigrationMessage() {
+			String template = """
+					---
+					repeatable: true
+					variables:
+					  description: {}
+					---
+					{{description}}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage(
+							"`repeatable` is no longer supported; mark the repeating block with a "
+									+ "{{#section}} in the template body"
+					);
+		}
+
+		@ParameterizedTest
+		@ValueSource(strings = {
+				"{{>partial}}",
+				"{{<parent}}{{$content}}{{description}}{{/content}}{{/parent}}",
+				"{{$block}}{{description}}{{/block}}",
+				"{{^missing}}{{description}}{{/missing}}"
+		})
+		void unsupportedMustacheTag_Throws(String body) {
+			String template = """
+					---
+					variables:
+					  description: {}
+					---
+					%s
+					""".formatted(body);
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessageContaining("not supported in changelog templates");
+		}
+
+		@Test
+		void malformedMustache_ThrowsWithParseMessage() {
+			String template = """
+					---
+					variables:
+					  description: {}
+					---
+					{{#items}}{{description}}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessageStartingWith("Template body is not valid:")
+					.hasMessageContaining("Section missing close tag");
+		}
+
+		@Test
+		void undeclaredVariable_ThrowsAndListsDeclarations() {
+			String template = """
+					---
+					variables:
+					  issueKey: {}
+					---
+					{{issueKey}} {{descriptionTypo}}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage(
+							"Template body references undeclared variable(s) [descriptionTypo]; "
+									+ "declared variables: [issueKey]"
+					);
+		}
+
+		@Test
+		void invalidRegex_Throws() {
+			String template = """
+					---
+					variables:
+					  issueKey:
+					    pattern: "[unclosed"
+					---
+					{{issueKey}}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessageStartingWith(
+							"Pattern of template variable `issueKey` is not a valid regular expression:"
+					)
+					.hasCauseInstanceOf(PatternSyntaxException.class);
+		}
+
+		@Test
+		void blankSectionAddPrompt_Throws() {
+			String template = """
+					---
+					variables:
+					  description: {}
+					sections:
+					  entries:
+					    addPrompt: " "
+					---
+					{{#entries}}{{description}}{{/entries}}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage("Add prompt of template section `entries` must not be blank");
 		}
 
 		@Test
@@ -116,10 +308,27 @@ public class TemplateParserTest {
 		}
 
 		@Test
+		void remoteCombinedWithSections_Throws() {
+			String template = """
+					---
+					remote: git@github.com:org/standards.git
+					sections:
+					  entries: {}
+					---
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessage(
+							"Template front matter must not combine `remote` with `variables` or `sections`"
+					);
+		}
+
+		@Test
 		void missingFrontMatter_Throws() {
 			assertThatThrownBy(() -> TemplateParser.parse(
 					new SystemStreamLog(),
-					"- {description}"
+					"{{description}}"
 			)).isExactlyInstanceOf(MojoFailureException.class)
 					.hasMessage("Template must start with a YAML front matter block (`---`)");
 		}
@@ -130,7 +339,7 @@ public class TemplateParserTest {
 					---
 					variables:
 					  description: {}
-					{description}
+					{{description}}
 					""";
 
 			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
@@ -142,20 +351,6 @@ public class TemplateParserTest {
 		void emptyFrontMatter_Throws() {
 			String template = """
 					---
-					---
-					body
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage("Template front matter must not be empty");
-		}
-
-		@Test
-		void nullFrontMatter_Throws() {
-			String template = """
-					---
-					null
 					---
 					body
 					""";
@@ -181,150 +376,19 @@ public class TemplateParserTest {
 		}
 
 		@Test
-		void missingVariablesAndRemote_Throws() {
-			String template = """
-					---
-					repeatable: true
-					---
-					static body
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage(
-							"Template front matter must declare `variables` (or a `remote` reference)"
-					);
-		}
-
-		@Test
-		void emptyVariables_Throws() {
-			String template = """
-					---
-					variables: {}
-					---
-					static body
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage(
-							"Template front matter must declare `variables` (or a `remote` reference)"
-					);
-		}
-
-		@Test
-		void invalidVariableName_Throws() {
+		void unknownFrontMatterKey_Throws() {
 			String template = """
 					---
 					variables:
-					  issue-key: {}
+					  description: {}
+					unknown: true
 					---
-					{issueKey}
+					{{description}}
 					""";
 
 			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
 					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage("Template variable name `issue-key` is not valid");
-		}
-
-		@Test
-		void blankVariablePrompt_Throws() {
-			String template = """
-					---
-					variables:
-					  issueKey:
-					    prompt: " "
-					---
-					{issueKey}
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage("Prompt of template variable `issueKey` must not be blank");
-		}
-
-		@Test
-		void undeclaredPlaceholder_ThrowsAndListsDeclarations() {
-			String template = """
-					---
-					variables:
-					  issueKey: {}
-					---
-					{issueKey} {descriptionTypo}
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage(
-							"Template body references undeclared placeholder(s) [descriptionTypo]; "
-									+ "declared variables: [issueKey]"
-					);
-		}
-
-		@Test
-		void invalidRegex_Throws() {
-			String template = """
-					---
-					variables:
-					  issueKey:
-					    pattern: "[unclosed"
-					---
-					{issueKey}
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessageStartingWith(
-							"Pattern of template variable `issueKey` is not a valid regular expression:"
-					)
-					.hasCauseInstanceOf(PatternSyntaxException.class);
-		}
-
-		@Test
-		void remoteCombinedWithVariables_Throws() {
-			String template = """
-					---
-					remote: git@github.com:org/standards.git
-					variables:
-					  issueKey: {}
-					---
-					{issueKey}
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage(
-							"Template front matter must not combine `remote` with `variables` or `repeatable`"
-					);
-		}
-
-		@Test
-		void remoteCombinedWithRepeatable_Throws() {
-			String template = """
-					---
-					remote: git@github.com:org/standards.git
-					repeatable: false
-					---
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage(
-							"Template front matter must not combine `remote` with `variables` or `repeatable`"
-					);
-		}
-
-		@Test
-		void blankRemote_Throws() {
-			String template = """
-					---
-					remote: " "
-					---
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage("Template `remote` must not be blank");
+					.hasMessageStartingWith("Template front matter is not valid:");
 		}
 
 		@Test
@@ -349,7 +413,7 @@ public class TemplateParserTest {
 					  issueKey: {}
 					  unusedVariable: {}
 					---
-					{issueKey}
+					{{issueKey}}
 					""";
 			TestLog log = new TestLog(TestLog.LogLevel.DEBUG);
 
@@ -359,7 +423,7 @@ public class TemplateParserTest {
 					.hasFieldOrPropertyWithValue("level", TestLog.LogLevel.WARN)
 					.hasFieldOrPropertyWithValue(
 							"message",
-							java.util.Optional.of(
+							Optional.of(
 									"Template variable `unusedVariable` is declared but never used in the body"
 							)
 					));

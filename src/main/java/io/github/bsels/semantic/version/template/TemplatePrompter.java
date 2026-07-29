@@ -8,8 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-/// Collects and validates terminal input for template variables.
+/// Collects and validates terminal input for template variables and sections.
 public final class TemplatePrompter {
 
 	/// No instance needed.
@@ -17,29 +19,56 @@ public final class TemplatePrompter {
 		// No instance needed
 	}
 
-	/// Prompts for used variable values in declaration order.
+	/// Prompts recursively in template document order.
 	///
 	/// @param definition template definition; must not be null
-	/// @return one value map per collected block
+	/// @return nested data ready for Mustache rendering
 	/// @throws NullPointerException if the definition is null
 	/// @throws MojoFailureException if input is exhausted while a value is required
-	public static List<Map<String, String>> promptForValues(TemplateDefinition definition)
+	public static Map<String, Object> promptForValues(TemplateDefinition definition)
 			throws NullPointerException, MojoFailureException {
 		Objects.requireNonNull(definition, "`definition` must not be null");
 		Scanner scanner = new Scanner(System.in);
-		List<Map<String, String>> valueSets = new ArrayList<>();
-		boolean more = true;
-		while (more) {
-			Map<String, String> values = new LinkedHashMap<>();
-			for (TemplateVariable variable : definition.variables()) {
-				if (definition.body().contains("{" + variable.name() + "}")) {
-					values.put(variable.name(), promptSingleValue(scanner, variable));
-				}
+		Map<String, TemplateVariable> variables = definition.variables().stream()
+				.collect(Collectors.toMap(
+						TemplateVariable::name,
+						Function.identity(),
+						(first, second) -> first,
+						LinkedHashMap::new
+				));
+		return collectBlock(scanner, definition, variables, definition.promptPlan());
+	}
+
+	/// Recursively collects values for a block of prompt nodes.
+	///
+	/// @param scanner    input scanner used to read terminal values
+	/// @param definition template definition containing section prompt configuration
+	/// @param variables  variables keyed by name for resolving variable nodes
+	/// @param nodes      prompt nodes to collect in document order
+	/// @return immutable nested values for the block, ready for rendering
+	/// @throws MojoFailureException if input is exhausted while a required value is being collected
+	private static Map<String, Object> collectBlock(
+			Scanner scanner,
+			TemplateDefinition definition,
+			Map<String, TemplateVariable> variables,
+			List<PromptNode> nodes
+	)
+			throws MojoFailureException {
+		Map<String, Object> values = new LinkedHashMap<>();
+		for (PromptNode node : nodes) {
+			if (node instanceof VariableNode variableNode) {
+				TemplateVariable variable = variables.get(variableNode.name());
+				values.put(variable.name(), promptSingleValue(scanner, variable));
+			} else {
+				SectionNode section = (SectionNode) node;
+				List<Map<String, Object>> iterations = new ArrayList<>();
+				do {
+					iterations.add(collectBlock(scanner, definition, variables, section.children()));
+				} while (promptAddAnother(scanner, definition.sectionAddPrompts().get(section.name())));
+				values.put(section.name(), List.copyOf(iterations));
 			}
-			valueSets.add(Map.copyOf(values));
-			more = definition.repeatable() && promptAddAnother(scanner);
 		}
-		return List.copyOf(valueSets);
+		return Map.copyOf(values);
 	}
 
 	/// Prompts until one valid value is entered.
@@ -71,12 +100,12 @@ public final class TemplatePrompter {
 		}
 	}
 
-	/// Asks whether another entry should be collected.
-	///
-	/// @param scanner input scanner
-	/// @return true only for `y`, ignoring case
-	private static boolean promptAddAnother(Scanner scanner) {
-		System.out.print("Add another entry? [y/N]: ");
+	/// Asks whether another section iteration should be collected.
+	private static boolean promptAddAnother(
+			Scanner scanner,
+			String addPrompt
+	) {
+		System.out.printf("%s [y/N]: ", addPrompt);
 		return scanner.hasNextLine() && "y".equalsIgnoreCase(scanner.nextLine().strip());
 	}
 }

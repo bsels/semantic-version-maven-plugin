@@ -19,19 +19,55 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TemplatePrompterTest {
 
+	private static final TemplateVariable ISSUE_KEY = new TemplateVariable(
+			"issueKey",
+			"Jira issue key",
+			Pattern.compile("[A-Z]+-\\d+")
+	);
+
+	private static final TemplateVariable DESCRIPTION = new TemplateVariable(
+			"description",
+			"What changed?",
+			null
+	);
+
 	private static final TemplateDefinition SINGLE = new TemplateDefinition(
-			false,
-			List.of(new TemplateVariable("description", "What changed?", null)),
-			"{description}\n"
+			"{{description}}\n",
+			List.of(DESCRIPTION),
+			Map.of(),
+			List.of(new VariableNode("description"))
 	);
 
 	private static final TemplateDefinition REPEATABLE = new TemplateDefinition(
-			true,
-			List.of(
-					new TemplateVariable("issueKey", "Jira issue key", Pattern.compile("[A-Z]+-\\d+")),
-					new TemplateVariable("description", "What changed?", null)
+			"{{#entries}}- [{{issueKey}}] {{description}}\n{{/entries}}",
+			List.of(ISSUE_KEY, DESCRIPTION),
+			Map.of("entries", "Add another entry?"),
+			List.of(new SectionNode(
+					"entries",
+					List.of(
+							new VariableNode("issueKey"),
+							new VariableNode("description")
+					)
+			))
+	);
+
+	private static final TemplateDefinition NESTED = new TemplateDefinition(
+			"",
+			List.of(ISSUE_KEY, DESCRIPTION),
+			Map.of(
+					"issues", "Add another issue?",
+					"descriptions", "More descriptions?"
 			),
-			"- [{issueKey}] {description}\n"
+			List.of(new SectionNode(
+					"issues",
+					List.of(
+							new VariableNode("issueKey"),
+							new SectionNode(
+									"descriptions",
+									List.of(new VariableNode("description"))
+							)
+					)
+			))
 	);
 
 	private final InputStream originalSystemIn = System.in;
@@ -58,12 +94,12 @@ public class TemplatePrompterTest {
 	class PromptForValuesTest {
 
 		@Test
-		void singleDefinition_ReturnsOneValueSet() throws MojoFailureException {
+		void topLevelVariable_ReturnsOneDataMap() throws MojoFailureException {
 			setInput("Setup repository\n");
 
 			assertThat(TemplatePrompter.promptForValues(SINGLE))
-					.containsExactly(Map.of("description", "Setup repository"));
-			assertThat(output.toString()).contains("What changed?");
+					.isEqualTo(Map.of("description", "Setup repository"));
+			assertThat(output.toString()).contains("What changed?: ");
 		}
 
 		@Test
@@ -71,50 +107,104 @@ public class TemplatePrompterTest {
 			setInput("\ninvalid\nISSUE-235\nSetup repository\nn\n");
 
 			assertThat(TemplatePrompter.promptForValues(REPEATABLE))
-					.containsExactly(Map.of(
-							"issueKey", "ISSUE-235",
-							"description", "Setup repository"
+					.isEqualTo(Map.of(
+							"entries",
+							List.of(Map.of(
+									"issueKey", "ISSUE-235",
+									"description", "Setup repository"
+							))
 					));
 			assertThat(output.toString())
-					.contains("must not be blank")
-					.contains("does not match");
+					.contains("Value must not be blank")
+					.contains("Value does not match pattern `[A-Z]+-\\d+`")
+					.contains("Add another entry? [y/N]: ");
 		}
 
 		@Test
-		void repeatableTemplate_CollectsMultipleSets() throws MojoFailureException {
+		void section_CollectsAtLeastOneIterationWhenInputEnds() throws MojoFailureException {
+			setInput("ISSUE-235\nSetup repository\n");
+
+			assertThat(TemplatePrompter.promptForValues(REPEATABLE))
+					.isEqualTo(Map.of(
+							"entries",
+							List.of(Map.of(
+									"issueKey", "ISSUE-235",
+									"description", "Setup repository"
+							))
+					));
+		}
+
+		@Test
+		void section_CollectsMultipleIterations() throws MojoFailureException {
 			setInput("ISSUE-235\nSetup repository\ny\nISSUE-236\nFix pipeline\nn\n");
 
 			assertThat(TemplatePrompter.promptForValues(REPEATABLE))
-					.containsExactly(
-							Map.of("issueKey", "ISSUE-235", "description", "Setup repository"),
-							Map.of("issueKey", "ISSUE-236", "description", "Fix pipeline")
-					);
+					.isEqualTo(Map.of(
+							"entries",
+							List.of(
+									Map.of(
+											"issueKey", "ISSUE-235",
+											"description", "Setup repository"
+									),
+									Map.of(
+											"issueKey", "ISSUE-236",
+											"description", "Fix pipeline"
+									)
+							)
+					));
 		}
 
 		@Test
-		void unusedVariable_IsNotPrompted() throws MojoFailureException {
-			TemplateDefinition definition = new TemplateDefinition(
-					false,
-					List.of(
-							new TemplateVariable("description", "What changed?", null),
-							new TemplateVariable("unused", "Do not ask", null)
-					),
-					"{description}\n"
-			);
-			setInput("Setup repository\n");
+		void nestedSections_CollectNestedDataInDocumentOrder() throws MojoFailureException {
+			setInput("""
+					ISSUE-235
+					Setup repository
+					y
+					Configure CI
+					n
+					y
+					ISSUE-236
+					Fix pipeline
+					n
+					n
+					""");
 
-			assertThat(TemplatePrompter.promptForValues(definition))
-					.containsExactly(Map.of("description", "Setup repository"));
-			assertThat(output.toString()).doesNotContain("Do not ask");
+			assertThat(TemplatePrompter.promptForValues(NESTED))
+					.isEqualTo(Map.of(
+							"issues",
+							List.of(
+									Map.of(
+											"issueKey", "ISSUE-235",
+											"descriptions", List.of(
+													Map.of("description", "Setup repository"),
+													Map.of("description", "Configure CI")
+											)
+									),
+									Map.of(
+											"issueKey", "ISSUE-236",
+											"descriptions", List.of(
+													Map.of("description", "Fix pipeline")
+											)
+									)
+							)
+					));
+
+			String prompts = output.toString();
+			assertThat(prompts.indexOf("What changed?: "))
+					.isLessThan(prompts.indexOf("More descriptions? [y/N]: "));
+			assertThat(prompts.indexOf("More descriptions? [y/N]: "))
+					.isLessThan(prompts.indexOf("Add another issue? [y/N]: "));
 		}
 
 		@Test
-		void exhaustedInput_Throws() {
+		void exhaustedInputWhileVariableRequired_Throws() {
 			setInput("");
 
 			assertThatThrownBy(() -> TemplatePrompter.promptForValues(SINGLE))
 					.isInstanceOf(MojoFailureException.class)
-					.hasMessageContaining("No input");
+					.hasMessage(
+							"No input available while prompting for template variable `description`"
+					);
 		}
 	}
 }
