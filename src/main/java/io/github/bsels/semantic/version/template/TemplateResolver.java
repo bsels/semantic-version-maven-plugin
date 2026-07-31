@@ -15,7 +15,17 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-/// Resolves local and remote changelog entry templates with offline cache fallback.
+///
+/// Utility class for resolving template definitions in a version-controlled folder.
+/// This class provides methods to parse, fetch, or cache template files used for
+/// semantic versioning purposes.
+///
+/// The templates can either be defined locally as a markdown file or remotely referenced
+/// and fetched. In the event of a failure while resolving a remote template, the utility
+/// attempts to fallback to a cached version, if available.
+///
+/// This class does not support instantiation.
+///
 public final class TemplateResolver {
 
 	/// Local template file name inside the versioning folder.
@@ -27,7 +37,12 @@ public final class TemplateResolver {
 	/// Full commit SHA pattern, unsupported as a remote ref in this version.
 	private static final Pattern COMMIT_SHA = Pattern.compile("[0-9a-fA-F]{40}");
 
-	/// No instance needed.
+	///
+	/// Constructs a {@code TemplateResolver} instance.
+	///
+	/// <p>This constructor is private to prevent instantiation, as this class
+	/// only contains static utility methods for template resolution tasks.
+	///
 	private TemplateResolver() {
 		// No instance needed
 	}
@@ -43,8 +58,7 @@ public final class TemplateResolver {
 	public static Optional<TemplateDefinition> resolve(
 			Log log,
 			Path versioningFolder
-	)
-			throws NullPointerException, MojoExecutionException, MojoFailureException {
+	) throws NullPointerException, MojoExecutionException, MojoFailureException {
 		Objects.requireNonNull(log, "`log` must not be null");
 		Objects.requireNonNull(versioningFolder, "`versioningFolder` must not be null");
 
@@ -184,8 +198,7 @@ public final class TemplateResolver {
 	private static ParsedTemplate parseFile(
 			Log log,
 			Path file
-	)
-			throws MojoExecutionException, MojoFailureException {
+	) throws MojoExecutionException, MojoFailureException {
 		try {
 			return TemplateParser.parse(log, readFile(file));
 		} catch (MojoFailureException e) {

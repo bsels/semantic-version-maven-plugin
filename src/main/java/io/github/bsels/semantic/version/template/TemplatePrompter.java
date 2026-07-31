@@ -11,10 +11,23 @@ import java.util.Scanner;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/// Collects and validates terminal input for template variables and sections.
+///
+/// Utility class for prompting and collecting values for a template definition.
+/// This class is designed to interactively prompt users for input values based
+/// on a provided template structure that includes variables and sections.
+/// The collected data is organized in a format suitable for rendering with Mustache.
+///
+/// Note: This class cannot be instantiated.
+///
 public final class TemplatePrompter {
 
-	/// No instance needed.
+	///
+	/// Private constructor for the TemplatePrompter class.
+	///
+	/// This constructor is intentionally defined as private to prevent instantiation
+	/// of the TemplatePrompter class, as it is designed to serve only as a utility class
+	/// containing static methods.
+	///
 	private TemplatePrompter() {
 		// No instance needed
 	}
@@ -52,8 +65,7 @@ public final class TemplatePrompter {
 			TemplateDefinition definition,
 			Map<String, TemplateVariable> variables,
 			List<PromptNode> nodes
-	)
-			throws MojoFailureException {
+	) throws MojoFailureException {
 		Map<String, Object> values = new LinkedHashMap<>();
 		for (PromptNode node : nodes) {
 			if (node instanceof VariableNode variableNode) {
@@ -80,8 +92,7 @@ public final class TemplatePrompter {
 	private static String promptSingleValue(
 			Scanner scanner,
 			TemplateVariable variable
-	)
-			throws MojoFailureException {
+	) throws MojoFailureException {
 		while (true) {
 			System.out.printf("%s: ", variable.prompt());
 			if (!scanner.hasNextLine()) {

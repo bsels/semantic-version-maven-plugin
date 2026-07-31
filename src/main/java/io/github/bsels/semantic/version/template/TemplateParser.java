@@ -36,7 +36,11 @@ public final class TemplateParser {
 			.enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
 			.build();
 
-	/// No instance needed.
+	/// Private constructor to prevent instantiation of {@code TemplateParser}.
+	///
+	/// The {@code TemplateParser} class acts as a utility class with only static
+	/// methods and constants. Instantiation of this class is unnecessary and prohibited.
+	///
 	private TemplateParser() {
 		// No instance needed
 	}
@@ -51,8 +55,7 @@ public final class TemplateParser {
 	public static ParsedTemplate parse(
 			Log log,
 			String content
-	)
-			throws NullPointerException, MojoFailureException {
+	) throws NullPointerException, MojoFailureException {
 		Objects.requireNonNull(log, "`log` must not be null");
 		Objects.requireNonNull(content, "`content` must not be null");
 
@@ -90,6 +93,7 @@ public final class TemplateParser {
 		Map<String, FrontMatter.VariableDeclaration> variableDeclarations = frontMatter.variables() == null
 				? Map.of()
 				: frontMatter.variables();
+
 		List<TemplateVariable> variables = buildVariables(variableDeclarations);
 		TemplateAnalysis analysis = analyzeBody(body);
 		validateVariables(log, variables, analysis.usedVariables());
@@ -100,12 +104,22 @@ public final class TemplateParser {
 		return new TemplateDefinition(body, variables, sectionAddPrompts, analysis.promptPlan());
 	}
 
-	/// Splits YAML front matter from the Markdown body.
+	///
+	/// Splits the provided template content into its YAML front matter block and body content.
+	/// The method expects the front matter to be delimited by a specific delimiter, typically `---`.
+	///
+	/// @param content the full text of the template, including YAML front matter and body; must not be null
+	/// @return an array of two strings, where the first element is the YAML front matter block,
+	///         and the second element is the remaining body content
+	/// @throws MojoFailureException if the front matter is missing, not properly delimited,
+	///                              or if the content is improperly formatted
+	///
 	private static String[] splitFrontMatter(String content) throws MojoFailureException {
 		List<String> lines = content.lines().toList();
 		if (lines.isEmpty() || !FRONT_MATTER_DELIMITER.equals(lines.get(0).strip())) {
 			throw new MojoFailureException("Template must start with a YAML front matter block (`---`)");
 		}
+
 		int end = -1;
 		for (int index = 1; index < lines.size(); index++) {
 			if (FRONT_MATTER_DELIMITER.equals(lines.get(index).strip())) {
@@ -113,9 +127,11 @@ public final class TemplateParser {
 				break;
 			}
 		}
+
 		if (end == -1) {
 			throw new MojoFailureException("Template YAML front matter block is not closed (`---`)");
 		}
+
 		String yaml = String.join("\n", lines.subList(1, end));
 		String body = lines.size() > end + 1
 				? String.join("\n", lines.subList(end + 1, lines.size())) + "\n"
@@ -123,7 +139,13 @@ public final class TemplateParser {
 		return new String[]{yaml, body};
 	}
 
-	/// Deserializes YAML front matter.
+	///
+	/// Reads and parses the YAML front matter into a {@code FrontMatter} object.
+	///
+	/// @param yaml the YAML content to be parsed; must not be blank
+	/// @return a {@code FrontMatter} object representing the parsed front matter
+	/// @throws MojoFailureException if the YAML content is blank or malformed
+	///
 	private static FrontMatter readFrontMatter(String yaml) throws MojoFailureException {
 		if (yaml.isBlank()) {
 			throw new MojoFailureException("Template front matter must not be empty");
@@ -135,11 +157,21 @@ public final class TemplateParser {
 		}
 	}
 
-	/// Builds variables and compiles validation patterns.
+	///
+	/// Builds a list of template variables based on the provided variable declarations.
+	/// Each variable includes its name, prompt, and an optional validation pattern.
+	///
+	/// @param declarations a map where the key is the variable name and the value is
+	///                     the corresponding variable declaration; must not be null
+	/// @return a list of {@code TemplateVariable} objects, each representing a template variable
+	/// @throws MojoFailureException if a variable has an invalid name, a blank prompt,
+	///                              or if its pattern is an invalid regular expression
+	///
 	private static List<TemplateVariable> buildVariables(
 			Map<String, FrontMatter.VariableDeclaration> declarations
 	) throws MojoFailureException {
 		List<TemplateVariable> variables = new ArrayList<>(declarations.size());
+
 		for (Map.Entry<String, FrontMatter.VariableDeclaration> entry : declarations.entrySet()) {
 			String name = entry.getKey();
 			validateName("variable", name);
@@ -147,6 +179,7 @@ public final class TemplateParser {
 			String prompt = declaration != null && declaration.prompt() != null
 					? declaration.prompt()
 					: name;
+
 			if (prompt.isBlank()) {
 				throw new MojoFailureException("Prompt of template variable `%s` must not be blank".formatted(name));
 			}
@@ -167,7 +200,16 @@ public final class TemplateParser {
 		return variables;
 	}
 
-	/// Compiles and visits the body, then constructs its nested prompt plan.
+	///
+	/// Analyzes the body of a Mustache template to extract information about the used variables
+	/// and sections, as well as building a prompt plan for further processing.
+	///
+	/// @param body the content of the Mustache template to be analyzed; must not be null
+	/// @return a {@code TemplateAnalysis} object consisting of the prompt plan, the set of
+	///         variables used in the template, and the set of sections used in the template
+	/// @throws MojoFailureException if the body contains unsupported Mustache tags, invalid
+	///         variable or section names, or if the body is otherwise malformed
+	///
 	private static TemplateAnalysis analyzeBody(String body) throws MojoFailureException {
 		if (body.contains("{{=")) {
 			throw unsupportedTag("custom delimiters", null);
