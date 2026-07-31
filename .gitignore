@@ -23,3 +23,6 @@ buildNumber.properties
 
 # Env
 .env
+
+# Remote changelog template cache
+.versioning/.template.cache.md

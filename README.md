@@ -194,15 +194,10 @@ Ready-to-use examples are available for
 [sectioned templates](src/test/resources/itests/changelog-templates/repeatable.md),
 [nested sections](src/test/resources/itests/changelog-templates/nested.md), and
 [remote references](src/test/resources/itests/changelog-templates/remote-reference.md).
-More advanced examples cover
-[Keep a Changelog categories](src/test/resources/itests/changelog-templates/keep-a-changelog.md),
-[Conventional Commits breaking changes](src/test/resources/itests/changelog-templates/conventional-breaking-change.md),
-and a structured
-[security advisory](src/test/resources/itests/changelog-templates/security-advisory.md).
-They draw on the conventions documented by
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), and
-[GitHub release notes](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes).
+
+More advanced examples cover [Keep a Changelog categories](src/test/resources/itests/changelog-templates/keep-a-changelog.md), [Conventional Commits breaking changes](src/test/resources/itests/changelog-templates/conventional-breaking-change.md), and a structured [security advisory](src/test/resources/itests/changelog-templates/security-advisory.md).
+
+They draw on the conventions documented by [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), and [GitHub release notes](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes).
 
 ---
 
