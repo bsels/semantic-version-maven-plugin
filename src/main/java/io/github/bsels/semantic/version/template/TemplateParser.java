@@ -10,6 +10,7 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
+import javax.naming.InvalidNameException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -90,7 +91,7 @@ public final class TemplateParser {
 			return new RemoteTemplateReference(frontMatter.remote(), path, frontMatter.ref());
 		}
 
-		Map<String, FrontMatter.VariableDeclaration> variableDeclarations = frontMatter.variables() == null
+		Map<String, VariableDeclaration> variableDeclarations = frontMatter.variables() == null
 				? Map.of()
 				: frontMatter.variables();
 
@@ -168,14 +169,14 @@ public final class TemplateParser {
 	///                              or if its pattern is an invalid regular expression
 	///
 	private static List<TemplateVariable> buildVariables(
-			Map<String, FrontMatter.VariableDeclaration> declarations
+			Map<String, VariableDeclaration> declarations
 	) throws MojoFailureException {
 		List<TemplateVariable> variables = new ArrayList<>(declarations.size());
 
-		for (Map.Entry<String, FrontMatter.VariableDeclaration> entry : declarations.entrySet()) {
+		for (Map.Entry<String, VariableDeclaration> entry : declarations.entrySet()) {
 			String name = entry.getKey();
 			validateName("variable", name);
-			FrontMatter.VariableDeclaration declaration = entry.getValue();
+			VariableDeclaration declaration = entry.getValue();
 			String prompt = declaration != null && declaration.prompt() != null
 					? declaration.prompt()
 					: name;
@@ -273,7 +274,16 @@ public final class TemplateParser {
 		);
 	}
 
-	/// Builds nesting from the fixed-delimiter body after JMustache has validated its syntax.
+	///
+	/// Constructs a prompt plan by parsing the body content of a Mustache-like template.
+	/// The method analyzes the template structure, identifies sections and variables,
+	/// and builds a nested representation of the prompt structure.
+	///
+	/// @param body the content of the Mustache template to be processed; must not be null
+	/// @return a list of {@code PromptNode} objects representing the parsed prompt plan
+	/// @throws MojoFailureException if the template is malformed, contains mismatched sections,
+	///                              or uses unsupported Mustache tags
+	///
 	private static List<PromptNode> buildPromptPlan(String body) throws MojoFailureException {
 		MutableBlock root = new MutableBlock(null);
 		Deque<MutableBlock> blocks = new ArrayDeque<>();
@@ -320,7 +330,15 @@ public final class TemplateParser {
 		return toPromptNodes(root.entries);
 	}
 
-	/// Converts mutable parser entries to the public immutable prompt plan.
+	///
+	/// Converts a list of mixed objects into an immutable list of {@code PromptNode} instances.
+	/// Each object in the input list is either retyped as a {@code PromptNode}, if already an instance of it,
+	/// or transformed into a {@code SectionNode} if it represents a {@code MutableBlock}.
+	///
+	/// @param entries a list of objects, where each object is either an instance of {@code PromptNode}
+	///                or a {@code MutableBlock}. Must not be null.
+	/// @return an immutable list of {@code PromptNode} instances representing the parsed structure.
+	///
 	private static List<PromptNode> toPromptNodes(List<Object> entries) {
 		List<PromptNode> nodes = new ArrayList<>(entries.size());
 		for (Object entry : entries) {
@@ -334,7 +352,17 @@ public final class TemplateParser {
 		return List.copyOf(nodes);
 	}
 
-	/// Verifies declarations against variables discovered in the body.
+	///
+	/// Validates the alignment between declared and used variables in a template.
+	/// <ul>
+	///   <li>Throws an exception if there are undeclared variables used in the template body.</li>
+	///   <li>Logs warnings if there are declared variables that are never used.</li>
+	///
+	/// @param log       the logger to record warnings about unused declarations; must not be null
+	/// @param variables the list of declared template variables; must not be null
+	/// @param used      the set of template variable names used in the template body; must not be null
+	/// @throws MojoFailureException if there are undeclared variables used within the template body
+	///
 	private static void validateVariables(
 			Log log,
 			List<TemplateVariable> variables,
@@ -358,14 +386,28 @@ public final class TemplateParser {
 		}
 	}
 
-	/// Resolves configured and default add-another prompts for used sections.
+	///
+	/// Builds a map of section names to their corresponding add prompts based on the
+	/// provided section declarations and used sections. If a section declaration includes
+	/// an add prompt, it is used; otherwise, a default prompt is generated.
+	///
+	/// @param declarations a map where the key is the section name and the value is the
+	///                     corresponding section declaration; may be null if there are
+	///                     no declared sections
+	/// @param usedSections a set of section names that have been identified as used in
+	///                     the template; must not be null
+	/// @return a map where the key is a used section name and the value is the
+	///         corresponding add prompt
+	/// @throws MojoFailureException if a section name is invalid, or if the add prompt
+	///                              of a declared section is set but blank
+	///
 	private static Map<String, String> buildSectionAddPrompts(
-			Map<String, FrontMatter.SectionDeclaration> declarations,
+			Map<String, SectionDeclaration> declarations,
 			Set<String> usedSections
 	)
 			throws MojoFailureException {
 		if (declarations != null) {
-			for (Map.Entry<String, FrontMatter.SectionDeclaration> entry : declarations.entrySet()) {
+			for (Map.Entry<String, SectionDeclaration> entry : declarations.entrySet()) {
 				String name = entry.getKey();
 				validateName("section", name);
 				if (entry.getValue() != null
@@ -379,7 +421,7 @@ public final class TemplateParser {
 		}
 		Map<String, String> prompts = new LinkedHashMap<>();
 		for (String name : usedSections.stream().sorted().toList()) {
-			FrontMatter.SectionDeclaration declaration = declarations == null ? null : declarations.get(name);
+			SectionDeclaration declaration = declarations == null ? null : declarations.get(name);
 			String prompt = declaration != null && declaration.addPrompt() != null
 					? declaration.addPrompt()
 					: "Add another %s?".formatted(name);
@@ -388,7 +430,14 @@ public final class TemplateParser {
 		return prompts;
 	}
 
-	/// Validates a declared name.
+	///
+	/// Validates the format of a provided name based on predefined rules for a specific type.
+	/// Throws an exception if the name is null or does not match the expected pattern.
+	///
+	/// @param type the type of the template to which the name belongs; must not be null
+	/// @param name the name to be validated; may be null or malformed
+	/// @throws MojoFailureException if the name is null or does not match the expected format
+	///
 	private static void validateName(
 			String type,
 			String name
@@ -398,7 +447,14 @@ public final class TemplateParser {
 		}
 	}
 
-	/// Validates a name from a visitor callback without a checked exception.
+	///
+	/// Validates the given name for a specific type while processing visited elements.
+	/// If the name does not match the expected pattern, an {@code InvalidNameException} is thrown.
+	///
+	/// @param type the type of the entity being validated; must not be null
+	/// @param name the name to be validated; must not be null and must conform to the required format
+	/// @throws InvalidNameException if the name does not match the expected format
+	///
 	private static void validateVisitedName(
 			String type,
 			String name
@@ -408,7 +464,14 @@ public final class TemplateParser {
 		}
 	}
 
-	/// Creates the standard unsupported-tag failure.
+	///
+	/// Constructs and returns a {@link MojoFailureException} indicating that a specific
+	/// Mustache tag type is not supported in changelog templates.
+	///
+	/// @param type The type of the Mustache tag.
+	/// @param name The name of the Mustache tag, or null if no specific name is provided.
+	/// @return A {@link MojoFailureException} with a detailed error message about the unsupported tag.
+	///
 	private static MojoFailureException unsupportedTag(
 			String type,
 			String name
@@ -419,8 +482,23 @@ public final class TemplateParser {
 		);
 	}
 
-	/// Raw template front matter.
-	record FrontMatter(
+	///
+	/// Represents the front matter metadata for a structured document or configuration.
+	/// This record encapsulates information about the repeatable nature of the content,
+	/// variable declarations, section declarations, and associated remote configuration details.
+	///
+	/// The `FrontMatter` class is designed to handle metadata mappings and references
+	/// required for processing structured content.
+	///
+	/// Fields:
+	/// - repeatable: Indicates whether the front matter content is repeatable.
+	/// - variables: A map of variable names to their corresponding variable declarations.
+	/// - sections: A map of section names to their corresponding section declarations.
+	/// - remote: The remote location associated with the front matter.
+	/// - path: The file path related to the front matter.
+	/// - ref: The reference identifier for the front matter configuration.
+	///
+	private record FrontMatter(
 			Boolean repeatable,
 			LinkedHashMap<String, VariableDeclaration> variables,
 			LinkedHashMap<String, SectionDeclaration> sections,
@@ -428,17 +506,46 @@ public final class TemplateParser {
 			String path,
 			String ref
 	) {
-
-		/// Raw declaration of one variable.
-		record VariableDeclaration(String prompt, String pattern) {
-		}
-
-		/// Raw declaration of one section.
-		record SectionDeclaration(String addPrompt) {
-		}
 	}
 
-	/// Compiled information extracted from the body.
+	///
+	/// Represents a variable declaration with an associated prompt and pattern.
+	///
+	/// This class is a record that encapsulates two pieces of information:
+	/// - A prompt used to provide a descriptive message or label for the variable.
+	/// - A pattern used to define a constraint or structure for the variable.
+	///
+	private record VariableDeclaration(String prompt, String pattern) {
+	}
+
+	///
+	/// Represents a declaration of a section with a specific prompt.
+	///
+	/// This class is implemented as a record which is a special kind of Java class
+	/// designed to model immutable data. It encapsulates a single field:
+	///
+	/// - addPrompt: The prompt associated with this section declaration.
+	///
+	/// Instances of this class are immutable and provide built-in methods for
+	/// accessing the encapsulated data, equality checks, and string representation.
+	///
+	private record SectionDeclaration(String addPrompt) {
+	}
+
+	///
+	/// Represents an analysis of a prompt template structure with details on its
+	/// components, including the planned prompt flow, utilized variables, and used
+	/// sections within the template.
+	///
+	/// This record is a compact and immutable container for template analysis details
+	/// and provides a structured way to represent the metadata related to the structure
+	/// and content of a template.
+	///
+	/// Components:
+	/// - promptPlan: A sequential plan representing the structure and flow of the prompts.
+	/// - usedVariables: A set of variables referenced within the template.
+	/// - usedSections: A set of sections utilized in the template.
+	///
 	private record TemplateAnalysis(
 			List<PromptNode> promptPlan,
 			Set<String> usedVariables,
@@ -446,7 +553,15 @@ public final class TemplateParser {
 	) {
 	}
 
-	/// Mutable block used only while reconstructing section nesting.
+	///
+	/// MutableBlock is a private static final class that represents a block structure
+	/// with a name, a collection of entries, and a set of variables.
+	/// It provides an immutable name but allows its collection-based fields
+	/// for entries and variables to be modified.
+	///
+	/// This class is designed to be used internally and is not accessible outside
+	/// the enclosing class.
+	///
 	private static final class MutableBlock {
 
 		private final String name;
@@ -458,7 +573,15 @@ public final class TemplateParser {
 		}
 	}
 
-	/// Signals an unsupported visitor callback.
+	///
+	/// An exception thrown to indicate that an unsupported tag has been encountered.
+	///
+	/// This exception is used to signal situations where a tag with a specific type and name
+	/// is not recognized or supported during processing.
+	///
+	/// The {@code type} represents the category of the tag (for example, its classification or grouping),
+	/// while the {@code name} identifies the specific tag within that category.
+	///
 	private static final class UnsupportedTagException extends RuntimeException {
 
 		private final String type;
@@ -473,7 +596,13 @@ public final class TemplateParser {
 		}
 	}
 
-	/// Signals an unsupported variable or section name from a visitor callback.
+	///
+	/// Exception thrown to indicate that a provided name is invalid for a specific type.
+	///
+	/// This exception is intended to be used when validating and enforcing naming rules
+	/// for various types of entities. It captures both the type of entity and the invalid
+	/// name that caused the exception to be raised.
+	///
 	private static final class InvalidNameException extends RuntimeException {
 
 		private final String type;
