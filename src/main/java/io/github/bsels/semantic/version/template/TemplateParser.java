@@ -60,18 +60,10 @@ public final class TemplateParser {
 		Objects.requireNonNull(log, "`log` must not be null");
 		Objects.requireNonNull(content, "`content` must not be null");
 
-		String[] frontMatterAndBody = splitFrontMatter(content);
-		FrontMatter frontMatter = readFrontMatter(frontMatterAndBody[0]);
-		String body = frontMatterAndBody[1];
-
+		TemplateContent templateContent = splitFrontMatter(content);
+		FrontMatter frontMatter = readFrontMatter(templateContent.yaml);
 		if (frontMatter == null) {
 			throw new MojoFailureException("Template front matter must not be empty");
-		}
-		if (frontMatter.repeatable() != null) {
-			throw new MojoFailureException(
-					"`repeatable` is no longer supported; mark the repeating block with a "
-							+ "{{#section}} in the template body"
-			);
 		}
 		if (frontMatter.remote() != null) {
 			if (frontMatter.remote().isBlank()) {
@@ -96,26 +88,27 @@ public final class TemplateParser {
 				: frontMatter.variables();
 
 		List<TemplateVariable> variables = buildVariables(variableDeclarations);
-		TemplateAnalysis analysis = analyzeBody(body);
+		TemplateAnalysis analysis = analyzeBody(templateContent.body);
 		validateVariables(log, variables, analysis.usedVariables());
 		Map<String, String> sectionAddPrompts = buildSectionAddPrompts(
 				frontMatter.sections(),
 				analysis.usedSections()
 		);
-		return new TemplateDefinition(body, variables, sectionAddPrompts, analysis.promptPlan());
+		return new TemplateDefinition(templateContent.body, variables, sectionAddPrompts, analysis.promptPlan());
 	}
 
 	///
-	/// Splits the provided template content into its YAML front matter block and body content.
-	/// The method expects the front matter to be delimited by a specific delimiter, typically `---`.
+	/// Splits the provided content into YAML front matter and body sections based on
+	/// a fixed delimiter.
 	///
-	/// @param content the full text of the template, including YAML front matter and body; must not be null
-	/// @return an array of two strings, where the first element is the YAML front matter block,
-	///         and the second element is the remaining body content
-	/// @throws MojoFailureException if the front matter is missing, not properly delimited,
-	///                              or if the content is improperly formatted
+	/// @param content the template content which includes YAML front matter at the beginning
+	///                and a body section. The front matter must be delimited at the start
+	///                and end by `---`.
+	/// @return a TemplateContent object containing the extracted YAML front matter and body sections.
+	/// @throws MojoFailureException if the content does not start or end with the expected
+	///                              front matter delimiters, or if the front matter block is incomplete.
 	///
-	private static String[] splitFrontMatter(String content) throws MojoFailureException {
+	private static TemplateContent splitFrontMatter(String content) throws MojoFailureException {
 		List<String> lines = content.lines().toList();
 		if (lines.isEmpty() || !FRONT_MATTER_DELIMITER.equals(lines.get(0).strip())) {
 			throw new MojoFailureException("Template must start with a YAML front matter block (`---`)");
@@ -137,7 +130,7 @@ public final class TemplateParser {
 		String body = lines.size() > end + 1
 				? String.join("\n", lines.subList(end + 1, lines.size())) + "\n"
 				: "";
-		return new String[]{yaml, body};
+		return new TemplateContent(yaml, body);
 	}
 
 	///
@@ -484,23 +477,22 @@ public final class TemplateParser {
 	}
 
 	///
-	/// Represents the front matter metadata for a structured document or configuration.
-	/// This record encapsulates information about the repeatable nature of the content,
-	/// variable declarations, section declarations, and associated remote configuration details.
+	/// Represents the front matter metadata of a document or configuration file.
 	///
-	/// The `FrontMatter` class is designed to handle metadata mappings and references
-	/// required for processing structured content.
+	/// This record encapsulates information about variables, sections, and
+	/// file details such as remote origin, path, and reference.
 	///
-	/// Fields:
-	/// - repeatable: Indicates whether the front matter content is repeatable.
-	/// - variables: A map of variable names to their corresponding variable declarations.
-	/// - sections: A map of section names to their corresponding section declarations.
-	/// - remote: The remote location associated with the front matter.
-	/// - path: The file path related to the front matter.
-	/// - ref: The reference identifier for the front matter configuration.
+	/// The front matter typically serves as structured metadata that provides
+	/// content organization, configuration, or descriptive details for a document.
+	///
+	/// Components:
+	/// - variables: A mapping of variable names to their respective declarations.
+	/// - sections: A mapping of section names to their respective declarations.
+	/// - remote: The remote origin associated with the file.
+	/// - path: The relative or absolute path of the file.
+	/// - ref: A reference, such as a version or branch, tied to the file.
 	///
 	private record FrontMatter(
-			Boolean repeatable,
 			LinkedHashMap<String, VariableDeclaration> variables,
 			LinkedHashMap<String, SectionDeclaration> sections,
 			String remote,
@@ -553,6 +545,15 @@ public final class TemplateParser {
 			Set<String> usedSections
 	) {
 	}
+
+	///
+	/// Represents the content of a template consisting of a YAML configuration and a body.
+	///
+	/// This record is immutable and encapsulates:
+	/// - A YAML string representing configuration or metadata.
+	/// - A body string containing the main content of the template.
+	///
+	private record TemplateContent(String yaml, String body) {}
 
 	///
 	/// MutableBlock is a private static final class that represents a block structure
