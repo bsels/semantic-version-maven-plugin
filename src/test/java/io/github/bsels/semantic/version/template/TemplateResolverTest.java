@@ -57,7 +57,7 @@ public class TemplateResolverTest {
 		runGit(source, "config", "user.name", "Test");
 		Files.writeString(template, content);
 		runGit(source, "add", ".");
-		runGit(source, "commit", "-m", "add template");
+		runGit(source, "-c", "commit.gpgsign=false", "commit", "-m", "add template");
 		return source;
 	}
 
@@ -187,6 +187,26 @@ public class TemplateResolverTest {
 		}
 
 		@Test
+		void remoteTemplate_RemovesTemporaryCloneDirectory() throws Exception {
+			Path folder = versioningFolder();
+			Path remote = createRemoteRepository(
+					readTemplateResource("local.md"),
+					"changelog-template.md"
+			);
+			writeRemoteReference(folder, remote, "changelog-template.md", "main");
+			Path cloneDirectory = tempDirectory.resolve("clone");
+
+			try (MockedStatic<Files> files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+				files.when(() -> Files.createTempDirectory("semantic-version-template"))
+						.thenReturn(cloneDirectory);
+
+				assertThat(TemplateResolver.resolve(new SystemStreamLog(), folder)).isPresent();
+			}
+
+			assertThat(cloneDirectory).doesNotExist();
+		}
+
+		@Test
 		void remoteTemplate_DefaultPathAndBranchFetches() throws Exception {
 			Path folder = versioningFolder();
 			Path remote = createRemoteRepository(
@@ -245,6 +265,31 @@ public class TemplateResolverTest {
 						.thenReturn(cloneDirectory);
 				files.when(() -> Files.walk(cloneDirectory))
 						.thenThrow(new IOException("cleanup failed"));
+
+				result = TemplateResolver.resolve(new SystemStreamLog(), folder);
+			}
+
+			assertThat(result).isPresent();
+			assertThat(folder.resolve(TemplateResolver.CACHE_FILE_NAME)).isRegularFile();
+		}
+
+		@Test
+		void temporaryFileDeletionFailure_DoesNotFailResolution() throws Exception {
+			Path folder = versioningFolder();
+			Path remote = createRemoteRepository(
+					readTemplateResource("local.md"),
+					"changelog-template.md"
+			);
+			writeRemoteReference(folder, remote, "changelog-template.md", "main");
+			Path cloneDirectory = tempDirectory.resolve("clone");
+			IOException failure = new IOException("cleanup failed");
+
+			Optional<TemplateDefinition> result;
+			try (MockedStatic<Files> files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+				files.when(() -> Files.createTempDirectory("semantic-version-template"))
+						.thenReturn(cloneDirectory);
+				files.when(() -> Files.deleteIfExists(cloneDirectory))
+						.thenThrow(failure);
 
 				result = TemplateResolver.resolve(new SystemStreamLog(), folder);
 			}

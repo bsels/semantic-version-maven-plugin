@@ -252,8 +252,8 @@ public final class TemplateResolver {
 			Utils.deleteFilesIfExists(sortedPaths);
 		} catch (IOException ignored) {
 			// Best-effort cleanup only
-		} catch (MojoExecutionException e) {
-			throw new RuntimeException(e);
+		} catch (MojoExecutionException ignored) {
+			// Best-effort cleanup only
 		}
 	}
 }
