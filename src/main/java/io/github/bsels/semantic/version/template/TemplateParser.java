@@ -10,7 +10,6 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
-import javax.naming.InvalidNameException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -22,6 +21,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 /// Parses changelog entry templates with YAML front matter and a Markdown Mustache body.
 public final class TemplateParser {
@@ -344,9 +344,10 @@ public final class TemplateParser {
 		for (Object entry : entries) {
 			if (entry instanceof PromptNode node) {
 				nodes.add(node);
-			} else {
-				MutableBlock section = (MutableBlock) entry;
+			} else if (entry instanceof MutableBlock section) {
 				nodes.add(new SectionNode(section.name, toPromptNodes(section.entries)));
+			} else {
+				throw new RuntimeException("Unknown prompt entry");
 			}
 		}
 		return List.copyOf(nodes);
@@ -369,8 +370,9 @@ public final class TemplateParser {
 			Set<String> used
 	)
 			throws MojoFailureException {
-		Set<String> declared = new HashSet<>();
-		variables.forEach(variable -> declared.add(variable.name()));
+		Set<String> declared = variables.stream()
+				.map(TemplateVariable::name)
+				.collect(Collectors.toSet());
 		Set<String> undeclared = new HashSet<>(used);
 		undeclared.removeAll(declared);
 		if (!undeclared.isEmpty()) {
@@ -406,22 +408,21 @@ public final class TemplateParser {
 			Set<String> usedSections
 	)
 			throws MojoFailureException {
-		if (declarations != null) {
-			for (Map.Entry<String, SectionDeclaration> entry : declarations.entrySet()) {
-				String name = entry.getKey();
-				validateName("section", name);
-				if (entry.getValue() != null
-						&& entry.getValue().addPrompt() != null
-						&& entry.getValue().addPrompt().isBlank()) {
-					throw new MojoFailureException(
-							"Add prompt of template section `%s` must not be blank".formatted(name)
-					);
-				}
+		declarations = Objects.requireNonNullElseGet(declarations, Map::of);
+		for (Map.Entry<String, SectionDeclaration> entry : declarations.entrySet()) {
+			String name = entry.getKey();
+			validateName("section", name);
+			if (entry.getValue() != null
+					&& entry.getValue().addPrompt() != null
+					&& entry.getValue().addPrompt().isBlank()) {
+				throw new MojoFailureException(
+						"Add prompt of template section `%s` must not be blank".formatted(name)
+				);
 			}
 		}
 		Map<String, String> prompts = new LinkedHashMap<>();
 		for (String name : usedSections.stream().sorted().toList()) {
-			SectionDeclaration declaration = declarations == null ? null : declarations.get(name);
+			SectionDeclaration declaration = declarations.get(name);
 			String prompt = declaration != null && declaration.addPrompt() != null
 					? declaration.addPrompt()
 					: "Add another %s?".formatted(name);
