@@ -282,18 +282,16 @@ public final class TemplateParser {
 		Deque<MutableBlock> blocks = new ArrayDeque<>();
 		blocks.push(root);
 		int cursor = 0;
-		while (true) {
-			int start = body.indexOf("{{", cursor);
-			if (start == -1) {
-				break;
-			}
+		int start;
+		while ((start = body.indexOf("{{", cursor)) != -1) {
 			boolean triple = body.startsWith("{{{", start);
+			int openingLength = triple ? 3 : 2;
 			String close = triple ? "}}}" : "}}";
-			int end = body.indexOf(close, start + (triple ? 3 : 2));
+			int end = body.indexOf(close, start + openingLength);
 			if (end == -1) {
 				break;
 			}
-			String tag = body.substring(start + (triple ? 3 : 2), end).strip();
+			String tag = body.substring(start + openingLength, end).strip();
 			cursor = end + close.length();
 			if (tag.isEmpty() || tag.charAt(0) == '!') {
 				continue;
