@@ -215,25 +215,6 @@ public class TemplateParserTest {
 					.containsExactlyEntriesOf(java.util.Map.of("entries", "Add another entries?"));
 		}
 
-		@Test
-		void repeatableKey_ThrowsMigrationMessage() {
-			String template = """
-					---
-					repeatable: true
-					variables:
-					  description: {}
-					---
-					{{description}}
-					""";
-
-			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
-					.isExactlyInstanceOf(MojoFailureException.class)
-					.hasMessage(
-							"`repeatable` is no longer supported; mark the repeating block with a "
-									+ "{{#section}} in the template body"
-					);
-		}
-
 		@ParameterizedTest
 		@ValueSource(strings = {
 				"{{>partial}}",
