@@ -93,7 +93,8 @@ public final class TemplatePrompter {
 			Scanner scanner,
 			TemplateVariable variable
 	) throws MojoFailureException {
-		while (true) {
+		String returnValue = null;
+		while (returnValue == null) {
 			System.out.printf("%s: ", variable.prompt());
 			if (!scanner.hasNextLine()) {
 				throw new MojoFailureException(
@@ -106,9 +107,10 @@ public final class TemplatePrompter {
 			} else if (variable.pattern() != null && !variable.pattern().matcher(value).matches()) {
 				System.out.printf("Value does not match pattern `%s`%n", variable.pattern().pattern());
 			} else {
-				return value;
+				returnValue = value;
 			}
 		}
+		return returnValue;
 	}
 
 	/// Asks whether another section iteration should be collected.
