@@ -19,26 +19,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TemplatePrompterTest {
 
-	private static final TemplateVariable ISSUE_KEY = new TemplateVariable(
+	private final InputStream originalSystemIn = System.in;
+	private final PrintStream originalSystemOut = System.out;
+	private final TemplateVariable ISSUE_KEY = new TemplateVariable(
 			"issueKey",
 			"Jira issue key",
 			Pattern.compile("[A-Z]+-\\d+")
 	);
-
-	private static final TemplateVariable DESCRIPTION = new TemplateVariable(
+	private final TemplateVariable DESCRIPTION = new TemplateVariable(
 			"description",
 			"What changed?",
 			null
 	);
-
-	private static final TemplateDefinition SINGLE = new TemplateDefinition(
+	private final TemplateDefinition SINGLE = new TemplateDefinition(
 			"{{description}}\n",
 			List.of(DESCRIPTION),
 			Map.of(),
 			List.of(new VariableNode("description"))
 	);
-
-	private static final TemplateDefinition REPEATABLE = new TemplateDefinition(
+	private final TemplateDefinition REPEATABLE = new TemplateDefinition(
 			"{{#entries}}- [{{issueKey}}] {{description}}\n{{/entries}}",
 			List.of(ISSUE_KEY, DESCRIPTION),
 			Map.of("entries", "Add another entry?"),
@@ -50,8 +49,7 @@ public class TemplatePrompterTest {
 					)
 			))
 	);
-
-	private static final TemplateDefinition NESTED = new TemplateDefinition(
+	private final TemplateDefinition NESTED = new TemplateDefinition(
 			"",
 			List.of(ISSUE_KEY, DESCRIPTION),
 			Map.of(
@@ -69,9 +67,6 @@ public class TemplatePrompterTest {
 					)
 			))
 	);
-
-	private final InputStream originalSystemIn = System.in;
-	private final PrintStream originalSystemOut = System.out;
 	private ByteArrayOutputStream output;
 
 	@BeforeEach
