@@ -1,6 +1,7 @@
 package io.github.bsels.semantic.version.template;
 
 import io.github.bsels.semantic.version.utils.ProcessUtils;
+import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
@@ -10,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -246,9 +248,12 @@ public final class TemplateResolver {
 	/// @param directory directory to delete
 	private static void deleteRecursively(Path directory) {
 		try (Stream<Path> paths = Files.walk(directory)) {
-			paths.sorted(Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+			List<Path> sortedPaths = paths.sorted(Comparator.reverseOrder()).toList();
+			Utils.deleteFilesIfExists(sortedPaths);
 		} catch (IOException ignored) {
 			// Best-effort cleanup only
+		} catch (MojoExecutionException e) {
+			throw new RuntimeException(e);
 		}
 	}
 }
