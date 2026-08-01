@@ -81,6 +81,27 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
     )
     String commitMessage = "Created version Markdown file for {numberOfProjects} project(s)";
 
+
+	///
+	/// Controls whether the versioning template should be ignored during the execution of the
+	/// `CreateVersionMarkdownMojo` goal.
+	///
+	/// When set to `true`, the plugin will bypass the usage of any defined versioning template
+	/// (e.g., `.versioning/template.md`) and proceed with alternative methods to create the
+	/// changelog entry. This is useful in cases where the template is not applicable or should
+	/// be explicitly ignored for the current build. By default, this value is set to `false`,
+	/// which means the template, if available, will be utilized.
+	///
+	/// Configured via the Maven property `versioning.template.ignore`.
+	///
+	/// Default value: `false`.
+	///
+	@Parameter(
+			property = "versioning.template.ignore",
+			defaultValue = "false"
+	)
+	boolean ignoreTemplate = false;
+
     /// Default constructor for the CreateVersionMarkdownMojo class.
     /// Invokes the superclass constructor to initialize the instance.
     /// This constructor is typically used by the Maven framework during the build lifecycle.
@@ -134,18 +155,22 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
         commit(commitMessage.formatted(selectedProjects.size()));
     }
 
-    /// Creates a changelog entry from a configured template, direct input, or an external editor.
-    /// When `.versioning/template.md` exists, the template flow is strict and replaces both free-form paths.
-    /// This method prompts the user to enter multiline input for the changelog entry, where two consecutive empty lines
-    /// terminate the input.
-    /// If the user enters an empty line initially,
-    /// the method invokes an external editor to create the changelog content.
-    ///
-    /// @return a [Node] representing the parsed Markdown content of the changelog entry.
-    /// @throws MojoExecutionException if an error occurs during the execution of the changelog entry creation.
-    /// @throws MojoFailureException   if the operation to create or process the changelog fails.
-    private Node createChangelogEntry() throws MojoExecutionException, MojoFailureException {
-        Optional<TemplateDefinition> template = TemplateResolver.resolve(getLog(), getVersioningFolder());
+	///
+	/// Creates a changelog entry based on user input or a predefined template.
+	/// If the specified template is not to be ignored, this method resolves the template,
+	/// prompts the user for the required values, and renders the template. Otherwise,
+	/// it accepts multi-line user input for the changelog entry or invokes an external editor
+	/// for creating the Markdown content.
+	///
+	/// @return A Node object representing the parsed content of the created changelog entry.
+	/// @throws MojoExecutionException If an error occurs during template rendering,
+	///                                Markdown parsing, or external editor invocation.
+	/// @throws MojoFailureException   If the operation fails during the creation of the changelog entry.
+	///
+	private Node createChangelogEntry() throws MojoExecutionException, MojoFailureException {
+        Optional<TemplateDefinition> template = ignoreTemplate
+				? Optional.empty()
+				: TemplateResolver.resolve(getLog(), getVersioningFolder());
         if (template.isPresent()) {
             Map<String, Object> values = TemplatePrompter.promptForValues(template.get());
             String rendered = TemplateRenderer.render(template.get(), values);
