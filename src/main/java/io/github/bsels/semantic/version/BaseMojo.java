@@ -232,7 +232,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
         try (Stream<Path> markdownFileStream = Files.walk(versioningFolder, 1)) {
             List<Path> markdownFiles = markdownFileStream.filter(Files::isRegularFile)
                     .filter(path -> path.toString().toLowerCase().endsWith(".md"))
-                    .filter(BaseMojo::isVersionMarkdownFile)
+                    .filter(this::isVersionMarkdownFile)
                     .toList();
             List<VersionMarkdown> parsedMarkdowns = new ArrayList<>();
             for (Path markdownFile : markdownFiles) {
@@ -254,7 +254,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
     ///
     /// @param path Markdown file path; must not be null
     /// @return true when the file is not a reserved template or template-cache file
-    private static boolean isVersionMarkdownFile(Path path) {
+    private boolean isVersionMarkdownFile(Path path) {
         String fileName = path.getFileName().toString();
         return !TemplateResolver.TEMPLATE_FILE_NAME.equals(fileName)
                 && !TemplateResolver.CACHE_FILE_NAME.equals(fileName);
