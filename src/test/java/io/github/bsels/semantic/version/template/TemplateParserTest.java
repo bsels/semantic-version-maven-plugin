@@ -94,6 +94,38 @@ public class TemplateParserTest {
 		}
 
 		@Test
+		void localTemplateWithoutBody_ReturnsEmptyDefinition() throws MojoFailureException {
+			String template = """
+					---
+					variables: {}
+					---
+					""";
+
+			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
+					new SystemStreamLog(),
+					template
+			);
+
+			assertThat(definition.body()).isEmpty();
+			assertThat(definition.variables()).isEmpty();
+			assertThat(definition.sectionAddPrompts()).isEmpty();
+			assertThat(definition.promptPlan()).isEmpty();
+		}
+
+		@Test
+		void frontMatterDelimitersWithSurroundingWhitespace_AreAccepted() throws MojoFailureException {
+			String template = "  ---  \nvariables: {}\n\t--- \nStatic body";
+
+			TemplateDefinition definition = (TemplateDefinition) TemplateParser.parse(
+					new SystemStreamLog(),
+					template
+			);
+
+			assertThat(definition.body()).isEqualTo("Static body\n");
+			assertThat(definition.promptPlan()).isEmpty();
+		}
+
+		@Test
 		void duplicateVariableInSameBlock_IsCollapsedAtFirstOccurrence() throws MojoFailureException {
 			String template = """
 					---
@@ -269,6 +301,20 @@ public class TemplateParserTest {
 
 			assertThat(definition.promptPlan())
 					.containsExactly(new VariableNode("description"));
+		}
+
+		@Test
+		void emptyMustacheTag_ThrowsWithParseMessage() {
+			String template = """
+					---
+					variables: {}
+					---
+					{{}}
+					""";
+
+			assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+					.isExactlyInstanceOf(MojoFailureException.class)
+					.hasMessageStartingWith("Template body is not valid:");
 		}
 
 		@ParameterizedTest

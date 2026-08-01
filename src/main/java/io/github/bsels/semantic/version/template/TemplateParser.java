@@ -257,7 +257,7 @@ public final class TemplateParser {
 			throw new MojoFailureException(
 					"Template %s name `%s` is not valid".formatted(e.type, e.name)
 			);
-		} catch (MustacheException e) {
+		} catch (MustacheException | StringIndexOutOfBoundsException e) {
 			throw new MojoFailureException("Template body is not valid: %s".formatted(e.getMessage()), e);
 		}
 		return new TemplateAnalysis(
