@@ -25,9 +25,7 @@ This placeholder will be automatically replaced with the actual version during t
 
 Example:
 ```java
-/**
- * @deprecated Use {@link #newMethod()} instead. Since {DEPRECATION_VERSION}.
- */
+/// @deprecated Use {@link #newMethod()} instead. Since {DEPRECATION_VERSION}.
 @Deprecated(since = "{DEPRECATION_VERSION}", forRemoval = true)
 public void oldMethod() { ... }
 ```
