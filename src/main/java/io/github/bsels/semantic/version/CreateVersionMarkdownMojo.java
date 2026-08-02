@@ -4,6 +4,10 @@ import io.github.bsels.semantic.version.models.MavenArtifact;
 import io.github.bsels.semantic.version.models.PlaceHolderWithType;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionHeaders;
+import io.github.bsels.semantic.version.template.TemplateDefinition;
+import io.github.bsels.semantic.version.template.TemplatePrompter;
+import io.github.bsels.semantic.version.template.TemplateRenderer;
+import io.github.bsels.semantic.version.template.TemplateResolver;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.ProcessUtils;
 import io.github.bsels.semantic.version.utils.TerminalHelper;
@@ -77,6 +81,27 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
     )
     String commitMessage = "Created version Markdown file for {numberOfProjects} project(s)";
 
+
+	///
+	/// Controls whether the versioning template should be ignored during the execution of the
+	/// `CreateVersionMarkdownMojo` goal.
+	///
+	/// When set to `true`, the plugin will bypass the usage of any defined versioning template
+	/// (e.g., `.versioning/template.md`) and proceed with alternative methods to create the
+	/// changelog entry. This is useful in cases where the template is not applicable or should
+	/// be explicitly ignored for the current build. By default, this value is set to `false`,
+	/// which means the template, if available, will be utilized.
+	///
+	/// Configured via the Maven property `versioning.template.ignore`.
+	///
+	/// Default value: `false`.
+	///
+	@Parameter(
+			property = "versioning.template.ignore",
+			defaultValue = "false"
+	)
+	boolean ignoreTemplate = false;
+
     /// Default constructor for the CreateVersionMarkdownMojo class.
     /// Invokes the superclass constructor to initialize the instance.
     /// This constructor is typically used by the Maven framework during the build lifecycle.
@@ -130,16 +155,28 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
         commit(commitMessage.formatted(selectedProjects.size()));
     }
 
-    /// Creates a changelog entry by either taking user input directly or by leveraging an external editor.
-    /// This method prompts the user to enter multiline input for the changelog entry, where two consecutive empty lines
-    /// terminate the input.
-    /// If the user enters an empty line initially,
-    /// the method invokes an external editor to create the changelog content.
-    ///
-    /// @return a [Node] representing the parsed Markdown content of the changelog entry.
-    /// @throws MojoExecutionException if an error occurs during the execution of the changelog entry creation.
-    /// @throws MojoFailureException   if the operation to create or process the changelog fails.
-    private Node createChangelogEntry() throws MojoExecutionException, MojoFailureException {
+	///
+	/// Creates a changelog entry based on user input or a predefined template.
+	/// If the specified template is not to be ignored, this method resolves the template,
+	/// prompts the user for the required values, and renders the template. Otherwise,
+	/// it accepts multi-line user input for the changelog entry or invokes an external editor
+	/// for creating the Markdown content.
+	///
+	/// @return A Node object representing the parsed content of the created changelog entry.
+	/// @throws MojoExecutionException If an error occurs during template rendering,
+	///                                Markdown parsing, or external editor invocation.
+	/// @throws MojoFailureException   If the operation fails during the creation of the changelog entry.
+	///
+	private Node createChangelogEntry() throws MojoExecutionException, MojoFailureException {
+        Optional<TemplateDefinition> template = ignoreTemplate
+				? Optional.empty()
+				: TemplateResolver.resolve(getLog(), getVersioningFolder());
+        if (template.isPresent()) {
+            Map<String, Object> values = TemplatePrompter.promptForValues(template.get());
+            String rendered = TemplateRenderer.render(template.get(), values);
+            getLog().debug("Rendered changelog entry from template:%n%s".formatted(rendered));
+            return MarkdownUtils.parseMarkdown(rendered);
+        }
         Optional<String> input = TerminalHelper.readMultiLineInput(
                 """
                         Please type the changelog entry here (enter empty line to open external editor, \

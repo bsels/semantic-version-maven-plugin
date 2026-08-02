@@ -303,6 +303,90 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
                     .isEmpty();
         }
 
+        @Test
+        void selectSingleProject_TemplatePresent_RendersTemplatedChangelog() throws Exception {
+            classUnderTest.dryRun = false;
+            Path templateFile = getResourcesPath("multi", ".versioning", "template.md");
+            String templateContent = Files.readString(
+                    getResourcesPath("changelog-templates", "repeatable.md")
+            );
+            filesMockedStatic.when(() -> Files.exists(templateFile)).thenReturn(true);
+            filesMockedStatic.when(() -> Files.readString(templateFile)).thenReturn(templateContent);
+
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
+                    Scanner.class,
+                    (mock, context) -> {
+                        Mockito.when(mock.hasNextLine()).thenReturn(true);
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.nextLine()).thenReturn("1");
+                        } else if (context.getCount() == 2) {
+                            Mockito.when(mock.nextLine()).thenReturn("patch");
+                        } else {
+                            Mockito.when(mock.nextLine()).thenReturn("ISSUE-235", "Setup repository", "n");
+                        }
+                    }
+            )) {
+                assertThatNoException().isThrownBy(classUnderTest::execute);
+            }
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(1)
+                    .hasEntrySatisfying(
+                            getVersioningMarkdown(),
+                            writer -> assertThat(writer.toString())
+                                    .contains("- [ISSUE-235](https://company.atlassian.net/browse/ISSUE-235)")
+                                    .contains("    - Setup repository")
+                    );
+            assertThat(outputStream.toString())
+                    .doesNotContain("Please type the changelog entry here")
+                    .contains("Jira issue key: ")
+                    .contains("What changed?: ")
+                    .contains("Add another entry? [y/N]: ");
+        }
+
+        @Test
+        void selectSingleProject_TemplateIgnored_UsesFreeFormChangelog() {
+            classUnderTest.dryRun = false;
+            classUnderTest.ignoreTemplate = true;
+            Path templateFile = getResourcesPath("multi", ".versioning", "template.md");
+            filesMockedStatic.when(() -> Files.exists(templateFile)).thenReturn(true);
+
+            try (MockedConstruction<Scanner> ignored = Mockito.mockConstruction(
+                    Scanner.class,
+                    (mock, context) -> {
+                        Mockito.when(mock.hasNextLine()).thenReturn(true, false);
+                        if (context.getCount() == 1) {
+                            Mockito.when(mock.nextLine()).thenReturn("1");
+                        } else if (context.getCount() == 2) {
+                            Mockito.when(mock.nextLine()).thenReturn("patch");
+                        } else {
+                            Mockito.when(mock.nextLine()).thenReturn("Free-form changelog entry");
+                        }
+                    }
+            )) {
+                assertThatNoException().isThrownBy(classUnderTest::execute);
+            }
+
+            assertThat(mockedOutputFiles)
+                    .hasSize(1)
+                    .hasEntrySatisfying(
+                            getVersioningMarkdown(),
+                            writer -> assertThat(writer.toString())
+                                    .isEqualTo("""
+                                            ---
+                                            org.example.itests.multi:parent: "PATCH"
+                                            ---
+                                            
+                                            Free-form changelog entry
+                                            """)
+                    );
+            assertThat(outputStream.toString())
+                    .contains("Please type the changelog entry here")
+                    .doesNotContain("Jira issue key: ", "What changed?: ", "Add another entry? [y/N]: ");
+            filesMockedStatic.verify(() -> Files.exists(templateFile), Mockito.never());
+            filesMockedStatic.verify(() -> Files.readString(templateFile), Mockito.never());
+        }
+
         @ParameterizedTest
         @EnumSource(value = Git.class)
         void selectMultipleProjects_Valid(Git gitMode) {

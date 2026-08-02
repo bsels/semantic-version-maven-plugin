@@ -8,6 +8,7 @@ import io.github.bsels.semantic.version.models.VersionMarkdown;
 import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.parameters.Git;
 import io.github.bsels.semantic.version.parameters.Modus;
+import io.github.bsels.semantic.version.template.TemplateResolver;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.POMUtils;
 import io.github.bsels.semantic.version.utils.ProcessUtils;
@@ -231,6 +232,7 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
         try (Stream<Path> markdownFileStream = Files.walk(versioningFolder, 1)) {
             List<Path> markdownFiles = markdownFileStream.filter(Files::isRegularFile)
                     .filter(path -> path.toString().toLowerCase().endsWith(".md"))
+                    .filter(this::isVersionMarkdownFile)
                     .toList();
             List<VersionMarkdown> parsedMarkdowns = new ArrayList<>();
             for (Path markdownFile : markdownFiles) {
@@ -246,6 +248,16 @@ public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersion
             throw new MojoExecutionException("Unable to read versioning folder", e);
         }
         return versionMarkdowns;
+    }
+
+    /// Determines whether a Markdown file is a version specification rather than a template configuration.
+    ///
+    /// @param path Markdown file path; must not be null
+    /// @return true when the file is not a reserved template or template-cache file
+    private boolean isVersionMarkdownFile(Path path) {
+        String fileName = path.getFileName().toString();
+        return !TemplateResolver.TEMPLATE_FILE_NAME.equals(fileName)
+                && !TemplateResolver.CACHE_FILE_NAME.equals(fileName);
     }
 
     /// Determines and retrieves the path to the versioning folder used for storing version-related files.
