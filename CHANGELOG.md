@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.0 - 2026-08-02
+
+### Minor
+
+Features:
+
+- Added optional template-driven changelog entries to the `create` goal, including ordered
+  variable prompts, regular-expression validation, and repeatable entry blocks.
+- Added remote git templates with branch/tag selection and an offline cache fallback.
+
 ## 1.5.0 - 2026-07-11
 
 ### Minor
