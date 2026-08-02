@@ -97,7 +97,7 @@ public final class TemplateParser {
         return new TemplateDefinition(templateContent.body, variables, sectionAddPrompts, analysis.promptPlan());
     }
 
-    ///
+
     /// Splits the provided content into YAML front matter and body sections based on
     /// a fixed delimiter.
     ///
@@ -133,7 +133,7 @@ public final class TemplateParser {
         return new TemplateContent(yaml, body);
     }
 
-    ///
+
     /// Reads and parses the YAML front matter into a {@code FrontMatter} object.
     ///
     /// @param yaml the YAML content to be parsed; must not be blank
@@ -151,7 +151,7 @@ public final class TemplateParser {
         }
     }
 
-    ///
+
     /// Builds a list of template variables based on the provided variable declarations.
     /// Each variable includes its name, prompt, and an optional validation pattern.
     ///
@@ -194,7 +194,7 @@ public final class TemplateParser {
         return variables;
     }
 
-    ///
+
     /// Analyzes the body of a Mustache template to extract information about the used variables
     /// and sections, as well as building a prompt plan for further processing.
     ///
@@ -267,7 +267,7 @@ public final class TemplateParser {
         );
     }
 
-    ///
+
     /// Constructs a prompt plan by parsing the body content of a Mustache-like template.
     /// The method analyzes the template structure, identifies sections and variables,
     /// and builds a nested representation of the prompt structure.
@@ -321,7 +321,7 @@ public final class TemplateParser {
         return toPromptNodes(root.entries);
     }
 
-    ///
+
     /// Converts a list of mixed objects into an immutable list of {@code PromptNode} instances.
     /// Each object in the input list is either retyped as a {@code PromptNode}, if already an instance of it,
     /// or transformed into a {@code SectionNode} if it represents a {@code MutableBlock}.
@@ -344,7 +344,7 @@ public final class TemplateParser {
         return List.copyOf(nodes);
     }
 
-    ///
+
     /// Validates the alignment between declared and used variables in a template.
     /// <ul>
     ///   <li>Throws an exception if there are undeclared variables used in the template body.</li>
@@ -379,7 +379,7 @@ public final class TemplateParser {
         }
     }
 
-    ///
+
     /// Builds a map of section names to their corresponding add prompts based on the
     /// provided section declarations and used sections. If a section declaration includes
     /// an add prompt, it is used; otherwise, a default prompt is generated.
@@ -422,7 +422,7 @@ public final class TemplateParser {
         return prompts;
     }
 
-    ///
+
     /// Validates the format of a provided name based on predefined rules for a specific type.
     /// Throws an exception if the name is null or does not match the expected pattern.
     ///
@@ -439,7 +439,7 @@ public final class TemplateParser {
         }
     }
 
-    ///
+
     /// Validates the given name for a specific type while processing visited elements.
     /// If the name does not match the expected pattern, an {@code InvalidNameException} is thrown.
     ///
@@ -456,7 +456,7 @@ public final class TemplateParser {
         }
     }
 
-    ///
+
     /// Constructs and returns a {@link MojoFailureException} indicating that a specific
     /// Mustache tag type is not supported in changelog templates.
     ///
@@ -474,7 +474,7 @@ public final class TemplateParser {
         );
     }
 
-    ///
+
     /// Represents the front matter metadata of a document or configuration file.
     ///
     /// This record encapsulates information about variables, sections, and
@@ -499,7 +499,7 @@ public final class TemplateParser {
     ) {
     }
 
-    ///
+
     /// Represents a variable declaration with an associated prompt and pattern.
     ///
     /// This class is a record that encapsulates two pieces of information:
@@ -509,7 +509,7 @@ public final class TemplateParser {
     private record VariableDeclaration(String prompt, String pattern) {
     }
 
-    ///
+
     /// Represents a declaration of a section with a specific prompt.
     ///
     /// This class is implemented as a record which is a special kind of Java class
@@ -523,7 +523,7 @@ public final class TemplateParser {
     private record SectionDeclaration(String addPrompt) {
     }
 
-    ///
+
     /// Represents an analysis of a prompt template structure with details on its
     /// components, including the planned prompt flow, utilized variables, and used
     /// sections within the template.
@@ -544,7 +544,7 @@ public final class TemplateParser {
     ) {
     }
 
-    ///
+
     /// Represents the content of a template consisting of a YAML configuration and a body.
     ///
     /// This record is immutable and encapsulates:
@@ -554,7 +554,7 @@ public final class TemplateParser {
     private record TemplateContent(String yaml, String body) {
     }
 
-    ///
+
     /// MutableBlock is a private static final class that represents a block structure
     /// with a name, a collection of entries, and a set of variables.
     /// It provides an immutable name but allows its collection-based fields
@@ -574,7 +574,7 @@ public final class TemplateParser {
         }
     }
 
-    ///
+
     /// An exception thrown to indicate that an unsupported tag has been encountered.
     ///
     /// This exception is used to signal situations where a tag with a specific type and name
@@ -597,7 +597,7 @@ public final class TemplateParser {
         }
     }
 
-    ///
+
     /// Exception thrown to indicate that a provided name is invalid for a specific type.
     ///
     /// This exception is intended to be used when validating and enforcing naming rules
