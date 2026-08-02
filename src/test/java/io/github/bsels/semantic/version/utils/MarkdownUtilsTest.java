@@ -170,7 +170,10 @@ public class MarkdownUtilsTest {
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty()),
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.DEBUG)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("    Text{literal=Test paragraph}"))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message",
+                                            Optional.of("    Text{literal=Test paragraph}")
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty())
                     );
         }
@@ -241,26 +244,34 @@ public class MarkdownUtilsTest {
                         ))
                         .thenThrow(new IOException("Failed to create writer"));
 
-                assertThatThrownBy(() -> MarkdownUtils.writeMarkdownFile(CHANGELOG_PATH, createDummyChangelogDocument(), backupOld))
+                assertThatThrownBy(() -> MarkdownUtils.writeMarkdownFile(
+                        CHANGELOG_PATH,
+                        createDummyChangelogDocument(),
+                        backupOld
+                ))
                         .isInstanceOf(MojoExecutionException.class)
                         .hasMessage("Unable to write %s".formatted(CHANGELOG_PATH))
                         .hasRootCauseInstanceOf(IOException.class)
                         .hasRootCauseMessage("Failed to create writer");
 
-                filesMockedStatic.verify(() -> Files.copy(
-                        CHANGELOG_PATH,
-                        CHANGELOG_BACKUP_PATH,
-                        StandardCopyOption.ATOMIC_MOVE,
-                        StandardCopyOption.COPY_ATTRIBUTES,
-                        StandardCopyOption.REPLACE_EXISTING
-                ), Mockito.times(backupOld ? 1 : 0));
-                filesMockedStatic.verify(() -> Files.newBufferedWriter(
-                        CHANGELOG_PATH,
-                        StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.WRITE,
-                        StandardOpenOption.TRUNCATE_EXISTING
-                ), Mockito.times(1));
+                filesMockedStatic.verify(
+                        () -> Files.copy(
+                                CHANGELOG_PATH,
+                                CHANGELOG_BACKUP_PATH,
+                                StandardCopyOption.ATOMIC_MOVE,
+                                StandardCopyOption.COPY_ATTRIBUTES,
+                                StandardCopyOption.REPLACE_EXISTING
+                        ), Mockito.times(backupOld ? 1 : 0)
+                );
+                filesMockedStatic.verify(
+                        () -> Files.newBufferedWriter(
+                                CHANGELOG_PATH,
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.WRITE,
+                                StandardOpenOption.TRUNCATE_EXISTING
+                        ), Mockito.times(1)
+                );
             }
         }
 
@@ -281,7 +292,11 @@ public class MarkdownUtilsTest {
                         .thenReturn(new BufferedWriter(writer));
 
                 assertThatNoException()
-                        .isThrownBy(() -> MarkdownUtils.writeMarkdownFile(CHANGELOG_PATH, createDummyChangelogDocument(), backupOld));
+                        .isThrownBy(() -> MarkdownUtils.writeMarkdownFile(
+                                CHANGELOG_PATH,
+                                createDummyChangelogDocument(),
+                                backupOld
+                        ));
                 assertThat(writer.toString())
                         .isEqualTo("""
                                 # Changelog
@@ -289,19 +304,24 @@ public class MarkdownUtilsTest {
                                 Test paragraph
                                 """);
 
-                filesMockedStatic.verify(() -> Files.copy(CHANGELOG_PATH,
-                        CHANGELOG_BACKUP_PATH,
-                        StandardCopyOption.ATOMIC_MOVE,
-                        StandardCopyOption.COPY_ATTRIBUTES,
-                        StandardCopyOption.REPLACE_EXISTING
-                ), Mockito.times(backupOld ? 1 : 0));
-                filesMockedStatic.verify(() -> Files.newBufferedWriter(
-                        CHANGELOG_PATH,
-                        StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.WRITE,
-                        StandardOpenOption.TRUNCATE_EXISTING
-                ), Mockito.times(1));
+                filesMockedStatic.verify(
+                        () -> Files.copy(
+                                CHANGELOG_PATH,
+                                CHANGELOG_BACKUP_PATH,
+                                StandardCopyOption.ATOMIC_MOVE,
+                                StandardCopyOption.COPY_ATTRIBUTES,
+                                StandardCopyOption.REPLACE_EXISTING
+                        ), Mockito.times(backupOld ? 1 : 0)
+                );
+                filesMockedStatic.verify(
+                        () -> Files.newBufferedWriter(
+                                CHANGELOG_PATH,
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.WRITE,
+                                StandardOpenOption.TRUNCATE_EXISTING
+                        ), Mockito.times(1)
+                );
             }
         }
     }
@@ -467,7 +487,8 @@ public class MarkdownUtilsTest {
                         changelogDocument,
                         VERSION,
                         VERSION_HEADERS,
-                        Map.of(SemanticVersionBump.PATCH, List.of(new Paragraph()))))
+                        Map.of(SemanticVersionBump.PATCH, List.of(new Paragraph()))
+                ))
                         .isInstanceOf(IllegalArgumentException.class)
                         .hasMessage("Node must be a Document");
             }
@@ -483,10 +504,11 @@ public class MarkdownUtilsTest {
 
                 assertThatNoException()
                         .isThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
-                                changelogDocument,
-                                VERSION,
-                                VERSION_HEADERS,
-                                Map.of())
+                                        changelogDocument,
+                                        VERSION,
+                                        VERSION_HEADERS,
+                                        Map.of()
+                                )
                         );
             }
 
@@ -512,15 +534,16 @@ public class MarkdownUtilsTest {
 
                 assertThatNoException()
                         .isThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
-                                changelogDocument,
-                                VERSION,
-                                VERSION_HEADERS,
-                                Map.ofEntries(
-                                        createDummyVersionMarkdown(SemanticVersionBump.NONE, 1),
-                                        createDummyVersionMarkdown(SemanticVersionBump.PATCH, 2),
-                                        createDummyVersionMarkdown(SemanticVersionBump.MINOR, 3),
-                                        createDummyVersionMarkdown(SemanticVersionBump.MAJOR, 4)
-                                ))
+                                        changelogDocument,
+                                        VERSION,
+                                        VERSION_HEADERS,
+                                        Map.ofEntries(
+                                                createDummyVersionMarkdown(SemanticVersionBump.NONE, 1),
+                                                createDummyVersionMarkdown(SemanticVersionBump.PATCH, 2),
+                                                createDummyVersionMarkdown(SemanticVersionBump.MINOR, 3),
+                                                createDummyVersionMarkdown(SemanticVersionBump.MAJOR, 4)
+                                        )
+                                )
                         );
             }
 
@@ -568,13 +591,14 @@ public class MarkdownUtilsTest {
 
                 assertThatNoException()
                         .isThrownBy(() -> MarkdownUtils.mergeVersionMarkdownsInChangelog(
-                                changelogDocument,
-                                VERSION,
-                                customHeaders,
-                                Map.ofEntries(
-                                        createDummyVersionMarkdown(SemanticVersionBump.MINOR, 1),
-                                        createDummyVersionMarkdown(SemanticVersionBump.NONE, 1)
-                                ))
+                                        changelogDocument,
+                                        VERSION,
+                                        customHeaders,
+                                        Map.ofEntries(
+                                                createDummyVersionMarkdown(SemanticVersionBump.MINOR, 1),
+                                                createDummyVersionMarkdown(SemanticVersionBump.NONE, 1)
+                                        )
+                                )
                         );
             }
 
@@ -614,7 +638,11 @@ public class MarkdownUtilsTest {
 
         @Test
         void nullMarkdownFile_ThrowNullPointerException() {
-            assertThatThrownBy(() -> MarkdownUtils.readMarkdown(new TestLog(TestLog.LogLevel.DEBUG), null, VERSION_HEADERS))
+            assertThatThrownBy(() -> MarkdownUtils.readMarkdown(
+                    new TestLog(TestLog.LogLevel.DEBUG),
+                    null,
+                    VERSION_HEADERS
+            ))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`markdownFile` must not be null");
         }
@@ -638,7 +666,12 @@ public class MarkdownUtilsTest {
                     .satisfiesExactly(
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.INFO)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("No changelog file found at '%s', creating an empty CHANGELOG internally".formatted(CHANGELOG_PATH)))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message",
+                                            Optional.of(
+                                                    "No changelog file found at '%s', creating an empty CHANGELOG internally".formatted(
+                                                            CHANGELOG_PATH))
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty())
                     );
         }
@@ -686,7 +719,10 @@ public class MarkdownUtilsTest {
                     .satisfiesExactly(
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.INFO)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("Read 3 lines from %s".formatted(CHANGELOG_PATH)))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message",
+                                            Optional.of("Read 3 lines from %s".formatted(CHANGELOG_PATH))
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty())
                     );
         }
@@ -739,7 +775,10 @@ public class MarkdownUtilsTest {
                     .satisfiesExactly(
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.INFO)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("Read 7 lines from %s".formatted(CHANGELOG_PATH)))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message",
+                                            Optional.of("Read 7 lines from %s".formatted(CHANGELOG_PATH))
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty())
                     );
         }
@@ -786,17 +825,22 @@ public class MarkdownUtilsTest {
                     .satisfiesExactly(
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.INFO)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("Read 9 lines from %s".formatted(CHANGELOG_PATH)))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message",
+                                            Optional.of("Read 9 lines from %s".formatted(CHANGELOG_PATH))
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty()),
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.DEBUG)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("""
-                                            YAML front matter:
-                                                this:
-                                                    yaml:
-                                                        is:
-                                                            not: a version bump block\
-                                            """))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message", Optional.of("""
+                                                    YAML front matter:
+                                                        this:
+                                                            yaml:
+                                                                is:
+                                                                    not: a version bump block\
+                                                    """)
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty())
                     );
         }
@@ -853,24 +897,31 @@ public class MarkdownUtilsTest {
                     .satisfiesExactly(
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.INFO)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("Read 10 lines from %s".formatted(CHANGELOG_PATH)))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message",
+                                            Optional.of("Read 10 lines from %s".formatted(CHANGELOG_PATH))
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty()),
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.DEBUG)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("""
-                                            YAML front matter:
-                                                'group:none': None
-                                                'group:patch': patch
-                                                'group-2:minor': MINOR
-                                                'group-2:major': MAJOR\
-                                            """))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message", Optional.of("""
+                                                    YAML front matter:
+                                                        'group:none': None
+                                                        'group:patch': patch
+                                                        'group-2:minor': MINOR
+                                                        'group-2:major': MAJOR\
+                                                    """)
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty()),
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.DEBUG)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("""
-                                            Maven artifacts and semantic version bumps:
-                                            {group:none=NONE, group:patch=PATCH, group-2:minor=MINOR, group-2:major=MAJOR}\
-                                            """))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message", Optional.of("""
+                                                    Maven artifacts and semantic version bumps:
+                                                    {group:none=NONE, group:patch=PATCH, group-2:minor=MINOR, group-2:major=MAJOR}\
+                                                    """)
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty())
                     );
         }
@@ -932,17 +983,22 @@ public class MarkdownUtilsTest {
                     .satisfiesExactly(
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.INFO)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("Read 10 lines from %s".formatted(CHANGELOG_PATH)))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message",
+                                            Optional.of("Read 10 lines from %s".formatted(CHANGELOG_PATH))
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty()),
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.DEBUG)
-                                    .hasFieldOrPropertyWithValue("message", Optional.of("""
-                                            YAML front matter:
-                                                none: None
-                                                patch: patch
-                                                minor: MINOR
-                                                major: MAJOR\
-                                            """))
+                                    .hasFieldOrPropertyWithValue(
+                                            "message", Optional.of("""
+                                                    YAML front matter:
+                                                        none: None
+                                                        patch: patch
+                                                        minor: MINOR
+                                                        major: MAJOR\
+                                                    """)
+                                    )
                                     .hasFieldOrPropertyWithValue("throwable", Optional.empty()),
                             line -> assertThat(line)
                                     .hasFieldOrPropertyWithValue("level", TestLog.LogLevel.DEBUG)
@@ -1003,19 +1059,23 @@ public class MarkdownUtilsTest {
             YamlFrontMatterBlock block = MarkdownUtils.createVersionBumpsHeader(log, bumps, IDENTIFIER);
             assertThat(block)
                     .isNotNull()
-                    .hasFieldOrPropertyWithValue("yaml", """
-                            group:artifact: "%s"\
-                            """.formatted(bump));
+                    .hasFieldOrPropertyWithValue(
+                            "yaml", """
+                                    group:artifact: "%s"\
+                                    """.formatted(bump)
+                    );
 
             assertThat(log.getLogRecords())
                     .isNotEmpty()
                     .hasSize(1)
                     .satisfiesExactly(
                             line -> assertThat(line)
-                                    .returns("""
-                                            Version bumps YAML:
-                                                group:artifact: "%s"
-                                            """.formatted(bump), l -> l.message().orElseThrow())
+                                    .returns(
+                                            """
+                                                    Version bumps YAML:
+                                                        group:artifact: "%s"
+                                                    """.formatted(bump), l -> l.message().orElseThrow()
+                                    )
                     );
         }
 
@@ -1032,19 +1092,23 @@ public class MarkdownUtilsTest {
             );
             assertThat(block)
                     .isNotNull()
-                    .hasFieldOrPropertyWithValue("yaml", """
-                            artifactId: "MINOR"\
-                            """);
+                    .hasFieldOrPropertyWithValue(
+                            "yaml", """
+                                    artifactId: "MINOR"\
+                                    """
+                    );
 
             assertThat(log.getLogRecords())
                     .isNotEmpty()
                     .hasSize(1)
                     .satisfiesExactly(
                             line -> assertThat(line)
-                                    .returns("""
-                                            Version bumps YAML:
-                                                artifactId: "MINOR"
-                                            """, l -> l.message().orElseThrow())
+                                    .returns(
+                                            """
+                                                    Version bumps YAML:
+                                                        artifactId: "MINOR"
+                                                    """, l -> l.message().orElseThrow()
+                                    )
                     );
         }
 

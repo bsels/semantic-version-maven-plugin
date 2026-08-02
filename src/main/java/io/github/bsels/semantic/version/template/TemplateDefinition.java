@@ -11,21 +11,21 @@ import java.util.Objects;
 /// @param sectionAddPrompts resolved add-another prompt for each used section; never null
 /// @param promptPlan        prompts in document order; never null
 public record TemplateDefinition(
-		String body,
-		List<TemplateVariable> variables,
-		Map<String, String> sectionAddPrompts,
-		List<PromptNode> promptPlan
+        String body,
+        List<TemplateVariable> variables,
+        Map<String, String> sectionAddPrompts,
+        List<PromptNode> promptPlan
 )
-		implements ParsedTemplate {
+        implements ParsedTemplate {
 
-	/// Validates the record components and copies collections to immutable collections.
-	public TemplateDefinition {
-		Objects.requireNonNull(body, "`body` must not be null");
-		Objects.requireNonNull(variables, "`variables` must not be null");
-		Objects.requireNonNull(sectionAddPrompts, "`sectionAddPrompts` must not be null");
-		Objects.requireNonNull(promptPlan, "`promptPlan` must not be null");
-		variables = List.copyOf(variables);
-		sectionAddPrompts = Map.copyOf(sectionAddPrompts);
-		promptPlan = List.copyOf(promptPlan);
-	}
+    /// Validates the record components and copies collections to immutable collections.
+    public TemplateDefinition {
+        Objects.requireNonNull(body, "`body` must not be null");
+        Objects.requireNonNull(variables, "`variables` must not be null");
+        Objects.requireNonNull(sectionAddPrompts, "`sectionAddPrompts` must not be null");
+        Objects.requireNonNull(promptPlan, "`promptPlan` must not be null");
+        variables = List.copyOf(variables);
+        sectionAddPrompts = Map.copyOf(sectionAddPrompts);
+        promptPlan = List.copyOf(promptPlan);
+    }
 }

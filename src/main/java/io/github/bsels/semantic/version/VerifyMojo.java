@@ -216,7 +216,10 @@ public final class VerifyMojo extends BaseMojo {
             log.info("All projects found in scope.");
         } else {
             log.error("Not all projects found in scope.");
-            log.error("Expected: %d projects, found: %d projects.".formatted(projects.size(), versionMarkdownProjects.size()));
+            log.error("Expected: %d projects, found: %d projects.".formatted(
+                    projects.size(),
+                    versionMarkdownProjects.size()
+            ));
         }
         return allProjects;
     }

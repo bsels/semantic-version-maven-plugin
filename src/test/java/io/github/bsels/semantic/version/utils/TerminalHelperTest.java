@@ -329,7 +329,8 @@ public class TerminalHelperTest {
                     .contains("1: Apple")
                     .contains("2: Banana")
                     .contains("3: Cherry")
-                    .contains("Enter fruit numbers separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'):");
+                    .contains(
+                            "Enter fruit numbers separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'):");
         }
 
         @Test
@@ -390,7 +391,8 @@ public class TerminalHelperTest {
             assertThat(result)
                     .hasSize(2)
                     .containsExactly(TestEnum.FIRST, TestEnum.THIRD);
-            assertThat(getOutput()).contains("Enter enum names or number separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'):");
+            assertThat(getOutput()).contains(
+                    "Enter enum names or number separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'):");
         }
 
         @Test

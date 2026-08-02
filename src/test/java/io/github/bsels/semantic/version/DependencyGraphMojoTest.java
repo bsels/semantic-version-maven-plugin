@@ -55,7 +55,11 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
         objectMapper = new ObjectMapper();
 
         filesMockedStatic = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS);
-        filesMockedStatic.when(() -> Files.newBufferedWriter(Mockito.any(), Mockito.any(), Mockito.any(OpenOption[].class)))
+        filesMockedStatic.when(() -> Files.newBufferedWriter(
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(OpenOption[].class)
+                ))
                 .thenAnswer(answer -> {
                     Path path = answer.getArgument(0);
                     mockedOutputFiles.put(path, new StringWriter());
@@ -621,7 +625,11 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
             classUnderTest.outputFile = outputFile;
 
             // Mock IOException when writing to file
-            filesMockedStatic.when(() -> Files.newBufferedWriter(Mockito.eq(outputFile), Mockito.any(), Mockito.any(OpenOption[].class)))
+            filesMockedStatic.when(() -> Files.newBufferedWriter(
+                            Mockito.eq(outputFile),
+                            Mockito.any(),
+                            Mockito.any(OpenOption[].class)
+                    ))
                     .thenThrow(new IOException("Simulated IO error"));
 
             // Act & Assert
@@ -646,7 +654,11 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
             BufferedWriter failingWriter = Mockito.mock(BufferedWriter.class);
             Mockito.doThrow(new IOException("Write failed")).when(failingWriter).write(Mockito.anyString());
 
-            filesMockedStatic.when(() -> Files.newBufferedWriter(Mockito.eq(outputFile), Mockito.any(), Mockito.any(OpenOption[].class)))
+            filesMockedStatic.when(() -> Files.newBufferedWriter(
+                            Mockito.eq(outputFile),
+                            Mockito.any(),
+                            Mockito.any(OpenOption[].class)
+                    ))
                     .thenReturn(failingWriter);
 
             // Act & Assert
@@ -741,12 +753,18 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
             assertThat(outputFolder).isNotEmpty();
 
             // Verify they all have the same number of keys
-            Map<MavenArtifact, ?> graphFull = objectMapper.readValue(outputFull, new TypeReference<>() {
-            });
-            Map<MavenArtifact, ?> graphArtifact = objectMapper.readValue(outputArtifact, new TypeReference<>() {
-            });
-            Map<MavenArtifact, ?> graphFolder = objectMapper.readValue(outputFolder, new TypeReference<>() {
-            });
+            Map<MavenArtifact, ?> graphFull = objectMapper.readValue(
+                    outputFull, new TypeReference<>() {
+                    }
+            );
+            Map<MavenArtifact, ?> graphArtifact = objectMapper.readValue(
+                    outputArtifact, new TypeReference<>() {
+                    }
+            );
+            Map<MavenArtifact, ?> graphFolder = objectMapper.readValue(
+                    outputFolder, new TypeReference<>() {
+                    }
+            );
 
             assertThat(graphFull).hasSameSizeAs(graphArtifact);
             assertThat(graphFull).hasSameSizeAs(graphFolder);

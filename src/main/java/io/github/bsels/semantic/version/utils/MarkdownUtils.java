@@ -128,10 +128,10 @@ public final class MarkdownUtils {
     /// The parsed Markdown content is stored as a hierarchical structure of nodes,
     /// and the versioning information is extracted from the YAML front matter block.
     ///
-    /// @param log            the logger used to log informational and debug messages during the parsing process; must not be null
-    /// @param markdownFile   the path to the Markdown file to be read and parsed; must not be null
-    /// @param identifier     the artifact identifier type used to determine the [ObjectMapper] configuration. It can be either [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID] or [ArtifactIdentifier#ONLY_ARTIFACT_ID].
-    /// @param groupId        the group ID of the current module used for deserialization when the identifier is [ArtifactIdentifier#ONLY_ARTIFACT_ID]
+    /// @param log          the logger used to log informational and debug messages during the parsing process; must not be null
+    /// @param markdownFile the path to the Markdown file to be read and parsed; must not be null
+    /// @param identifier   the artifact identifier type used to determine the [ObjectMapper] configuration. It can be either [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID] or [ArtifactIdentifier#ONLY_ARTIFACT_ID].
+    /// @param groupId      the group ID of the current module used for deserialization when the identifier is [ArtifactIdentifier#ONLY_ARTIFACT_ID]
     /// @return a [VersionMarkdown] object containing the parsed Markdown content and the extracted Maven artifact to semantic version bump mappings
     /// @throws NullPointerException   if `log` or `markdownFile` is null
     /// @throws MojoExecutionException if an error occurs while reading the file, parsing the YAML front matter, or the Markdown does not contain the expected YAML front matter block
@@ -278,8 +278,10 @@ public final class MarkdownUtils {
         if (backupOld) {
             Utils.backupFile(markdownFile);
         }
-        try (Writer writer = Files.newBufferedWriter(markdownFile, StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
+        try (Writer writer = Files.newBufferedWriter(
+                markdownFile, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING
+        )) {
             writeMarkdown(writer, document);
         } catch (IOException e) {
             throw new MojoExecutionException("Unable to write %s".formatted(markdownFile), e);

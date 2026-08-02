@@ -120,9 +120,15 @@ public final class TerminalHelper {
                 System.out.printf("  %d: %s%n", i + 1, choices.get(i));
             }
             if (isEnum) {
-                System.out.printf("Enter %s names or number separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'): ", promptObject);
+                System.out.printf(
+                        "Enter %s names or number separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'): ",
+                        promptObject
+                );
             } else {
-                System.out.printf("Enter %s numbers separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'): ", promptObject);
+                System.out.printf(
+                        "Enter %s numbers separated by spaces, commas or semicolons (or 'a'/'all', 'n'/'none'): ",
+                        promptObject
+                );
             }
             if (!scanner.hasNextLine()) {
                 selectedChoices = List.of();

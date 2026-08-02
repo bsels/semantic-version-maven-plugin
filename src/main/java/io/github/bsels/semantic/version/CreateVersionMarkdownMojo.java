@@ -81,26 +81,24 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
     )
     String commitMessage = "Created version Markdown file for {numberOfProjects} project(s)";
 
-
-	///
-	/// Controls whether the versioning template should be ignored during the execution of the
-	/// `CreateVersionMarkdownMojo` goal.
-	///
-	/// When set to `true`, the plugin will bypass the usage of any defined versioning template
-	/// (e.g., `.versioning/template.md`) and proceed with alternative methods to create the
-	/// changelog entry. This is useful in cases where the template is not applicable or should
-	/// be explicitly ignored for the current build. By default, this value is set to `false`,
-	/// which means the template, if available, will be utilized.
-	///
-	/// Configured via the Maven property `versioning.template.ignore`.
-	///
-	/// Default value: `false`.
-	///
-	@Parameter(
-			property = "versioning.template.ignore",
-			defaultValue = "false"
-	)
-	boolean ignoreTemplate = false;
+    /// Controls whether the versioning template should be ignored during the execution of the
+    /// `CreateVersionMarkdownMojo` goal.
+    ///
+    /// When set to `true`, the plugin will bypass the usage of any defined versioning template
+    /// (e.g., `.versioning/template.md`) and proceed with alternative methods to create the
+    /// changelog entry. This is useful in cases where the template is not applicable or should
+    /// be explicitly ignored for the current build. By default, this value is set to `false`,
+    /// which means the template, if available, will be utilized.
+    ///
+    /// Configured via the Maven property `versioning.template.ignore`.
+    ///
+    /// Default value: `false`.
+    ///
+    @Parameter(
+            property = "versioning.template.ignore",
+            defaultValue = "false"
+    )
+    boolean ignoreTemplate = false;
 
     /// Default constructor for the CreateVersionMarkdownMojo class.
     /// Invokes the superclass constructor to initialize the instance.
@@ -144,7 +142,11 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
             return;
         }
 
-        YamlFrontMatterBlock versionBumpHeader = MarkdownUtils.createVersionBumpsHeader(log, selectedProjects, identifier);
+        YamlFrontMatterBlock versionBumpHeader = MarkdownUtils.createVersionBumpsHeader(
+                log,
+                selectedProjects,
+                identifier
+        );
         Node inputMarkdown = createChangelogEntry();
         inputMarkdown.prependChild(versionBumpHeader);
 
@@ -155,22 +157,21 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
         commit(commitMessage.formatted(selectedProjects.size()));
     }
 
-	///
-	/// Creates a changelog entry based on user input or a predefined template.
-	/// If the specified template is not to be ignored, this method resolves the template,
-	/// prompts the user for the required values, and renders the template. Otherwise,
-	/// it accepts multi-line user input for the changelog entry or invokes an external editor
-	/// for creating the Markdown content.
-	///
-	/// @return A Node object representing the parsed content of the created changelog entry.
-	/// @throws MojoExecutionException If an error occurs during template rendering,
-	///                                Markdown parsing, or external editor invocation.
-	/// @throws MojoFailureException   If the operation fails during the creation of the changelog entry.
-	///
-	private Node createChangelogEntry() throws MojoExecutionException, MojoFailureException {
+    /// Creates a changelog entry based on user input or a predefined template.
+    /// If the specified template is not to be ignored, this method resolves the template,
+    /// prompts the user for the required values, and renders the template. Otherwise,
+    /// it accepts multi-line user input for the changelog entry or invokes an external editor
+    /// for creating the Markdown content.
+    ///
+    /// @return A Node object representing the parsed content of the created changelog entry.
+    /// @throws MojoExecutionException If an error occurs during template rendering,
+    ///                                Markdown parsing, or external editor invocation.
+    /// @throws MojoFailureException   If the operation fails during the creation of the changelog entry.
+    ///
+    private Node createChangelogEntry() throws MojoExecutionException, MojoFailureException {
         Optional<TemplateDefinition> template = ignoreTemplate
-				? Optional.empty()
-				: TemplateResolver.resolve(getLog(), getVersioningFolder());
+                ? Optional.empty()
+                : TemplateResolver.resolve(getLog(), getVersioningFolder());
         if (template.isPresent()) {
             Map<String, Object> values = TemplatePrompter.promptForValues(template.get());
             String rendered = TemplateRenderer.render(template.get(), values);
@@ -214,7 +215,10 @@ public final class CreateVersionMarkdownMojo extends BaseMojo {
                 getLog().debug("No projects selected");
                 return Map.of();
             }
-            System.out.printf("Selected projects: %s%n", projectSelections.stream().map(MavenArtifact::toString).collect(Collectors.joining(", ")));
+            System.out.printf(
+                    "Selected projects: %s%n",
+                    projectSelections.stream().map(MavenArtifact::toString).collect(Collectors.joining(", "))
+            );
             for (MavenArtifact mavenArtifact : projectSelections) {
                 SemanticVersionBump versionBump = TerminalHelper.singleChoice(
                         "Select semantic version bump for %s: ".formatted(mavenArtifact),

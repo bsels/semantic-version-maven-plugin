@@ -7,8 +7,8 @@ import java.util.Objects;
 /// @param name variable name; never null
 public record VariableNode(String name) implements PromptNode {
 
-	/// Validates the variable name.
-	public VariableNode {
-		Objects.requireNonNull(name, "`name` must not be null");
-	}
+    /// Validates the variable name.
+    public VariableNode {
+        Objects.requireNonNull(name, "`name` must not be null");
+    }
 }

@@ -66,13 +66,15 @@ public class UtilsTest {
                 assertThatNoException()
                         .isThrownBy(() -> Utils.backupFile(file));
 
-                files.verify(() -> Files.copy(
-                        Mockito.any(Path.class),
-                        Mockito.any(),
-                        Mockito.any(),
-                        Mockito.any(),
-                        Mockito.any()
-                ), Mockito.never());
+                files.verify(
+                        () -> Files.copy(
+                                Mockito.any(Path.class),
+                                Mockito.any(),
+                                Mockito.any(),
+                                Mockito.any(),
+                                Mockito.any()
+                        ), Mockito.never()
+                );
             }
         }
 
@@ -92,13 +94,15 @@ public class UtilsTest {
                         .hasRootCauseInstanceOf(IOException.class)
                         .hasRootCauseMessage("copy failed");
 
-                files.verify(() -> Files.copy(
-                        file,
-                        backupFile,
-                        StandardCopyOption.ATOMIC_MOVE,
-                        StandardCopyOption.COPY_ATTRIBUTES,
-                        StandardCopyOption.REPLACE_EXISTING
-                ), Mockito.times(1));
+                files.verify(
+                        () -> Files.copy(
+                                file,
+                                backupFile,
+                                StandardCopyOption.ATOMIC_MOVE,
+                                StandardCopyOption.COPY_ATTRIBUTES,
+                                StandardCopyOption.REPLACE_EXISTING
+                        ), Mockito.times(1)
+                );
             }
         }
 
@@ -115,13 +119,15 @@ public class UtilsTest {
                 assertThatNoException()
                         .isThrownBy(() -> Utils.backupFile(file));
 
-                files.verify(() -> Files.copy(
-                        file,
-                        backupFile,
-                        StandardCopyOption.ATOMIC_MOVE,
-                        StandardCopyOption.COPY_ATTRIBUTES,
-                        StandardCopyOption.REPLACE_EXISTING
-                ), Mockito.times(1));
+                files.verify(
+                        () -> Files.copy(
+                                file,
+                                backupFile,
+                                StandardCopyOption.ATOMIC_MOVE,
+                                StandardCopyOption.COPY_ATTRIBUTES,
+                                StandardCopyOption.REPLACE_EXISTING
+                        ), Mockito.times(1)
+                );
             }
         }
     }
@@ -414,13 +420,15 @@ public class UtilsTest {
             assertThat(actual)
                     .isNotNull()
                     .hasSize(2)
-                    .hasEntrySatisfying(true, list -> assertThat(list)
-                            .hasSize(5)
-                            .containsExactly(1, 3, 5, 7, 9)
+                    .hasEntrySatisfying(
+                            true, list -> assertThat(list)
+                                    .hasSize(5)
+                                    .containsExactly(1, 3, 5, 7, 9)
                     )
-                    .hasEntrySatisfying(false, list -> assertThat(list)
-                            .hasSize(5)
-                            .containsExactly(0, 2, 4, 6, 8)
+                    .hasEntrySatisfying(
+                            false, list -> assertThat(list)
+                                    .hasSize(5)
+                                    .containsExactly(0, 2, 4, 6, 8)
                     );
 
             assertThatThrownBy(() -> actual.put(true, List.of(10)))

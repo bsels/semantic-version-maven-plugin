@@ -18,40 +18,42 @@ import static org.mockito.Mockito.when;
 
 public class BaseMojoTest {
 
-	@TempDir
-	Path versioningFolder;
+    @TempDir
+    Path versioningFolder;
 
-	@Test
-	void getVersionMarkdowns_IgnoresTemplateAndCacheFiles() throws Exception {
-		Path versionMarkdown = versioningFolder.resolve("version.md");
-		Files.writeString(versionMarkdown, """
-				---
-				'org.example:project': patch
-				---
+    @Test
+    void getVersionMarkdowns_IgnoresTemplateAndCacheFiles() throws Exception {
+        Path versionMarkdown = versioningFolder.resolve("version.md");
+        Files.writeString(
+                versionMarkdown, """
+                        ---
+                        'org.example:project': patch
+                        ---
+                        
+                        A version change.
+                        """
+        );
+        Files.writeString(
+                versioningFolder.resolve(TemplateResolver.TEMPLATE_FILE_NAME),
+                "not a version markdown file"
+        );
+        Files.writeString(
+                versioningFolder.resolve(TemplateResolver.CACHE_FILE_NAME),
+                "not a version markdown file"
+        );
 
-				A version change.
-				""");
-		Files.writeString(
-				versioningFolder.resolve(TemplateResolver.TEMPLATE_FILE_NAME),
-				"not a version markdown file"
-		);
-		Files.writeString(
-				versioningFolder.resolve(TemplateResolver.CACHE_FILE_NAME),
-				"not a version markdown file"
-		);
+        MavenProject project = mock(MavenProject.class);
+        when(project.getGroupId()).thenReturn("org.example");
+        MavenSession session = mock(MavenSession.class);
+        when(session.getCurrentProject()).thenReturn(project);
+        UpdatePomMojo mojo = new UpdatePomMojo();
+        mojo.setLog(new TestLog(TestLog.LogLevel.NONE));
+        mojo.session = session;
+        mojo.versionDirectory = versioningFolder;
 
-		MavenProject project = mock(MavenProject.class);
-		when(project.getGroupId()).thenReturn("org.example");
-		MavenSession session = mock(MavenSession.class);
-		when(session.getCurrentProject()).thenReturn(project);
-		UpdatePomMojo mojo = new UpdatePomMojo();
-		mojo.setLog(new TestLog(TestLog.LogLevel.NONE));
-		mojo.session = session;
-		mojo.versionDirectory = versioningFolder;
+        List<VersionMarkdown> result = mojo.getVersionMarkdowns();
 
-		List<VersionMarkdown> result = mojo.getVersionMarkdowns();
-
-		assertThat(result).extracting(VersionMarkdown::path)
-				.containsExactly(versionMarkdown);
-	}
+        assertThat(result).extracting(VersionMarkdown::path)
+                .containsExactly(versionMarkdown);
+    }
 }

@@ -17,9 +17,11 @@ public abstract class AbstractBaseMojoTest {
 
     protected Path getResourcesPath(String... relativePaths) {
         return Stream.of(relativePaths)
-                .reduce(getResourcesPath(), Path::resolve, (a, b) -> {
-                    throw new UnsupportedOperationException();
-                });
+                .reduce(
+                        getResourcesPath(), Path::resolve, (a, b) -> {
+                            throw new UnsupportedOperationException();
+                        }
+                );
     }
 
     protected Path getResourcesPath() {

@@ -76,7 +76,11 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
         mockedExecutedProcesses = new ArrayList<>();
 
         filesMockedStatic = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS);
-        filesMockedStatic.when(() -> Files.newBufferedWriter(Mockito.any(), Mockito.any(), Mockito.any(OpenOption[].class)))
+        filesMockedStatic.when(() -> Files.newBufferedWriter(
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(OpenOption[].class)
+                ))
                 .thenAnswer(answer -> {
                     Path path = answer.getArgument(0);
                     mockedOutputFiles.put(path, new StringWriter());
@@ -101,21 +105,23 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
         localDateTimeMockedStatic.when(LocalDateTime::now)
                 .thenReturn(DATE_TIME);
 
-        mockedProcessBuilderConstruction = Mockito.mockConstruction(ProcessBuilder.class, (mock, context) -> {
-            if (!context.arguments().isEmpty()) {
-                List<String> command = List.of((String[]) context.arguments().get(0));
-                if (!command.isEmpty()) {
-                    mockedExecutedProcesses.add(command);
+        mockedProcessBuilderConstruction = Mockito.mockConstruction(
+                ProcessBuilder.class, (mock, context) -> {
+                    if (!context.arguments().isEmpty()) {
+                        List<String> command = List.of((String[]) context.arguments().get(0));
+                        if (!command.isEmpty()) {
+                            mockedExecutedProcesses.add(command);
+                        }
+                    }
+                    Mockito.when(mock.command(Mockito.anyList()))
+                            .thenAnswer(invocation -> {
+                                mockedExecutedProcesses.add(invocation.getArgument(0));
+                                return mock;
+                            });
+                    Mockito.when(mock.inheritIO()).thenReturn(mock);
+                    Mockito.when(mock.start()).thenReturn(processMock);
                 }
-            }
-            Mockito.when(mock.command(Mockito.anyList()))
-                    .thenAnswer(invocation -> {
-                        mockedExecutedProcesses.add(invocation.getArgument(0));
-                        return mock;
-                    });
-            Mockito.when(mock.inheritIO()).thenReturn(mock);
-            Mockito.when(mock.start()).thenReturn(processMock);
-        });
+        );
 
         outputStream = new ByteArrayOutputStream();
         System.setIn(new ByteArrayInputStream(new byte[0]));
@@ -489,8 +495,10 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
         }
 
         private Path getVersioningMarkdown() {
-            return getResourcesPath("multi", ".versioning",
-                    "versioning-%s.md".formatted(Utils.DATE_TIME_FORMATTER.format(DATE_TIME)));
+            return getResourcesPath(
+                    "multi", ".versioning",
+                    "versioning-%s.md".formatted(Utils.DATE_TIME_FORMATTER.format(DATE_TIME))
+            );
         }
     }
 
@@ -776,8 +784,10 @@ public class CreateVersionMarkdownMojoTest extends AbstractBaseMojoTest {
         }
 
         private Path getSingleVersioningMarkdown() {
-            return getResourcesPath("single", ".versioning",
-                    "versioning-%s.md".formatted(Utils.DATE_TIME_FORMATTER.format(DATE_TIME)));
+            return getResourcesPath(
+                    "single", ".versioning",
+                    "versioning-%s.md".formatted(Utils.DATE_TIME_FORMATTER.format(DATE_TIME))
+            );
         }
     }
 }

@@ -4,12 +4,49 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class VersionHeadersTest {
+    private static Stream<Arguments> nullHeaderInputs() {
+        return Stream.of(
+                Arguments.of(
+                        null,
+                        "Version",
+                        "Major",
+                        "Minor",
+                        "Patch",
+                        "Other",
+                        "`changelogHeader` header cannot be null"
+                ),
+                Arguments.of(
+                        "Changelog",
+                        null,
+                        "Major",
+                        "Minor",
+                        "Patch",
+                        "Other",
+                        "`versionHeader` header cannot be null"
+                ),
+                Arguments.of("Changelog", "Version", null, "Minor", "Patch", "Other", "`major` header cannot be null"),
+                Arguments.of("Changelog", "Version", "Major", null, "Patch", "Other", "`minor` header cannot be null"),
+                Arguments.of("Changelog", "Version", "Major", "Minor", null, "Other", "`patch` header cannot be null"),
+                Arguments.of("Changelog", "Version", "Major", "Minor", "Patch", null, "`other` header cannot be null")
+        );
+    }
+
+    private static Stream<Arguments> headerMapping() {
+        return Stream.of(
+                Arguments.of(SemanticVersionBump.MAJOR, "Major"),
+                Arguments.of(SemanticVersionBump.MINOR, "Minor"),
+                Arguments.of(SemanticVersionBump.PATCH, "Patch"),
+                Arguments.of(SemanticVersionBump.NONE, "Other")
+        );
+    }
+
     @Test
     void defaultConstructor_UsesHeaderConstants() {
         VersionHeaders headers = new VersionHeaders();
@@ -64,25 +101,5 @@ class VersionHeadersTest {
 
         assertThat(headers.getHeader(bump))
                 .isEqualTo(expectedHeader);
-    }
-
-    private static Stream<Arguments> nullHeaderInputs() {
-        return Stream.of(
-                Arguments.of(null, "Version", "Major", "Minor", "Patch", "Other", "`changelogHeader` header cannot be null"),
-                Arguments.of("Changelog", null, "Major", "Minor", "Patch", "Other", "`versionHeader` header cannot be null"),
-                Arguments.of("Changelog", "Version", null, "Minor", "Patch", "Other", "`major` header cannot be null"),
-                Arguments.of("Changelog", "Version", "Major", null, "Patch", "Other", "`minor` header cannot be null"),
-                Arguments.of("Changelog", "Version", "Major", "Minor", null, "Other", "`patch` header cannot be null"),
-                Arguments.of("Changelog", "Version", "Major", "Minor", "Patch", null, "`other` header cannot be null")
-        );
-    }
-
-    private static Stream<Arguments> headerMapping() {
-        return Stream.of(
-                Arguments.of(SemanticVersionBump.MAJOR, "Major"),
-                Arguments.of(SemanticVersionBump.MINOR, "Minor"),
-                Arguments.of(SemanticVersionBump.PATCH, "Patch"),
-                Arguments.of(SemanticVersionBump.NONE, "Other")
-        );
     }
 }

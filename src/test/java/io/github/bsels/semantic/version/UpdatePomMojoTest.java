@@ -72,13 +72,21 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         mockedExecutedProcesses = new ArrayList<>();
 
         filesMockedStatic = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS);
-        filesMockedStatic.when(() -> Files.newBufferedWriter(Mockito.any(), Mockito.any(), Mockito.any(OpenOption[].class)))
+        filesMockedStatic.when(() -> Files.newBufferedWriter(
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(OpenOption[].class)
+                ))
                 .thenAnswer(answer -> {
                     Path path = answer.getArgument(0);
                     mockedOutputFiles.put(path, new StringWriter());
                     return new BufferedWriter(mockedOutputFiles.get(path));
                 });
-        filesMockedStatic.when(() -> Files.copy(Mockito.any(Path.class), Mockito.any(), Mockito.any(CopyOption[].class)))
+        filesMockedStatic.when(() -> Files.copy(
+                        Mockito.any(Path.class),
+                        Mockito.any(),
+                        Mockito.any(CopyOption[].class)
+                ))
                 .thenAnswer(answer -> {
                     Path original = answer.getArgument(0);
                     Path copy = answer.getArgument(1);
@@ -97,24 +105,26 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
         localDateMockedStatic.when(LocalDate::now)
                 .thenReturn(DATE);
 
-        mockedProcessBuilderConstruction = Mockito.mockConstruction(ProcessBuilder.class, (mock, context) -> {
-            if (!context.arguments().isEmpty()) {
-                List<String> command = List.of((String[]) context.arguments().get(0));
-                if (!command.isEmpty()) {
-                    mockedExecutedProcesses.add(command);
+        mockedProcessBuilderConstruction = Mockito.mockConstruction(
+                ProcessBuilder.class, (mock, context) -> {
+                    if (!context.arguments().isEmpty()) {
+                        List<String> command = List.of((String[]) context.arguments().get(0));
+                        if (!command.isEmpty()) {
+                            mockedExecutedProcesses.add(command);
+                        }
+                    }
+                    Map<String, String> environment = new HashMap<>();
+                    Mockito.when(mock.command(Mockito.anyList()))
+                            .thenAnswer(invocation -> {
+                                mockedExecutedProcesses.add(invocation.getArgument(0));
+                                return mock;
+                            });
+                    Mockito.when(mock.environment()).thenReturn(environment);
+                    Mockito.when(mock.directory(Mockito.any())).thenReturn(mock);
+                    Mockito.when(mock.inheritIO()).thenReturn(mock);
+                    Mockito.when(mock.start()).thenReturn(processMock);
                 }
-            }
-            Map<String, String> environment = new HashMap<>();
-            Mockito.when(mock.command(Mockito.anyList()))
-                    .thenAnswer(invocation -> {
-                        mockedExecutedProcesses.add(invocation.getArgument(0));
-                        return mock;
-                    });
-            Mockito.when(mock.environment()).thenReturn(environment);
-            Mockito.when(mock.directory(Mockito.any())).thenReturn(mock);
-            Mockito.when(mock.inheritIO()).thenReturn(mock);
-            Mockito.when(mock.start()).thenReturn(processMock);
-        });
+        );
     }
 
     @AfterEach
@@ -894,10 +904,26 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                         .contains(
                                 List.of("git", "add", getResourcesPath("leaves", "child-1", "pom.xml").toString()),
                                 List.of("git", "add", getResourcesPath("leaves", "child-1", "CHANGELOG.md").toString()),
-                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "pom.xml").toString()),
-                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md").toString()),
-                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "pom.xml").toString()),
-                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md").toString())
+                                List.of(
+                                        "git",
+                                        "add",
+                                        getResourcesPath("leaves", "intermediate", "child-2", "pom.xml").toString()
+                                ),
+                                List.of(
+                                        "git",
+                                        "add",
+                                        getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md").toString()
+                                ),
+                                List.of(
+                                        "git",
+                                        "add",
+                                        getResourcesPath("leaves", "intermediate", "child-3", "pom.xml").toString()
+                                ),
+                                List.of(
+                                        "git",
+                                        "add",
+                                        getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md").toString()
+                                )
                         )
                         .anySatisfy(
                                 command -> assertThat(command)
@@ -905,9 +931,24 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                         .containsExactlyInAnyOrder(
                                                 "git",
                                                 "add",
-                                                getResourcesPath("versioning", "leaves", "multi", "child-1.md").toString(),
-                                                getResourcesPath("versioning", "leaves", "multi", "child-2.md").toString(),
-                                                getResourcesPath("versioning", "leaves", "multi", "child-3.md").toString()
+                                                getResourcesPath(
+                                                        "versioning",
+                                                        "leaves",
+                                                        "multi",
+                                                        "child-1.md"
+                                                ).toString(),
+                                                getResourcesPath(
+                                                        "versioning",
+                                                        "leaves",
+                                                        "multi",
+                                                        "child-2.md"
+                                                ).toString(),
+                                                getResourcesPath(
+                                                        "versioning",
+                                                        "leaves",
+                                                        "multi",
+                                                        "child-3.md"
+                                                ).toString()
                                         )
                         );
             } else {
@@ -916,10 +957,26 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                         .contains(
                                 List.of("git", "add", getResourcesPath("leaves", "child-1", "pom.xml").toString()),
                                 List.of("git", "add", getResourcesPath("leaves", "child-1", "CHANGELOG.md").toString()),
-                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "pom.xml").toString()),
-                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md").toString()),
-                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "pom.xml").toString()),
-                                List.of("git", "add", getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md").toString()),
+                                List.of(
+                                        "git",
+                                        "add",
+                                        getResourcesPath("leaves", "intermediate", "child-2", "pom.xml").toString()
+                                ),
+                                List.of(
+                                        "git",
+                                        "add",
+                                        getResourcesPath("leaves", "intermediate", "child-2", "CHANGELOG.md").toString()
+                                ),
+                                List.of(
+                                        "git",
+                                        "add",
+                                        getResourcesPath("leaves", "intermediate", "child-3", "pom.xml").toString()
+                                ),
+                                List.of(
+                                        "git",
+                                        "add",
+                                        getResourcesPath("leaves", "intermediate", "child-3", "CHANGELOG.md").toString()
+                                ),
                                 List.of("git", "commit", "-m", "Updated 3 project version(s) [skip ci]")
                         )
                         .anySatisfy(
@@ -928,9 +985,24 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                         .containsExactlyInAnyOrder(
                                                 "git",
                                                 "add",
-                                                getResourcesPath("versioning", "leaves", "multi", "child-1.md").toString(),
-                                                getResourcesPath("versioning", "leaves", "multi", "child-2.md").toString(),
-                                                getResourcesPath("versioning", "leaves", "multi", "child-3.md").toString()
+                                                getResourcesPath(
+                                                        "versioning",
+                                                        "leaves",
+                                                        "multi",
+                                                        "child-1.md"
+                                                ).toString(),
+                                                getResourcesPath(
+                                                        "versioning",
+                                                        "leaves",
+                                                        "multi",
+                                                        "child-2.md"
+                                                ).toString(),
+                                                getResourcesPath(
+                                                        "versioning",
+                                                        "leaves",
+                                                        "multi",
+                                                        "child-3.md"
+                                                ).toString()
                                         )
                         );
             }
@@ -1414,7 +1486,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(7)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
                                     getResourcesPath("revision", "multi", ".versioning")
                             )),
@@ -1505,7 +1578,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(7)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
                                     getResourcesPath("revision", "multi", ".versioning")
                             )),
@@ -1625,7 +1699,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(9)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
                                     getResourcesPath("revision", "multi", ".versioning")
                             )),
@@ -1673,7 +1748,10 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                     ## 3.0.0 - 2026-01-01
                                     
                                     Initial release.
-                                    """.formatted(getResourcesPath("revision", "multi", "CHANGELOG.md"), expectedVersion))
+                                    """.formatted(
+                                    getResourcesPath("revision", "multi", "CHANGELOG.md"),
+                                    expectedVersion
+                            ))
                     );
 
             assertThat(mockedOutputFiles)
@@ -1714,7 +1792,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(5)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
                                     getResourcesPath("revision", "multi", ".versioning")
                             )),
@@ -1753,7 +1832,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(1)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0")
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0")
                     );
 
             assertThat(mockedOutputFiles)
@@ -1782,9 +1862,16 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(4)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
-                                    getResourcesPath("versioning", "revision", "multi", "unknown-project", "versioning.md")
+                                    getResourcesPath(
+                                            "versioning",
+                                            "revision",
+                                            "multi",
+                                            "unknown-project",
+                                            "versioning.md"
+                                    )
                             )),
                             validateLogRecordDebug("""
                                     YAML front matter:
@@ -1818,7 +1905,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(7)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "revision", "multi", "none", "versioning.md")
                             )),
@@ -1865,7 +1953,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(9)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "revision", "multi", folder, "versioning.md")
                             )),
@@ -1959,7 +2048,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(18)
                     .satisfiesExactlyInAnyOrder(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "revision", "multi", "multiple", "major.md")
                             )),
@@ -2117,7 +2207,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(18)
                     .satisfiesExactlyInAnyOrder(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.multi:parent:3.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "revision", "multi", "multiple", "major.md")
                             )),
@@ -2273,7 +2364,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(7)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.single:project:2.0.0"),
                             validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
                                     getResourcesPath("revision", "single", ".versioning")
                             )),
@@ -2357,7 +2449,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(7)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.single:project:2.0.0"),
                             validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
                                     getResourcesPath("revision", "single", ".versioning")
                             )),
@@ -2470,7 +2563,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(9)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.single:project:2.0.0"),
                             validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
                                     getResourcesPath("revision", "single", ".versioning")
                             )),
@@ -2511,7 +2605,10 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                     ## 2.0.0 - 2026-01-01
                                     
                                     Initial release.
-                                    """.formatted(getResourcesPath("revision", "single", "CHANGELOG.md"), expectedVersion))
+                                    """.formatted(
+                                    getResourcesPath("revision", "single", "CHANGELOG.md"),
+                                    expectedVersion
+                            ))
                     );
 
             assertThat(mockedOutputFiles)
@@ -2550,7 +2647,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(5)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.single:project:2.0.0"),
                             validateLogRecordWarn("No versioning files found in %s as folder does not exists".formatted(
                                     getResourcesPath("revision", "single", ".versioning")
                             )),
@@ -2587,7 +2685,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(1)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0")
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.single:project:2.0.0")
                     );
 
             assertThat(mockedOutputFiles)
@@ -2616,9 +2715,16 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(4)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.single:project:2.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
-                                    getResourcesPath("versioning", "revision", "single", "unknown-project", "versioning.md")
+                                    getResourcesPath(
+                                            "versioning",
+                                            "revision",
+                                            "single",
+                                            "unknown-project",
+                                            "versioning.md"
+                                    )
                             )),
                             validateLogRecordDebug("""
                                     YAML front matter:
@@ -2652,7 +2758,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(7)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.single:project:2.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "revision", "single", "none", "versioning.md")
                             )),
@@ -2699,7 +2806,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(9)
                     .satisfiesExactly(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.single:project:2.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "revision", "single", folder, "versioning.md")
                             )),
@@ -2786,7 +2894,8 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
             assertThat(testLog.getLogRecords())
                     .hasSize(18)
                     .satisfiesExactlyInAnyOrder(
-                            validateLogRecordInfo("Execution for project: org.example.itests.revision.single:project:2.0.0"),
+                            validateLogRecordInfo(
+                                    "Execution for project: org.example.itests.revision.single:project:2.0.0"),
                             validateLogRecordInfo("Read 5 lines from %s".formatted(
                                     getResourcesPath("versioning", "revision", "single", "multiple", "major.md")
                             )),
@@ -2966,15 +3075,6 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                     .hasSize(2)
                     .containsKey(getResourcesPath("single", "pom.xml"))
                     .containsKey(getResourcesPath("single", "CHANGELOG.md"));
-                    // File based versioning files are NOT in mockedOutputFiles because they are deleted, not written by writePom/writeMarkdownFile
-                    // Wait, they ARE written when they are updated?
-                    // No, internalExecute says:
-                    // if (!dryRun && changedProjects > 0 && VersionBump.FILE_BASED.equals(versionBump)) {
-                    //     List<Path> paths = versionMarkdowns.stream()...toList();
-                    //     Utils.deleteFilesIfExists(paths);
-                    //     stashFiles(paths);
-                    // }
-                    // So they are deleted.
 
             assertThat(mockedOutputFiles.get(getResourcesPath("single", "pom.xml")).toString())
                     .isEqualToIgnoringNewLines("""
@@ -2993,18 +3093,18 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
 
             assertThat(mockedOutputFiles.get(getResourcesPath("single", "CHANGELOG.md")).toString())
                     .isEqualToIgnoringNewLines("""
-                            # Changelog
-                            
-                            ## %s - 2025-01-01
-                            
-                            ### %s
-                            
-                            %s versioning applied.
-                            
-                            ## 1.0.0 - 2026-01-01
-                            
-                            Initial release.
-                            """.formatted(
+                                    # Changelog
+                                    
+                                    ## %s - 2025-01-01
+                                    
+                                    ### %s
+                                    
+                                    %s versioning applied.
+                                    
+                                    ## 1.0.0 - 2026-01-01
+                                    
+                                    Initial release.
+                                    """.formatted(
                                     expectedVersion,
                                     bumpType.substring(0, 1).toUpperCase() + bumpType.substring(1).toLowerCase(),
                                     bumpType.substring(0, 1).toUpperCase() + bumpType.substring(1).toLowerCase()

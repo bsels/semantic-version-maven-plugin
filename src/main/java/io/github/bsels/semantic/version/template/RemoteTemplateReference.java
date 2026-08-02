@@ -9,12 +9,12 @@ import java.util.Objects;
 /// @param ref    the branch or tag to fetch; may be null for the remote default branch
 public record RemoteTemplateReference(String remote, String path, String ref) implements ParsedTemplate {
 
-	/// The default template path inside the remote repository.
-	public static final String DEFAULT_PATH = ".versioning/template.md";
+    /// The default template path inside the remote repository.
+    public static final String DEFAULT_PATH = ".versioning/template.md";
 
-	/// Validates the record components.
-	public RemoteTemplateReference {
-		Objects.requireNonNull(remote, "`remote` must not be null");
-		Objects.requireNonNull(path, "`path` must not be null");
-	}
+    /// Validates the record components.
+    public RemoteTemplateReference {
+        Objects.requireNonNull(remote, "`remote` must not be null");
+        Objects.requireNonNull(path, "`path` must not be null");
+    }
 }
