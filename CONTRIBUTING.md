@@ -16,6 +16,22 @@ You can find the configuration files in the `code-style` directory:
 
 Please import the appropriate configuration into your IDE before you start coding.
 
+### Deprecations
+
+When deprecating code, use the `{DEPRECATION_VERSION}` placeholder in the `@deprecated` Javadoc tag or `@Deprecated`
+annotation's `since` attribute.
+This placeholder will be automatically replaced with the actual version during the release process by the
+`update-deprecation-version.sh` script.
+
+Example:
+```java
+/**
+ * @deprecated Use {@link #newMethod()} instead. Since {DEPRECATION_VERSION}.
+ */
+@Deprecated(since = "{DEPRECATION_VERSION}", forRemoval = true)
+public void oldMethod() { ... }
+```
+
 ## How to Contribute
 
 ### 1. Reporting Issues
