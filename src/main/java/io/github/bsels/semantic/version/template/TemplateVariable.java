@@ -10,9 +10,9 @@ import java.util.regex.Pattern;
 /// @param pattern optional validation pattern the input must fully match; may be null
 public record TemplateVariable(String name, String prompt, Pattern pattern) {
 
-	/// Validates the record components.
-	public TemplateVariable {
-		Objects.requireNonNull(name, "`name` must not be null");
-		Objects.requireNonNull(prompt, "`prompt` must not be null");
-	}
+    /// Validates the record components.
+    public TemplateVariable {
+        Objects.requireNonNull(name, "`name` must not be null");
+        Objects.requireNonNull(prompt, "`prompt` must not be null");
+    }
 }

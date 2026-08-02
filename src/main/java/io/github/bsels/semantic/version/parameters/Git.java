@@ -10,6 +10,7 @@ public enum Git {
     NO_GIT,
     /// Represents a staging state in a Git repository.
     /// This enum value is used to indicate that the current instance corresponds to a staging state.
+    ///
     /// @deprecated use [#STAGING] instead. Since 1.5.0.
     @Deprecated(since = "1.5.0", forRemoval = true)
     STASH,

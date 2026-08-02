@@ -97,7 +97,13 @@ public final class POMUtils {
     /// a build configuration.
     /// The elements in the list represent successive levels of hierarchy needed to navigate to the "plugins"
     /// node within the build configuration structure.
-    private static final List<String> BUILD_PLUGIN_MANAGEMENT_PLUGINS_PATH = List.of(PROJECT, BUILD, "pluginManagement", PLUGINS, PLUGIN);
+    private static final List<String> BUILD_PLUGIN_MANAGEMENT_PLUGINS_PATH = List.of(
+            PROJECT,
+            BUILD,
+            "pluginManagement",
+            PLUGINS,
+            PLUGIN
+    );
     /// A constant that represents the path segments used to locate dependency management dependencies within
     /// a project's configuration structure.
     /// It consists of a fixed list containing elements that define the hierarchical path: "project",
@@ -105,7 +111,12 @@ public final class POMUtils {
     ///
     /// This variable is used to navigate or reference the dependency management section
     /// of a project's configuration file or data structure.
-    private static final List<String> DEPENDENCY_MANAGEMENT_DEPENDENCIES_PATH = List.of(PROJECT, "dependencyManagement", DEPENDENCIES, DEPENDENCY);
+    private static final List<String> DEPENDENCY_MANAGEMENT_DEPENDENCIES_PATH = List.of(
+            PROJECT,
+            "dependencyManagement",
+            DEPENDENCIES,
+            DEPENDENCY
+    );
     /// A constant list containing the paths for project dependencies.
     /// This list is intended to hold predefined directory paths or identifiers
     /// used within the application to reference dependency-related resources.
@@ -187,7 +198,7 @@ public final class POMUtils {
     /// @param document the XML document from which to retrieve the project version node; must not be null
     /// @param modus    the mode that specifies the traversal logic for locating the version node; must not be null
     /// @return the XML node representing the project version
-    /// @throws NullPointerException  if the document or modus argument is null
+    /// @throws NullPointerException   if the document or modus argument is null
     /// @throws MojoExecutionException if the project version node cannot be located in the document
     public static Node getProjectVersionNode(Document document, Modus modus)
             throws NullPointerException, MojoExecutionException {
@@ -200,9 +211,11 @@ public final class POMUtils {
         try {
             return walk(document, versionPropertyPath, 0);
         } catch (IllegalStateException e) {
-            throw new MojoExecutionException("Unable to find project version on the path: %s".formatted(
-                    String.join("->", versionPropertyPath)
-            ), e);
+            throw new MojoExecutionException(
+                    "Unable to find project version on the path: %s".formatted(
+                            String.join("->", versionPropertyPath)
+                    ), e
+            );
         }
     }
 
@@ -244,8 +257,10 @@ public final class POMUtils {
         if (backupOld) {
             Utils.backupFile(pomFile);
         }
-        try (Writer writer = Files.newBufferedWriter(pomFile, StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
+        try (Writer writer = Files.newBufferedWriter(
+                pomFile, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING
+        )) {
             writePom(document, writer);
         } catch (IOException e) {
             throw new MojoExecutionException("Unable to write to %s".formatted(pomFile), e);
@@ -402,7 +417,10 @@ public final class POMUtils {
                 .findFirst()
                 .map(child -> walk(child, path, currentElementIndex + 1))
                 .orElseThrow(() -> new IllegalStateException(
-                        "Unable to find element '%s' in '%s'".formatted(result.currentElementName(), parent.getNodeName())
+                        "Unable to find element '%s' in '%s'".formatted(
+                                result.currentElementName(),
+                                parent.getNodeName()
+                        )
                 ));
     }
 

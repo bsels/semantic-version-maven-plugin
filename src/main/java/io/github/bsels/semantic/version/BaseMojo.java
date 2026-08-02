@@ -63,7 +63,8 @@ import java.util.stream.Stream;
 ///
 /// Any issues encountered during plugin execution may result in a [MojoExecutionException]
 /// or a [MojoFailureException] being thrown.
-public abstract sealed class BaseMojo extends AbstractMojo permits CreateVersionMarkdownMojo, DependencyGraphMojo, UpdatePomMojo, VerifyMojo {
+public abstract sealed class BaseMojo extends AbstractMojo
+        permits CreateVersionMarkdownMojo, DependencyGraphMojo, UpdatePomMojo, VerifyMojo {
 
     /// A constant string representing the filename of the changelog file, "CHANGELOG.md".
     ///

@@ -363,7 +363,8 @@ public class POMUtilsTest {
 
         @Test
         void documentBuilderCreationFailed_ThrowsMojoFailureException() throws ParserConfigurationException {
-            try (MockedStatic<DocumentBuilderFactory> documentBuilderFactoryStatic = Mockito.mockStatic(DocumentBuilderFactory.class)) {
+            try (MockedStatic<DocumentBuilderFactory> documentBuilderFactoryStatic = Mockito.mockStatic(
+                    DocumentBuilderFactory.class)) {
                 documentBuilderFactoryStatic.when(DocumentBuilderFactory::newInstance)
                         .thenReturn(documentBuilderFactoryMock);
 
@@ -398,7 +399,8 @@ public class POMUtilsTest {
 
         @Test
         void happyFlow_Success() throws InvocationTargetException, IllegalAccessException, ParserConfigurationException {
-            try (MockedStatic<DocumentBuilderFactory> documentBuilderFactoryStatic = Mockito.mockStatic(DocumentBuilderFactory.class)) {
+            try (MockedStatic<DocumentBuilderFactory> documentBuilderFactoryStatic = Mockito.mockStatic(
+                    DocumentBuilderFactory.class)) {
                 documentBuilderFactoryStatic.when(DocumentBuilderFactory::newInstance)
                         .thenReturn(documentBuilderFactoryMock);
 
@@ -572,24 +574,35 @@ public class POMUtilsTest {
             dependencyWithVersion.appendChild(document.createElement("artifactId")).setTextContent("dependency");
             dependencyWithVersion.appendChild(document.createElement("groupId")).setTextContent("com.example");
             Node dependencyWithoutVersion = dependencies.appendChild(document.createElement("dependency"));
-            dependencyWithoutVersion.appendChild(document.createElement("artifactId")).setTextContent("dependencyManagement");
+            dependencyWithoutVersion.appendChild(document.createElement("artifactId")).setTextContent(
+                    "dependencyManagement");
             dependencyWithoutVersion.appendChild(document.createElement("groupId")).setTextContent("com.example");
 
             // DependencyManagement
             Node dependencyManagement = project.appendChild(document.createElement("dependencyManagement"));
-            Node dependencyManagementDependencies = dependencyManagement.appendChild(document.createElement("dependencies"));
-            Node dependencyManagementDependency0 = dependencyManagementDependencies.appendChild(document.createElement("dependency"));
-            dependencyManagementDependency0.appendChild(document.createElement("artifactId")).setTextContent("dependencyManagement");
+            Node dependencyManagementDependencies = dependencyManagement.appendChild(document.createElement(
+                    "dependencies"));
+            Node dependencyManagementDependency0 = dependencyManagementDependencies.appendChild(document.createElement(
+                    "dependency"));
+            dependencyManagementDependency0.appendChild(document.createElement("artifactId")).setTextContent(
+                    "dependencyManagement");
             dependencyManagementDependency0.appendChild(document.createElement("groupId")).setTextContent("com.example");
             dependencyManagementDependency0.appendChild(document.createElement("version")).setTextContent("1.0.2");
-            Node dependencyManagementDependency1 = dependencyManagementDependencies.appendChild(document.createElement("dependency"));
-            dependencyManagementDependency1.appendChild(document.createElement("artifactId")).setTextContent("dependencyManagement2");
+            Node dependencyManagementDependency1 = dependencyManagementDependencies.appendChild(document.createElement(
+                    "dependency"));
+            dependencyManagementDependency1.appendChild(document.createElement("artifactId")).setTextContent(
+                    "dependencyManagement2");
             dependencyManagementDependency1.appendChild(document.createElement("groupId")).setTextContent("com.example");
-            dependencyManagementDependency1.appendChild(document.createElement("version")).setTextContent("${property.version}");
-            Node dependencyManagementDependencyDuplicatedDependency = dependencyManagementDependencies.appendChild(document.createElement("dependency"));
-            dependencyManagementDependencyDuplicatedDependency.appendChild(document.createElement("artifactId")).setTextContent("dependency");
-            dependencyManagementDependencyDuplicatedDependency.appendChild(document.createElement("groupId")).setTextContent("com.example");
-            dependencyManagementDependencyDuplicatedDependency.appendChild(document.createElement("version")).setTextContent("0.0.1");
+            dependencyManagementDependency1.appendChild(document.createElement("version")).setTextContent(
+                    "${property.version}");
+            Node dependencyManagementDependencyDuplicatedDependency = dependencyManagementDependencies.appendChild(
+                    document.createElement("dependency"));
+            dependencyManagementDependencyDuplicatedDependency.appendChild(document.createElement("artifactId")).setTextContent(
+                    "dependency");
+            dependencyManagementDependencyDuplicatedDependency.appendChild(document.createElement("groupId")).setTextContent(
+                    "com.example");
+            dependencyManagementDependencyDuplicatedDependency.appendChild(document.createElement("version")).setTextContent(
+                    "0.0.1");
 
             // Build plugins
             Node buildPlugins = project.appendChild(document.createElement("build"));
@@ -599,20 +612,24 @@ public class POMUtilsTest {
             buildPluginsPluginWithVersion.appendChild(document.createElement("artifactId")).setTextContent("plugin");
             buildPluginsPluginWithVersion.appendChild(document.createElement("groupId")).setTextContent("com.example");
             Node buildPluginsPluginWithoutVersion = buildPluginsPlugins.appendChild(document.createElement("plugin"));
-            buildPluginsPluginWithoutVersion.appendChild(document.createElement("artifactId")).setTextContent("pluginManagement");
+            buildPluginsPluginWithoutVersion.appendChild(document.createElement("artifactId")).setTextContent(
+                    "pluginManagement");
             buildPluginsPluginWithoutVersion.appendChild(document.createElement("groupId")).setTextContent("com.example");
 
             // Build plugin management
             Node buildPluginManagement = buildPlugins.appendChild(document.createElement("pluginManagement"));
             Node buildPluginManagementPlugins = buildPluginManagement.appendChild(document.createElement("plugins"));
             Node buildPluginManagementPlugin0 = buildPluginManagementPlugins.appendChild(document.createElement("plugin"));
-            buildPluginManagementPlugin0.appendChild(document.createElement("artifactId")).setTextContent("pluginManagement");
+            buildPluginManagementPlugin0.appendChild(document.createElement("artifactId")).setTextContent(
+                    "pluginManagement");
             buildPluginManagementPlugin0.appendChild(document.createElement("groupId")).setTextContent("com.example");
             buildPluginManagementPlugin0.appendChild(document.createElement("version")).setTextContent("1.0.4");
             Node buildPluginManagementPlugin1 = buildPluginManagementPlugins.appendChild(document.createElement("plugin"));
-            buildPluginManagementPlugin1.appendChild(document.createElement("artifactId")).setTextContent("pluginManagement2");
+            buildPluginManagementPlugin1.appendChild(document.createElement("artifactId")).setTextContent(
+                    "pluginManagement2");
             buildPluginManagementPlugin1.appendChild(document.createElement("groupId")).setTextContent("com.example");
-            buildPluginManagementPlugin1.appendChild(document.createElement("version")).setTextContent("${property.version}");
+            buildPluginManagementPlugin1.appendChild(document.createElement("version")).setTextContent(
+                    "${property.version}");
             return document;
         }
     }
@@ -740,13 +757,15 @@ public class POMUtilsTest {
                             .hasRootCauseInstanceOf(IOException.class)
                             .hasRootCauseMessage("Unable to open writer");
 
-                    filesMockedStatic.verify(() -> Files.copy(
-                            POM_FILE,
-                            POM_BACKUP_FILE,
-                            StandardCopyOption.ATOMIC_MOVE,
-                            StandardCopyOption.COPY_ATTRIBUTES,
-                            StandardCopyOption.REPLACE_EXISTING
-                    ), Mockito.times(backup ? 1 : 0));
+                    filesMockedStatic.verify(
+                            () -> Files.copy(
+                                    POM_FILE,
+                                    POM_BACKUP_FILE,
+                                    StandardCopyOption.ATOMIC_MOVE,
+                                    StandardCopyOption.COPY_ATTRIBUTES,
+                                    StandardCopyOption.REPLACE_EXISTING
+                            ), Mockito.times(backup ? 1 : 0)
+                    );
                 }
             }
 
@@ -777,13 +796,15 @@ public class POMUtilsTest {
                                     <project/>\
                                     """);
 
-                    filesMockedStatic.verify(() -> Files.copy(
-                            POM_FILE,
-                            POM_BACKUP_FILE,
-                            StandardCopyOption.ATOMIC_MOVE,
-                            StandardCopyOption.COPY_ATTRIBUTES,
-                            StandardCopyOption.REPLACE_EXISTING
-                    ), Mockito.times(backup ? 1 : 0));
+                    filesMockedStatic.verify(
+                            () -> Files.copy(
+                                    POM_FILE,
+                                    POM_BACKUP_FILE,
+                                    StandardCopyOption.ATOMIC_MOVE,
+                                    StandardCopyOption.COPY_ATTRIBUTES,
+                                    StandardCopyOption.REPLACE_EXISTING
+                            ), Mockito.times(backup ? 1 : 0)
+                    );
                 }
             }
         }

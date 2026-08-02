@@ -183,11 +183,13 @@ public class ProcessUtilsTest {
             Path file = Path.of("test.md");
             System.setProperty("VISUAL", "vim");
 
-            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(ProcessBuilder.class,
+            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(
+                    ProcessBuilder.class,
                     (mock, context) -> {
                         Mockito.when(mock.inheritIO()).thenReturn(mock);
                         Mockito.when(mock.start()).thenReturn(process);
-                    })) {
+                    }
+            )) {
 
                 Mockito.when(process.waitFor()).thenReturn(0);
 
@@ -207,11 +209,13 @@ public class ProcessUtilsTest {
             Path file = Path.of("test.md");
             System.setProperty("EDITOR", "nano");
 
-            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(ProcessBuilder.class,
+            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(
+                    ProcessBuilder.class,
                     (mock, context) -> {
                         Mockito.when(mock.inheritIO()).thenReturn(mock);
                         Mockito.when(mock.start()).thenReturn(process);
-                    })) {
+                    }
+            )) {
 
                 Mockito.when(process.waitFor()).thenReturn(1);
 
@@ -229,11 +233,13 @@ public class ProcessUtilsTest {
             System.setProperty("VISUAL", "vim");
             IOException ioException = new IOException("Failed to start process");
 
-            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(ProcessBuilder.class,
+            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(
+                    ProcessBuilder.class,
                     (mock, context) -> {
                         Mockito.when(mock.inheritIO()).thenReturn(mock);
                         Mockito.when(mock.start()).thenThrow(ioException);
-                    })) {
+                    }
+            )) {
 
                 assertThatThrownBy(() -> ProcessUtils.executeEditor(file))
                         .isInstanceOf(MojoExecutionException.class)
@@ -250,11 +256,13 @@ public class ProcessUtilsTest {
             System.setProperty("VISUAL", "vim");
             InterruptedException interruptedException = new InterruptedException("Process interrupted");
 
-            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(ProcessBuilder.class,
+            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(
+                    ProcessBuilder.class,
                     (mock, context) -> {
                         Mockito.when(mock.inheritIO()).thenReturn(mock);
                         Mockito.when(mock.start()).thenReturn(process);
-                    })) {
+                    }
+            )) {
 
                 Mockito.when(process.waitFor()).thenThrow(interruptedException);
 
@@ -273,12 +281,14 @@ public class ProcessUtilsTest {
             Path file = Path.of("/tmp/changelog.md");
             System.setProperty("VISUAL", "emacs");
 
-            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(ProcessBuilder.class,
+            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(
+                    ProcessBuilder.class,
                     (mock, context) -> {
                         validateProcessArguments(context, "emacs", file);
                         Mockito.when(mock.inheritIO()).thenReturn(mock);
                         Mockito.when(mock.start()).thenReturn(process);
-                    })) {
+                    }
+            )) {
 
                 Mockito.when(process.waitFor()).thenReturn(0);
 
@@ -294,12 +304,14 @@ public class ProcessUtilsTest {
             System.clearProperty("VISUAL");
             System.setProperty("EDITOR", "nano");
 
-            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(ProcessBuilder.class,
+            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(
+                    ProcessBuilder.class,
                     (mock, context) -> {
                         validateProcessArguments(context, "nano", file);
                         Mockito.when(mock.inheritIO()).thenReturn(mock);
                         Mockito.when(mock.start()).thenReturn(process);
-                    })) {
+                    }
+            )) {
 
                 Mockito.when(process.waitFor()).thenReturn(0);
 
@@ -316,12 +328,14 @@ public class ProcessUtilsTest {
             System.clearProperty("EDITOR");
             System.setProperty("os.name", "Windows 10");
 
-            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(ProcessBuilder.class,
+            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(
+                    ProcessBuilder.class,
                     (mock, context) -> {
                         validateProcessArguments(context, "notepad", file);
                         Mockito.when(mock.inheritIO()).thenReturn(mock);
                         Mockito.when(mock.start()).thenReturn(process);
-                    })) {
+                    }
+            )) {
 
                 Mockito.when(process.waitFor()).thenReturn(0);
 
@@ -338,12 +352,14 @@ public class ProcessUtilsTest {
             System.clearProperty("EDITOR");
             System.setProperty("os.name", "Linux");
 
-            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(ProcessBuilder.class,
+            try (MockedConstruction<ProcessBuilder> mockedBuilder = Mockito.mockConstruction(
+                    ProcessBuilder.class,
                     (mock, context) -> {
                         validateProcessArguments(context, "vi", file);
                         Mockito.when(mock.inheritIO()).thenReturn(mock);
                         Mockito.when(mock.start()).thenReturn(process);
-                    })) {
+                    }
+            )) {
 
                 Mockito.when(process.waitFor()).thenReturn(0);
 

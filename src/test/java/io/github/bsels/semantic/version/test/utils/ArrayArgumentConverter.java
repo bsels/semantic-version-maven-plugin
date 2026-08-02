@@ -35,7 +35,8 @@ public class ArrayArgumentConverter implements ArgumentConverter {
             return null;
         }
         if (!(source instanceof String string)) {
-            throw new ArgumentConversionException("Cannot convert a non string '%s' to array/collection".formatted(source));
+            throw new ArgumentConversionException("Cannot convert a non string '%s' to array/collection".formatted(
+                    source));
         }
         Type type = context.getParameter()
                 .getParameterizedType();

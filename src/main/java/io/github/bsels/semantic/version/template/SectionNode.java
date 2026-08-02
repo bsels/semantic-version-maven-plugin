@@ -9,10 +9,10 @@ import java.util.Objects;
 /// @param children prompts in document order; never null
 public record SectionNode(String name, List<PromptNode> children) implements PromptNode {
 
-	/// Validates the section and copies its child list.
-	public SectionNode {
-		Objects.requireNonNull(name, "`name` must not be null");
-		Objects.requireNonNull(children, "`children` must not be null");
-		children = List.copyOf(children);
-	}
+    /// Validates the section and copies its child list.
+    public SectionNode {
+        Objects.requireNonNull(name, "`name` must not be null");
+        Objects.requireNonNull(children, "`children` must not be null");
+        children = List.copyOf(children);
+    }
 }

@@ -158,6 +158,26 @@ public class VerifyMojoTest extends AbstractBaseMojoTest {
     private List<List<String>> mockedExecutedProcesses;
     private MockedConstruction<ProcessBuilder> mockedProcessBuilderConstruction;
 
+    private static Stream<Arguments> verifyCombinations() {
+        return scenarios().flatMap(scenario -> Stream.of(VerificationMode.values())
+                .flatMap(mode -> Stream.of(false, true)
+                        .map(consistent -> Arguments.of(scenario, mode, consistent))));
+    }
+
+    private static Stream<Scenario> scenarios() {
+        return Stream.of(
+                SINGLE_MAJOR,
+                MULTI_DEPENDENCY,
+                MULTI_RECURSIVE_PARENT,
+                LEAVES_INCONSISTENT,
+                REVISION_SINGLE_MAJOR,
+                REVISION_MULTI_MAJOR,
+                SINGLE_UNKNOWN_PROJECT,
+                EMPTY_VERSIONING,
+                LEAVES_ARTIFACT_ONLY
+        );
+    }
+
     @BeforeEach
     void setUp() throws Exception {
         classUnderTest = new VerifyMojo();
@@ -165,15 +185,17 @@ public class VerifyMojoTest extends AbstractBaseMojoTest {
         classUnderTest.setLog(testLog);
         mockedExecutedProcesses = new ArrayList<>();
 
-        mockedProcessBuilderConstruction = Mockito.mockConstruction(ProcessBuilder.class, (mock, context) -> {
-            Mockito.when(mock.command(Mockito.anyList()))
-                    .thenAnswer(invocation -> {
-                        mockedExecutedProcesses.add(invocation.getArgument(0));
-                        return mock;
-                    });
-            Mockito.when(mock.inheritIO()).thenReturn(mock);
-            Mockito.when(mock.start()).thenReturn(processMock);
-        });
+        mockedProcessBuilderConstruction = Mockito.mockConstruction(
+                ProcessBuilder.class, (mock, context) -> {
+                    Mockito.when(mock.command(Mockito.anyList()))
+                            .thenAnswer(invocation -> {
+                                mockedExecutedProcesses.add(invocation.getArgument(0));
+                                return mock;
+                            });
+                    Mockito.when(mock.inheritIO()).thenReturn(mock);
+                    Mockito.when(mock.start()).thenReturn(processMock);
+                }
+        );
         Mockito.lenient().when(processMock.waitFor()).thenReturn(0);
     }
 
@@ -284,26 +306,6 @@ public class VerifyMojoTest extends AbstractBaseMojoTest {
 
     private Path resolveResources(Path relativePath) {
         return getResourcesPath(relativePath.toString());
-    }
-
-    private static Stream<Arguments> verifyCombinations() {
-        return scenarios().flatMap(scenario -> Stream.of(VerificationMode.values())
-                .flatMap(mode -> Stream.of(false, true)
-                        .map(consistent -> Arguments.of(scenario, mode, consistent))));
-    }
-
-    private static Stream<Scenario> scenarios() {
-        return Stream.of(
-                SINGLE_MAJOR,
-                MULTI_DEPENDENCY,
-                MULTI_RECURSIVE_PARENT,
-                LEAVES_INCONSISTENT,
-                REVISION_SINGLE_MAJOR,
-                REVISION_MULTI_MAJOR,
-                SINGLE_UNKNOWN_PROJECT,
-                EMPTY_VERSIONING,
-                LEAVES_ARTIFACT_ONLY
-        );
     }
 
     private record ExpectedOutcome(boolean success, String failureMessage) {

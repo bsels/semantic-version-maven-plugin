@@ -79,7 +79,10 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
         version = Objects.requireNonNull(version, "`version` must not be null").strip();
         Matcher matches = REGEX.matcher(version);
         if (!matches.matches()) {
-            throw new IllegalArgumentException("Invalid semantic version format: %s, should match the regex %s".formatted(version, REGEX.pattern()));
+            throw new IllegalArgumentException("Invalid semantic version format: %s, should match the regex %s".formatted(
+                    version,
+                    REGEX.pattern()
+            ));
         }
         return new SemanticVersion(
                 Integer.parseInt(matches.group(1)),
@@ -97,7 +100,8 @@ public record SemanticVersion(int major, int minor, int patch, Optional<String> 
     /// @throws IllegalArgumentException if the suffix does not match the required format
     private static void validateSuffix(String suffix) throws IllegalArgumentException {
         if (!suffix.matches(SUFFIX_REGEX_PATTERN)) {
-            throw new IllegalArgumentException("Suffix must be alphanumeric, dash, or dot, and should not start with a dash");
+            throw new IllegalArgumentException(
+                    "Suffix must be alphanumeric, dash, or dot, and should not start with a dash");
         }
     }
 
