@@ -45,7 +45,7 @@ jobs:
           SERVER_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_KEY_PASSWORD }}
         run: |
-          ./mvnw --batch-mode --no-transfer-progress clean deploy
+          ./mvnw --batch-mode --no-transfer-progress -Dgpg.skip=false clean deploy
       - name: Zip coverage report
         working-directory: ./target/site/jacoco
         run: |
