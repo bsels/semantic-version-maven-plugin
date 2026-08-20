@@ -11,7 +11,7 @@ BASE_DIR="${PROJECT_PATH:-.}"
 
 # Identify files containing the placeholder within the project path
 # Exclude the script itself, .git, and target directories
-FILES=$(grep -lR "$PLACEHOLDER" "$BASE_DIR" --exclude=update-deprecation-version.sh --exclude-dir=.git --exclude-dir=target || true)
+FILES=$(grep -lR "$PLACEHOLDER" "$BASE_DIR" --exclude=update-deprecation-version.sh --exclude=CONTRIBUTING.md --exclude-dir=.git --exclude-dir=target || true)
 
 if [ -z "$FILES" ]; then
   echo "No files containing placeholder $PLACEHOLDER found."
