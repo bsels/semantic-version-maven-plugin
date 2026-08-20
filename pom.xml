@@ -67,13 +67,13 @@
         <!-- https://central.sonatype.com/artifact/org.assertj/assertj-core -->
         <assertj.version>3.27.7</assertj.version>
         <!-- https://central.sonatype.com/artifact/org.commonmark/commonmark -->
-        <commonmark.version>0.29.0</commonmark.version>
+        <commonmark.version>0.30.0</commonmark.version>
         <!-- https://central.sonatype.com/artifact/tools.jackson/jackson-bom -->
-        <jackson.version>3.2.1</jackson.version>
+        <jackson.version>3.2.2</jackson.version>
         <!-- https://central.sonatype.com/artifact/com.samskivert/jmustache -->
         <jmustache.version>1.16</jmustache.version>
         <!-- https://central.sonatype.com/artifact/org.junit.jupiter/junit-jupiter-api -->
-        <junit.version>6.1.1</junit.version>
+        <junit.version>6.1.3</junit.version>
         <!-- https://central.sonatype.com/artifact/org.apache.maven.plugin-tools/maven-plugin-annotations -->
         <maven.plugin.version>3.15.2</maven.plugin.version>
         <!-- https://central.sonatype.com/artifact/org.mockito/mockito-core -->
