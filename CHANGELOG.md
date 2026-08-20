@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.1 - 2026-08-20
+
+### Patch
+
+Dependencies:
+
+- Bumped 'org.commonmark:commonmark' to **0.30.0**
+- Bumped 'tools.jackson:jackson-bom' to **3.2.2**
+- Bumped 'org.junit.jupiter:junit-jupiter-api' to **6.1.3**
+
 ## 1.6.0 - 2026-08-02
 
 ### Minor
