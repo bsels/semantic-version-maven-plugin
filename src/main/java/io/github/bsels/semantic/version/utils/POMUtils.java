@@ -85,6 +85,8 @@ public final class POMUtils {
     /// This constant serves as a key used for identifying and interacting with the version-related elements
     /// or properties within Maven-based projects.
     public static final String VERSION = "version";
+    /// Represents the project version placeholder `${project.version}` used in Maven POM files.
+    public static final String PROJECT_VERSION_PLACEHOLDER = "${project.version}";
 
     /// A constant list of directory names representing the path segments typically used to locate build-related plugins
     /// within a project structure.
@@ -354,6 +356,55 @@ public final class POMUtils {
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
                 ));
+    }
+
+    /// Extracts Maven artifacts from dependency, dependencyManagement, build plugins, and pluginManagement
+    /// sections of the given XML document whose version is `${project.version}`.
+    ///
+    /// @param document the XML document representing a Maven POM file; must not be null
+    /// @return a set of MavenArtifact objects for dependencies and plugins using `${project.version}`
+    /// @throws NullPointerException if the `document` argument is null
+    public static Set<MavenArtifact> getDependencyArtifactsWithProjectVersion(Document document) throws NullPointerException {
+        Objects.requireNonNull(document, "`document` must not be null");
+        Stream<Node> dependencyNodes = Stream.concat(
+                walkStream(document, DEPENDENCIES_PATH, 0),
+                walkStream(document, DEPENDENCY_MANAGEMENT_DEPENDENCIES_PATH, 0)
+        );
+        Stream<Node> pluginNodes = Stream.concat(
+                walkStream(document, BUILD_PLUGINS_PATH, 0),
+                walkStream(document, BUILD_PLUGIN_MANAGEMENT_PLUGINS_PATH, 0)
+        );
+        return Stream.concat(dependencyNodes, pluginNodes)
+                .map(POMUtils::handleDependencyArtifactNodeWithProjectVersion)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toSet());
+    }
+
+    /// Processes a given XML [Node] representing a dependency or plugin element to extract Maven artifact details
+    /// (groupId and artifactId) if its version matches `${project.version}`.
+    ///
+    /// @param element the XML Node to be processed, representing a dependency or plugin element in a Maven POM file
+    /// @return an [Optional] containing the extracted [MavenArtifact], or an empty [Optional] if required fields
+    ///         are missing or the version does not match `${project.version}`
+    private static Optional<MavenArtifact> handleDependencyArtifactNodeWithProjectVersion(Node element) {
+        NodeList childNodes = element.getChildNodes();
+        Map<String, Node> tagContent = IntStream.range(0, childNodes.getLength())
+                .mapToObj(childNodes::item)
+                .filter(node -> REQUIRED_MAVEN_ARTIFACT_FIELDS.contains(node.getNodeName()))
+                .collect(Collectors.toMap(Node::getNodeName, Function.identity()));
+
+        if (!tagContent.keySet().containsAll(REQUIRED_MAVEN_ARTIFACT_FIELDS)) {
+            return Optional.empty();
+        }
+        Node version = tagContent.get(VERSION);
+        String versionText = version.getTextContent().trim();
+        if (!PROJECT_VERSION_PLACEHOLDER.equals(versionText)) {
+            return Optional.empty();
+        }
+        String groupId = tagContent.get(GROUP_ID).getTextContent();
+        String artifactId = tagContent.get(ARTIFACT_ID).getTextContent();
+        return Optional.of(new MavenArtifact(groupId, artifactId));
     }
 
     /// Updates the text content of the specified node with a new version

@@ -5,6 +5,7 @@ import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
 import io.github.bsels.semantic.version.models.graph.ArtifactLocation;
 import io.github.bsels.semantic.version.models.graph.DetailedGraphNode;
 import io.github.bsels.semantic.version.parameters.GraphOutput;
+import io.github.bsels.semantic.version.utils.POMUtils;
 import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /// Represents a Maven Mojo goal for generating a dependency graph of Maven projects within the current execution scope.
 /// This goal facilitates the extraction, transformation, and representation of dependency relationships among Maven
@@ -139,7 +141,7 @@ public final class DependencyGraphMojo extends BaseMojo {
 
         Map<MavenArtifact, MavenProjectAndDocument> documents = readAllPoms(projectsInScope);
         Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping =
-                createDependencyToProjectArtifactMapping(documents.values(), projectArtifacts.keySet());
+                createDependencyToProjectArtifactMapping(projectsInScope, documents, projectArtifacts.keySet());
 
         Map<MavenArtifact, List<MavenArtifact>> projectToDependenciesMapping = projectArtifacts.keySet()
                 .stream()
@@ -308,5 +310,59 @@ public final class DependencyGraphMojo extends BaseMojo {
                 projectArtifacts.get(artifact),
                 minDependencies
         );
+    }
+
+    /// Creates a mapping from dependency artifacts to their dependent source artifacts (project artifacts)
+    /// within the reactor scope, resolving both standard dependencies and dependencies or plugins using `${project.version}`.
+    ///
+    /// @param projectsInScope  the list of Maven projects within the current execution scope; must not be null
+    /// @param documents        a mapping of Maven artifacts to their corresponding project and parsed XML document; must not be null
+    /// @param reactorArtifacts a set of Maven artifacts belonging to the reactor; must not be null
+    /// @return a mapping where each key is a target artifact and the value is a list of source artifacts depending on it
+    private Map<MavenArtifact, List<MavenArtifact>> createDependencyToProjectArtifactMapping(
+            List<MavenProject> projectsInScope,
+            Map<MavenArtifact, MavenProjectAndDocument> documents,
+            Set<MavenArtifact> reactorArtifacts
+    ) {
+        Map<MavenArtifact, MavenProject> artifactToProject = projectsInScope.stream()
+                .collect(Collectors.toMap(Utils::mavenProjectToArtifact, Function.identity()));
+
+        return projectsInScope.stream()
+                .flatMap(project -> {
+                    MavenArtifact sourceArtifact = Utils.mavenProjectToArtifact(project);
+                    MavenProjectAndDocument projectAndDocument = documents.get(sourceArtifact);
+                    if (projectAndDocument == null) {
+                        return Stream.empty();
+                    }
+                    Set<MavenArtifact> dependentArtifacts = new HashSet<>();
+
+                    dependentArtifacts.addAll(
+                            POMUtils.getMavenArtifacts(projectAndDocument.document())
+                                    .keySet()
+                                    .stream()
+                                    .filter(reactorArtifacts::contains)
+                                    .toList()
+                    );
+
+                    dependentArtifacts.addAll(
+                            POMUtils.getDependencyArtifactsWithProjectVersion(projectAndDocument.document())
+                                    .stream()
+                                    .filter(reactorArtifacts::contains)
+                                    .filter(depArtifact -> {
+                                        MavenProject targetProject = artifactToProject.get(depArtifact);
+                                        return targetProject != null &&
+                                               project.getVersion() != null &&
+                                               project.getVersion().equals(targetProject.getVersion());
+                                    })
+                                    .toList()
+                    );
+
+                    return dependentArtifacts.stream()
+                            .map(artifact -> Map.entry(artifact, sourceArtifact));
+                })
+                .collect(Utils.groupingByImmutable(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
+                ));
     }
 }
