@@ -770,4 +770,67 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
             assertThat(graphFull).hasSameSizeAs(graphFolder);
         }
     }
+
+    @Nested
+    class ProjectVersionUsageTests {
+
+        @Test
+        void internalExecute_ProjectVersionUsages_DependenciesAndPlugins() throws Exception {
+            Path projectRoot = getResourcesPath("project-version");
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+            classUnderTest.graphOutput = GraphOutput.ARTIFACT_AND_FOLDER;
+            classUnderTest.useRelativePaths = true;
+            classUnderTest.outputFile = null;
+
+            classUnderTest.internalExecute();
+
+            String output = outputStream.toString().trim();
+            assertThat(output).isNotEmpty();
+
+            Map<MavenArtifact, List<ArtifactLocation>> graph = objectMapper.readValue(
+                    output,
+                    new TypeReference<>() {
+                    }
+            );
+
+            assertThat(graph).containsKeys(
+                    new MavenArtifact("org.example.itests.projectversion", "parent"),
+                    new MavenArtifact("org.example.itests.projectversion", "dep-project"),
+                    new MavenArtifact("org.example.itests.projectversion", "consumer-project")
+            );
+
+            MavenArtifact consumer = new MavenArtifact("org.example.itests.projectversion", "consumer-project");
+            List<ArtifactLocation> consumerDeps = graph.get(consumer);
+            assertThat(consumerDeps).hasSize(3);
+            assertThat(consumerDeps.stream().map(ArtifactLocation::artifact))
+                    .contains(
+                            new MavenArtifact("org.example.itests.projectversion", "parent"),
+                            new MavenArtifact("org.example.itests.projectversion", "dep-project"),
+                            new MavenArtifact("org.example.itests.projectversion", "consumer-project")
+                    );
+        }
+
+        @Test
+        void internalExecute_ProjectVersionMismatch_ExcludesDependency() throws Exception {
+            Path projectRoot = getResourcesPath("project-version-mismatch");
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+            classUnderTest.graphOutput = GraphOutput.ARTIFACT_AND_FOLDER;
+            classUnderTest.useRelativePaths = true;
+            classUnderTest.outputFile = null;
+
+            classUnderTest.internalExecute();
+
+            String output = outputStream.toString().trim();
+            Map<MavenArtifact, List<ArtifactLocation>> graph = objectMapper.readValue(
+                    output,
+                    new TypeReference<>() {
+                    }
+            );
+
+            MavenArtifact consumer = new MavenArtifact("org.example.itests.projectversion.mismatch", "consumer-project");
+            List<ArtifactLocation> consumerDeps = graph.get(consumer);
+            assertThat(consumerDeps.stream().map(ArtifactLocation::artifact))
+                    .doesNotContain(new MavenArtifact("org.example.itests.projectversion.mismatch", "dep-project"));
+        }
+    }
 }
