@@ -461,6 +461,35 @@ public class ProcessUtilsTest {
         }
 
         @Test
+        void blankRef_ExecutesCloneWithoutBranch() throws Exception {
+            AtomicReference<List<String>> executedCommand = new AtomicReference<>();
+            try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
+                    ProcessBuilder.class,
+                    (mock, context) -> {
+                        Mockito.when(mock.command(Mockito.anyList())).thenAnswer(invocation -> {
+                            executedCommand.set(invocation.getArgument(0));
+                            return mock;
+                        });
+                        Mockito.when(mock.inheritIO()).thenReturn(mock);
+                        Mockito.when(mock.start()).thenReturn(process);
+                    }
+            )) {
+                Mockito.when(process.waitFor()).thenReturn(0);
+
+                ProcessUtils.gitShallowClone(
+                        "git@github.com:org/repo.git",
+                        "   ",
+                        Path.of("target-dir")
+                );
+            }
+
+            assertThat(executedCommand.get()).containsExactly(
+                    "git", "clone", "--depth", "1", "--single-branch",
+                    "git@github.com:org/repo.git", "target-dir"
+            );
+        }
+
+        @Test
         void nonZeroExit_ThrowsMojoExecutionException() throws Exception {
             try (MockedConstruction<ProcessBuilder> ignored = Mockito.mockConstruction(
                     ProcessBuilder.class,

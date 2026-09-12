@@ -671,5 +671,91 @@ public class TemplateParserTest {
                             )
                     ));
         }
+
+        @Test
+        void emptyTagAndComment_Ignored() throws Exception {
+            java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod("buildPromptPlan", String.class);
+            method.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            List<PromptNode> nodes = (List<PromptNode>) method.invoke(null, "{{}}\n{{! comment }}\n{{var1}}");
+            assertThat(nodes).hasSize(1);
+        }
+
+        @Test
+        void mismatchedSection_ThrowsException() {
+            String template = """
+                    ---
+                    variables: {}
+                    ---
+                    {{#section1}}
+                    {{/section2}}
+                    """;
+            assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+                    .isInstanceOf(MojoFailureException.class)
+                    .hasMessageContaining("mismatched open tag");
+        }
+
+        @Test
+        void buildPromptPlan_MismatchedSection_ThrowsException() throws Exception {
+            java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod("buildPromptPlan", String.class);
+            method.setAccessible(true);
+            assertThatThrownBy(() -> method.invoke(null, "{{#section1}}\n{{/section2}}"))
+                    .hasCauseInstanceOf(MojoFailureException.class)
+                    .hasRootCauseMessage("Template body is not valid: mismatched section `section2`");
+        }
+
+        @Test
+        void buildPromptPlan_MatchingSection_Success() throws Exception {
+            java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod("buildPromptPlan", String.class);
+            method.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            List<PromptNode> nodes = (List<PromptNode>) method.invoke(null, "{{#section1}}\n{{var1}}\n{{/section1}}");
+            assertThat(nodes).hasSize(1);
+        }
+
+        @Test
+        void buildPromptPlan_PartialTag_Success() throws Exception {
+            java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod("buildPromptPlan", String.class);
+            method.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            List<PromptNode> nodes = (List<PromptNode>) method.invoke(null, "{{>partial}}");
+            assertThat(nodes).isEmpty();
+        }
+
+        @Test
+        void validateName_NullName_ThrowsException() throws Exception {
+            java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod(
+                    "validateName",
+                    String.class,
+                    String.class
+            );
+            method.setAccessible(true);
+            assertThatThrownBy(() -> method.invoke(null, "variable", null))
+                    .hasCauseInstanceOf(MojoFailureException.class)
+                    .hasRootCauseMessage("Template variable name `null` is not valid");
+        }
+
+        @Test
+        void toPromptNodes_UnknownEntry_ThrowsRuntimeException() throws Exception {
+            java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod("toPromptNodes", List.class);
+            method.setAccessible(true);
+            assertThatThrownBy(() -> method.invoke(null, List.of("unknown")))
+                    .hasCauseInstanceOf(RuntimeException.class)
+                    .hasRootCauseMessage("Unknown prompt entry");
+        }
+
+        @Test
+        void invalidVariableName_ThrowsException() {
+            String template = """
+                    ---
+                    variables:
+                      "invalid name!": {}
+                    ---
+                    {{invalid name!}}
+                    """;
+            assertThatThrownBy(() -> TemplateParser.parse(new SystemStreamLog(), template))
+                    .isInstanceOf(MojoFailureException.class)
+                    .hasMessageContaining("Template variable name");
+        }
     }
 }

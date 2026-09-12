@@ -5,7 +5,6 @@ import tools.jackson.core.JsonParser;
 import tools.jackson.databind.DeserializationContext;
 import tools.jackson.databind.ValueDeserializer;
 
-import java.io.IOException;
 import java.util.Objects;
 
 /// A custom deserializer for creating instances of `MavenArtifact` using only the artifact ID

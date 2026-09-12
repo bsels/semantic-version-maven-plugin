@@ -201,5 +201,18 @@ public class TemplatePrompterTest {
                             "No input available while prompting for template variable `description`"
                     );
         }
+
+        @Test
+        void duplicateVariableNames_HandledByToMap() throws Exception {
+            TemplateDefinition dupDef = new TemplateDefinition(
+                    "{{description}}\n",
+                    List.of(DESCRIPTION, DESCRIPTION),
+                    Map.of(),
+                    List.of(new VariableNode("description"))
+            );
+            setInput("Setup repository\n");
+            assertThat(TemplatePrompter.promptForValues(dupDef))
+                    .isEqualTo(Map.of("description", "Setup repository"));
+        }
     }
 }

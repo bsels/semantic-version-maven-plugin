@@ -1,18 +1,15 @@
 package io.github.bsels.semantic.version.utils.mapper;
 
 import io.github.bsels.semantic.version.models.MavenArtifact;
-import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonGenerator;
 import tools.jackson.core.TokenStreamContext;
 import tools.jackson.databind.SerializationContext;
 import tools.jackson.databind.ValueSerializer;
 
-import java.io.IOException;
-
 /// A custom serializer for the [MavenArtifact] class that serializes only the artifact ID of the Maven artifact.
 ///
 /// This serializer is designed to selectively output the `artifactId` component of a [MavenArtifact].
-/// The [#serialize(MavenArtifact, JsonGenerator, SerializerProvider)] method leverages the [MavenArtifact#artifactId()]
+/// The [#serialize(MavenArtifact, JsonGenerator, SerializationContext)] method leverages the [MavenArtifact#artifactId()]
 /// method to retrieve the artifact ID and write it as a JSON string.
 ///
 /// The purpose of this serializer is to provide a minimalist representation of Maven artifacts in JSON format,

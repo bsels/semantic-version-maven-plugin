@@ -47,6 +47,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -892,6 +893,77 @@ public class POMUtilsTest {
 
         private InputStream stringToInputStream(String string) {
             return new ByteArrayInputStream(string.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    @Nested
+    class GetDependencyArtifactsWithProjectVersionTest {
+
+        @Test
+        void nullDocument_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> POMUtils.getDependencyArtifactsWithProjectVersion(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`document` must not be null");
+        }
+
+        @Test
+        void validPomWithProjectVersionDependency_ReturnsArtifacts() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.example</groupId>
+                                <artifactId>dep1</artifactId>
+                                <version>${project.version}</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>org.example</groupId>
+                                <artifactId>dep2</artifactId>
+                                <version>1.2.3</version>
+                            </dependency>
+                        </dependencies>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Set<MavenArtifact> artifacts = POMUtils.getDependencyArtifactsWithProjectVersion(document);
+            assertThat(artifacts).containsExactly(new MavenArtifact("org.example", "dep1"));
+        }
+
+        @Test
+        void validPomWithProjectVersionPlugin_ReturnsArtifacts() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <build>
+                            <plugins>
+                                <plugin>
+                                    <groupId>org.example</groupId>
+                                    <artifactId>plugin1</artifactId>
+                                    <version>${project.version}</version>
+                                </plugin>
+                            </plugins>
+                        </build>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Set<MavenArtifact> artifacts = POMUtils.getDependencyArtifactsWithProjectVersion(document);
+            assertThat(artifacts).containsExactly(new MavenArtifact("org.example", "plugin1"));
+        }
+
+        @Test
+        void incompleteDependency_Ignored() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.example</groupId>
+                                <!-- missing artifactId and version -->
+                            </dependency>
+                        </dependencies>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Set<MavenArtifact> artifacts = POMUtils.getDependencyArtifactsWithProjectVersion(document);
+            assertThat(artifacts).isEmpty();
         }
     }
 }

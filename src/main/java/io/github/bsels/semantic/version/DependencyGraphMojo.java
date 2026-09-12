@@ -21,11 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -139,7 +136,7 @@ public final class DependencyGraphMojo extends BaseMojo {
 
         Map<MavenArtifact, MavenProjectAndDocument> documents = readAllPoms(projectsInScope);
         Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping =
-                createDependencyToProjectArtifactMapping(documents.values(), projectArtifacts.keySet());
+                createDependencyToProjectArtifactMapping(projectsInScope, documents, projectArtifacts.keySet());
 
         Map<MavenArtifact, List<MavenArtifact>> projectToDependenciesMapping = projectArtifacts.keySet()
                 .stream()
@@ -212,61 +209,6 @@ public final class DependencyGraphMojo extends BaseMojo {
                                 .map(mapper)
                                 .toList()
                 ));
-    }
-
-    /// Resolves and collects all Maven artifacts that are dependent on the specified artifact within the provided
-    /// dependency mapping, including transitive dependencies.
-    ///
-    /// This method performs a depth-first traversal to find all direct and transitive dependencies
-    /// of the given artifact. The dependencies are returned in topological order (build order),
-    /// where dependencies that need to be built first appear earlier in the list.
-    ///
-    /// @param artifact                           the Maven artifact whose dependents need to be collected
-    /// @param dependencyToProjectArtifactMapping a mapping that associates project artifacts with their dependencies
-    /// @return a list of Maven artifacts that depend on the specified artifact, sorted in build order
-    private List<MavenArtifact> collectProjectDependencies(
-            MavenArtifact artifact,
-            Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping
-    ) {
-        Set<MavenArtifact> visited = new HashSet<>();
-        List<MavenArtifact> result = new ArrayList<>();
-        collectTransitiveDependencies(artifact, dependencyToProjectArtifactMapping, visited, result);
-        return List.copyOf(result);
-    }
-
-    /// Recursively collects transitive dependencies using depth-first search.
-    /// Dependencies are added to the result list in post-order (dependencies before dependents),
-    /// which ensures topological ordering for build purposes.
-    ///
-    /// @param artifact                           the current artifact being processed
-    /// @param dependencyToProjectArtifactMapping a mapping that associates project artifacts with their dependencies
-    /// @param visited                            set of already visited artifacts to avoid cycles
-    /// @param result                             list to accumulate dependencies in topological order
-    private void collectTransitiveDependencies(
-            MavenArtifact artifact,
-            Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping,
-            Set<MavenArtifact> visited,
-            List<MavenArtifact> result
-    ) {
-        if (visited.contains(artifact)) {
-            return;
-        }
-        visited.add(artifact);
-
-        // Find all direct dependencies of this artifact
-        List<MavenArtifact> directDependencies = dependencyToProjectArtifactMapping.entrySet()
-                .stream()
-                .filter(entry -> entry.getValue().contains(artifact))
-                .map(Map.Entry::getKey)
-                .toList();
-
-        // Recursively process each direct dependency
-        for (MavenArtifact dependency : directDependencies) {
-            collectTransitiveDependencies(dependency, dependencyToProjectArtifactMapping, visited, result);
-        }
-
-        // Add the current artifact after its dependencies (post-order)
-        result.add(artifact);
     }
 
     /// Returns the project folder path as a string.

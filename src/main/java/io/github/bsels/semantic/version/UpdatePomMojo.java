@@ -369,7 +369,8 @@ public final class UpdatePomMojo extends BaseMojo {
                 reactorArtifacts
         );
         Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifacts = createDependencyToProjectArtifactMapping(
-                documents.values(),
+                projects,
+                documents,
                 reactorArtifacts
         );
 

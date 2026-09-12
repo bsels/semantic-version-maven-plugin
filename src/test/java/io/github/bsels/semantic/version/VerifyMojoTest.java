@@ -149,6 +149,32 @@ public class VerifyMojoTest extends AbstractBaseMojoTest {
             false,
             false
     );
+    private static final Scenario PROJECT_VERSION_EXAMPLE = new Scenario(
+            "project-version",
+            Path.of("project-version"),
+            Path.of("."),
+            Path.of("versioning", "project-version"),
+            Modus.PROJECT_VERSION,
+            ArtifactIdentifier.GROUP_ID_AND_ARTIFACT_ID,
+            false,
+            false,
+            true,
+            true,
+            false
+    );
+    private static final Scenario PROJECT_VERSION_MISMATCH = new Scenario(
+            "project-version-mismatch",
+            Path.of("project-version-mismatch"),
+            Path.of("."),
+            Path.of("versioning", "project-version-mismatch"),
+            Modus.PROJECT_VERSION,
+            ArtifactIdentifier.GROUP_ID_AND_ARTIFACT_ID,
+            false,
+            true,
+            true,
+            true,
+            false
+    );
 
     @Mock
     Process processMock;
@@ -174,7 +200,9 @@ public class VerifyMojoTest extends AbstractBaseMojoTest {
                 REVISION_MULTI_MAJOR,
                 SINGLE_UNKNOWN_PROJECT,
                 EMPTY_VERSIONING,
-                LEAVES_ARTIFACT_ONLY
+                LEAVES_ARTIFACT_ONLY,
+                PROJECT_VERSION_EXAMPLE,
+                PROJECT_VERSION_MISMATCH
         );
     }
 
