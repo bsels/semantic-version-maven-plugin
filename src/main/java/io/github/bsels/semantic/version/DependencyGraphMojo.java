@@ -5,7 +5,6 @@ import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
 import io.github.bsels.semantic.version.models.graph.ArtifactLocation;
 import io.github.bsels.semantic.version.models.graph.DetailedGraphNode;
 import io.github.bsels.semantic.version.parameters.GraphOutput;
-import io.github.bsels.semantic.version.utils.POMUtils;
 import io.github.bsels.semantic.version.utils.Utils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -22,14 +21,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /// Represents a Maven Mojo goal for generating a dependency graph of Maven projects within the current execution scope.
 /// This goal facilitates the extraction, transformation, and representation of dependency relationships among Maven

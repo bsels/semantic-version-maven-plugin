@@ -199,11 +199,9 @@ public final class TemplateParser {
     /// and sections, as well as building a prompt plan for further processing.
     ///
     /// @param body the content of the Mustache template to be analyzed; must not be null
-    /// @return a {@code TemplateAnalysis} object consisting of the prompt plan, the set of
-    ///                 variables used in the template, and the set of sections used in the template
+    /// @return a {@code TemplateAnalysis} object consisting of the prompt plan, the set of ariables used in the template, and the set of sections used in the template
     /// @throws MojoFailureException if the body contains unsupported Mustache tags, invalid
-    ///         variable or section names, or if the body is otherwise malformed
-    ///
+    /// variable or section names, or if the body is otherwise malformed
     private static TemplateAnalysis analyzeBody(String body) throws MojoFailureException {
         if (body.contains("{{=")) {
             throw unsupportedTag("custom delimiters", null);
@@ -389,11 +387,9 @@ public final class TemplateParser {
     ///                     no declared sections
     /// @param usedSections a set of section names that have been identified as used in
     ///                     the template; must not be null
-    /// @return a map where the key is a used section name and the value is the
-    ///                 corresponding add prompt
+    /// @return a map where the key is a used section name and the value is the corresponding add prompt
     /// @throws MojoFailureException if a section name is invalid, or if the add prompt
     ///                              of a declared section is set but blank
-    ///
     private static Map<String, String> buildSectionAddPrompts(
             Map<String, SectionDeclaration> declarations,
             Set<String> usedSections
@@ -429,7 +425,6 @@ public final class TemplateParser {
     /// @param type the type of the template to which the name belongs; must not be null
     /// @param name the name to be validated; may be null or malformed
     /// @throws MojoFailureException if the name is null or does not match the expected format
-    ///
     private static void validateName(
             String type,
             String name
@@ -446,7 +441,6 @@ public final class TemplateParser {
     /// @param type the type of the entity being validated; must not be null
     /// @param name the name to be validated; must not be null and must conform to the required format
     /// @throws InvalidNameException if the name does not match the expected format
-    ///
     private static void validateVisitedName(
             String type,
             String name

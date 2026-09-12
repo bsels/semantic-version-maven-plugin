@@ -831,7 +831,10 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
                     }
             );
 
-            MavenArtifact consumer = new MavenArtifact("org.example.itests.projectversion.mismatch", "consumer-project");
+            MavenArtifact consumer = new MavenArtifact(
+                    "org.example.itests.projectversion.mismatch",
+                    "consumer-project"
+            );
             List<ArtifactLocation> consumerDeps = graph.get(consumer);
             assertThat(consumerDeps.stream().map(ArtifactLocation::artifact))
                     .doesNotContain(new MavenArtifact("org.example.itests.projectversion.mismatch", "dep-project"));

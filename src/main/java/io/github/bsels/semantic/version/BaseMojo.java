@@ -538,8 +538,8 @@ public abstract sealed class BaseMojo extends AbstractMojo
                                     .filter(depArtifact -> {
                                         MavenProject targetProject = artifactToProject.get(depArtifact);
                                         return targetProject != null &&
-                                               project.getVersion() != null &&
-                                               project.getVersion().equals(targetProject.getVersion());
+                                                project.getVersion() != null &&
+                                                project.getVersion().equals(targetProject.getVersion());
                                     })
                                     .toList()
                     );

@@ -724,7 +724,11 @@ public class TemplateParserTest {
 
         @Test
         void validateName_NullName_ThrowsException() throws Exception {
-            java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod("validateName", String.class, String.class);
+            java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod(
+                    "validateName",
+                    String.class,
+                    String.class
+            );
             method.setAccessible(true);
             assertThatThrownBy(() -> method.invoke(null, "variable", null))
                     .hasCauseInstanceOf(MojoFailureException.class)
