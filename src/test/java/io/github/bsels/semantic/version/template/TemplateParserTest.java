@@ -714,6 +714,15 @@ public class TemplateParserTest {
         }
 
         @Test
+        void buildPromptPlan_PartialTag_Success() throws Exception {
+            java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod("buildPromptPlan", String.class);
+            method.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            List<PromptNode> nodes = (List<PromptNode>) method.invoke(null, "{{>partial}}");
+            assertThat(nodes).isEmpty();
+        }
+
+        @Test
         void validateName_NullName_ThrowsException() throws Exception {
             java.lang.reflect.Method method = TemplateParser.class.getDeclaredMethod("validateName", String.class, String.class);
             method.setAccessible(true);

@@ -894,8 +894,8 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
             project.setVersion("1.0.0");
 
             org.apache.maven.project.MavenProject targetProject = new org.apache.maven.project.MavenProject();
-            targetProject.setGroupId("org.example");
-            targetProject.setArtifactId("dep");
+            targetProject.setGroupId("org.example.itests.projectversion");
+            targetProject.setArtifactId("dep-project");
             targetProject.setVersion("2.0.0");
 
             Document doc = POMUtils.readPom(getResourcesPath("project-version").resolve("consumer-project/pom.xml"));
@@ -953,6 +953,48 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
             Map<?, ?> result = (Map<?, ?>) method.invoke(
                     classUnderTest,
                     List.of(project, targetProject),
+                    documents,
+                    Set.of(depArt)
+            );
+            assertThat(result).isNotEmpty();
+        }
+
+        @Test
+        void createDependencyToProjectArtifactMapping_MixedBranches() throws Exception {
+            java.lang.reflect.Method method = DependencyGraphMojo.class.getDeclaredMethod(
+                    "createDependencyToProjectArtifactMapping",
+                    List.class, Map.class, Set.class
+            );
+            method.setAccessible(true);
+
+            org.apache.maven.project.MavenProject project1 = new org.apache.maven.project.MavenProject();
+            project1.setGroupId("org.example.itests.projectversion");
+            project1.setArtifactId("consumer-project");
+            project1.setVersion("1.0.0");
+
+            org.apache.maven.project.MavenProject project2 = new org.apache.maven.project.MavenProject();
+            project2.setGroupId("org.example.itests.projectversion");
+            project2.setArtifactId("consumer-project-2");
+            project2.setVersion(null);
+
+            org.apache.maven.project.MavenProject targetProject = new org.apache.maven.project.MavenProject();
+            targetProject.setGroupId("org.example.itests.projectversion");
+            targetProject.setArtifactId("dep-project");
+            targetProject.setVersion("1.0.0");
+
+            Document doc = POMUtils.readPom(getResourcesPath("project-version").resolve("consumer-project/pom.xml"));
+            MavenArtifact art1 = new MavenArtifact("org.example.itests.projectversion", "consumer-project");
+            MavenArtifact art2 = new MavenArtifact("org.example.itests.projectversion", "consumer-project-2");
+            MavenArtifact depArt = new MavenArtifact("org.example.itests.projectversion", "dep-project");
+
+            Map<MavenArtifact, MavenProjectAndDocument> documents = Map.of(
+                    art1, new MavenProjectAndDocument(art1, Path.of("pom1.xml"), doc),
+                    art2, new MavenProjectAndDocument(art2, Path.of("pom2.xml"), doc)
+            );
+
+            Map<?, ?> result = (Map<?, ?>) method.invoke(
+                    classUnderTest,
+                    List.of(project1, project2, targetProject),
                     documents,
                     Set.of(depArt)
             );
