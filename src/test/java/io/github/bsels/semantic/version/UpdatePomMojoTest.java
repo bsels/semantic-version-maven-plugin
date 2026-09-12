@@ -1011,6 +1011,40 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
     }
 
     @Nested
+    class ProjectVersionProjectTest {
+
+        @Test
+        void internalExecute_ProjectVersionUsages_UpdatesPomWithProjectVersionDependencies() throws Exception {
+            Path projectRoot = getResourcesPath("project-version");
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "project-version");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .isNotEmpty();
+        }
+
+        @Test
+        void internalExecute_ProjectVersionMismatch_DoesNotUpdateConsumerProject() throws Exception {
+            Path projectRoot = getResourcesPath("project-version-mismatch");
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "project-version-mismatch");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .doesNotContainKey(getResourcesPath("project-version-mismatch", "consumer-project", "pom.xml"));
+        }
+    }
+
+    @Nested
     class MultiProjectTest {
 
         private static String getVersioningMessage(String dependency) {
