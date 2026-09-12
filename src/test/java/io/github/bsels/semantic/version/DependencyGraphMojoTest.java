@@ -843,7 +843,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
 
         @Test
         void createDependencyToProjectArtifactMapping_EdgeCases() throws Exception {
-            java.lang.reflect.Method method = DependencyGraphMojo.class.getDeclaredMethod(
+            java.lang.reflect.Method method = BaseMojo.class.getDeclaredMethod(
                     "createDependencyToProjectArtifactMapping",
                     List.class, Map.class, Set.class
             );
@@ -882,7 +882,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
 
         @Test
         void createDependencyToProjectArtifactMapping_VersionEdgeCases() throws Exception {
-            java.lang.reflect.Method method = DependencyGraphMojo.class.getDeclaredMethod(
+            java.lang.reflect.Method method = BaseMojo.class.getDeclaredMethod(
                     "createDependencyToProjectArtifactMapping",
                     List.class, Map.class, Set.class
             );
@@ -926,7 +926,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
 
         @Test
         void createDependencyToProjectArtifactMapping_MatchingVersion() throws Exception {
-            java.lang.reflect.Method method = DependencyGraphMojo.class.getDeclaredMethod(
+            java.lang.reflect.Method method = BaseMojo.class.getDeclaredMethod(
                     "createDependencyToProjectArtifactMapping",
                     List.class, Map.class, Set.class
             );
@@ -961,7 +961,7 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
 
         @Test
         void createDependencyToProjectArtifactMapping_MixedBranches() throws Exception {
-            java.lang.reflect.Method method = DependencyGraphMojo.class.getDeclaredMethod(
+            java.lang.reflect.Method method = BaseMojo.class.getDeclaredMethod(
                     "createDependencyToProjectArtifactMapping",
                     List.class, Map.class, Set.class
             );

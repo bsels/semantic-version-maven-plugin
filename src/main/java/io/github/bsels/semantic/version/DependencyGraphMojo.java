@@ -216,61 +216,6 @@ public final class DependencyGraphMojo extends BaseMojo {
                 ));
     }
 
-    /// Resolves and collects all Maven artifacts that are dependent on the specified artifact within the provided
-    /// dependency mapping, including transitive dependencies.
-    ///
-    /// This method performs a depth-first traversal to find all direct and transitive dependencies
-    /// of the given artifact. The dependencies are returned in topological order (build order),
-    /// where dependencies that need to be built first appear earlier in the list.
-    ///
-    /// @param artifact                           the Maven artifact whose dependents need to be collected
-    /// @param dependencyToProjectArtifactMapping a mapping that associates project artifacts with their dependencies
-    /// @return a list of Maven artifacts that depend on the specified artifact, sorted in build order
-    private List<MavenArtifact> collectProjectDependencies(
-            MavenArtifact artifact,
-            Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping
-    ) {
-        Set<MavenArtifact> visited = new HashSet<>();
-        List<MavenArtifact> result = new ArrayList<>();
-        collectTransitiveDependencies(artifact, dependencyToProjectArtifactMapping, visited, result);
-        return List.copyOf(result);
-    }
-
-    /// Recursively collects transitive dependencies using depth-first search.
-    /// Dependencies are added to the result list in post-order (dependencies before dependents),
-    /// which ensures topological ordering for build purposes.
-    ///
-    /// @param artifact                           the current artifact being processed
-    /// @param dependencyToProjectArtifactMapping a mapping that associates project artifacts with their dependencies
-    /// @param visited                            set of already visited artifacts to avoid cycles
-    /// @param result                             list to accumulate dependencies in topological order
-    private void collectTransitiveDependencies(
-            MavenArtifact artifact,
-            Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping,
-            Set<MavenArtifact> visited,
-            List<MavenArtifact> result
-    ) {
-        if (visited.contains(artifact)) {
-            return;
-        }
-        visited.add(artifact);
-
-        // Find all direct dependencies of this artifact
-        List<MavenArtifact> directDependencies = dependencyToProjectArtifactMapping.entrySet()
-                .stream()
-                .filter(entry -> entry.getValue().contains(artifact))
-                .map(Map.Entry::getKey)
-                .toList();
-
-        // Recursively process each direct dependency
-        for (MavenArtifact dependency : directDependencies) {
-            collectTransitiveDependencies(dependency, dependencyToProjectArtifactMapping, visited, result);
-        }
-
-        // Add the current artifact after its dependencies (post-order)
-        result.add(artifact);
-    }
-
     /// Returns the project folder path as a string.
     /// If relative paths are enabled, the path is returned relative to the specified execution root directory;
     /// otherwise, the absolute path of the project is returned.
@@ -310,59 +255,5 @@ public final class DependencyGraphMojo extends BaseMojo {
                 projectArtifacts.get(artifact),
                 minDependencies
         );
-    }
-
-    /// Creates a mapping from dependency artifacts to their dependent source artifacts (project artifacts)
-    /// within the reactor scope, resolving both standard dependencies and dependencies or plugins using `${project.version}`.
-    ///
-    /// @param projectsInScope  the list of Maven projects within the current execution scope; must not be null
-    /// @param documents        a mapping of Maven artifacts to their corresponding project and parsed XML document; must not be null
-    /// @param reactorArtifacts a set of Maven artifacts belonging to the reactor; must not be null
-    /// @return a mapping where each key is a target artifact and the value is a list of source artifacts depending on it
-    private Map<MavenArtifact, List<MavenArtifact>> createDependencyToProjectArtifactMapping(
-            List<MavenProject> projectsInScope,
-            Map<MavenArtifact, MavenProjectAndDocument> documents,
-            Set<MavenArtifact> reactorArtifacts
-    ) {
-        Map<MavenArtifact, MavenProject> artifactToProject = projectsInScope.stream()
-                .collect(Collectors.toMap(Utils::mavenProjectToArtifact, Function.identity()));
-
-        return projectsInScope.stream()
-                .flatMap(project -> {
-                    MavenArtifact sourceArtifact = Utils.mavenProjectToArtifact(project);
-                    MavenProjectAndDocument projectAndDocument = documents.get(sourceArtifact);
-                    if (projectAndDocument == null) {
-                        return Stream.empty();
-                    }
-                    Set<MavenArtifact> dependentArtifacts = new HashSet<>();
-
-                    dependentArtifacts.addAll(
-                            POMUtils.getMavenArtifacts(projectAndDocument.document())
-                                    .keySet()
-                                    .stream()
-                                    .filter(reactorArtifacts::contains)
-                                    .toList()
-                    );
-
-                    dependentArtifacts.addAll(
-                            POMUtils.getDependencyArtifactsWithProjectVersion(projectAndDocument.document())
-                                    .stream()
-                                    .filter(reactorArtifacts::contains)
-                                    .filter(depArtifact -> {
-                                        MavenProject targetProject = artifactToProject.get(depArtifact);
-                                        return targetProject != null &&
-                                               project.getVersion() != null &&
-                                               project.getVersion().equals(targetProject.getVersion());
-                                    })
-                                    .toList()
-                    );
-
-                    return dependentArtifacts.stream()
-                            .map(artifact -> Map.entry(artifact, sourceArtifact));
-                })
-                .collect(Utils.groupingByImmutable(
-                        Map.Entry::getKey,
-                        Collectors.mapping(Map.Entry::getValue, Utils.asImmutableList())
-                ));
     }
 }

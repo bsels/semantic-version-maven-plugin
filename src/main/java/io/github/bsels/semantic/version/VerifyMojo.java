@@ -175,9 +175,10 @@ public final class VerifyMojo extends BaseMojo {
             throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
         log.debug("Verification mode is DEPENDENT_PROJECTS.");
-        Map<MavenArtifact, MavenProjectAndDocument> documents = readAllPoms(getProjectsInScope().toList());
+        List<MavenProject> projectsInScope = getProjectsInScope().toList();
+        Map<MavenArtifact, MavenProjectAndDocument> documents = readAllPoms(projectsInScope);
         Map<MavenArtifact, List<MavenArtifact>> dependencyToProjectArtifactMapping =
-                createDependencyToProjectArtifactMapping(documents.values(), projects);
+                createDependencyToProjectArtifactMapping(projectsInScope, documents, projects);
         Queue<MavenArtifact> toBeProcessed = new ArrayDeque<>(mapping.versionBumpMap().keySet());
         Set<MavenArtifact> expectedProjects = new HashSet<>();
         while (!toBeProcessed.isEmpty()) {
