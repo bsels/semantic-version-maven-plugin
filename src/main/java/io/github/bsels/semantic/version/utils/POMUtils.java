@@ -7,7 +7,6 @@ import io.github.bsels.semantic.version.models.VersionChange;
 import io.github.bsels.semantic.version.parameters.Modus;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.jspecify.annotations.NonNull;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
