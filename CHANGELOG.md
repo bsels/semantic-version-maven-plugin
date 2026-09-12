@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.7.0 - 2026-09-12
+
+### Minor
+
+Features:
+
+- Support the `${project.version}` as version placeholder, for inter-reactor dependencies
+
+### Patch
+
+Dependencies:
+
+- Bumped 'maven.compiler.plugin' to **3.16.0**
+- Bumped 'maven.surefire.plugin' to **3.6.0**
+- Bumped 'maven.plugin.plugin' to **3.16.0**
+- Bumped 'maven.plugin.annotations' to **3.16.0**
+
 ## 1.6.1 - 2026-08-20
 
 ### Patch
