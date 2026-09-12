@@ -1,10 +1,12 @@
 package io.github.bsels.semantic.version;
 
 import io.github.bsels.semantic.version.models.MavenArtifact;
+import io.github.bsels.semantic.version.models.MavenProjectAndDocument;
 import io.github.bsels.semantic.version.models.graph.ArtifactLocation;
 import io.github.bsels.semantic.version.parameters.GraphOutput;
 import io.github.bsels.semantic.version.test.utils.ReadMockedMavenSession;
 import io.github.bsels.semantic.version.test.utils.TestLog;
+import io.github.bsels.semantic.version.utils.POMUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +18,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.w3c.dom.Document;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -30,6 +33,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -831,6 +835,128 @@ class DependencyGraphMojoTest extends AbstractBaseMojoTest {
             List<ArtifactLocation> consumerDeps = graph.get(consumer);
             assertThat(consumerDeps.stream().map(ArtifactLocation::artifact))
                     .doesNotContain(new MavenArtifact("org.example.itests.projectversion.mismatch", "dep-project"));
+        }
+    }
+
+    @Nested
+    class MappingEdgeCaseTests {
+
+        @Test
+        void createDependencyToProjectArtifactMapping_EdgeCases() throws Exception {
+            java.lang.reflect.Method method = DependencyGraphMojo.class.getDeclaredMethod(
+                    "createDependencyToProjectArtifactMapping",
+                    List.class, Map.class, Set.class
+            );
+            method.setAccessible(true);
+
+            org.apache.maven.project.MavenProject project = new org.apache.maven.project.MavenProject();
+            project.setGroupId("org.example");
+            project.setArtifactId("proj");
+            project.setVersion(null);
+
+            Map<MavenArtifact, MavenProjectAndDocument> documents = Map.of();
+            Map<?, ?> result1 = (Map<?, ?>) method.invoke(
+                    classUnderTest,
+                    List.of(project),
+                    documents,
+                    Set.of(new MavenArtifact("org.example", "proj"))
+            );
+            assertThat(result1).isEmpty();
+
+            project.setVersion("1.0.0");
+            Document doc = POMUtils.readPom(getResourcesPath("project-version").resolve("consumer-project/pom.xml"));
+            MavenArtifact art = new MavenArtifact("org.example.itests.projectversion", "consumer-project");
+            MavenArtifact depArt = new MavenArtifact("org.example.itests.projectversion", "dep-project");
+
+            Map<MavenArtifact, MavenProjectAndDocument> documents2 = Map.of(
+                    art, new MavenProjectAndDocument(art, Path.of("pom.xml"), doc)
+            );
+            Map<?, ?> result2 = (Map<?, ?>) method.invoke(
+                    classUnderTest,
+                    List.of(project),
+                    documents2,
+                    Set.of(depArt)
+            );
+            assertThat(result2).isEmpty();
+        }
+
+        @Test
+        void createDependencyToProjectArtifactMapping_VersionEdgeCases() throws Exception {
+            java.lang.reflect.Method method = DependencyGraphMojo.class.getDeclaredMethod(
+                    "createDependencyToProjectArtifactMapping",
+                    List.class, Map.class, Set.class
+            );
+            method.setAccessible(true);
+
+            org.apache.maven.project.MavenProject project = new org.apache.maven.project.MavenProject();
+            project.setGroupId("org.example");
+            project.setArtifactId("consumer");
+            project.setVersion("1.0.0");
+
+            org.apache.maven.project.MavenProject targetProject = new org.apache.maven.project.MavenProject();
+            targetProject.setGroupId("org.example");
+            targetProject.setArtifactId("dep");
+            targetProject.setVersion("2.0.0");
+
+            Document doc = POMUtils.readPom(getResourcesPath("project-version").resolve("consumer-project/pom.xml"));
+            MavenArtifact art = new MavenArtifact("org.example.itests.projectversion", "consumer-project");
+            MavenArtifact depArt = new MavenArtifact("org.example.itests.projectversion", "dep-project");
+
+            Map<MavenArtifact, MavenProjectAndDocument> documents = Map.of(
+                    art, new MavenProjectAndDocument(art, Path.of("pom.xml"), doc)
+            );
+
+            Map<?, ?> result = (Map<?, ?>) method.invoke(
+                    classUnderTest,
+                    List.of(project, targetProject),
+                    documents,
+                    Set.of(depArt)
+            );
+            assertThat(result).isEmpty();
+
+            project.setVersion(null);
+            Map<?, ?> result3 = (Map<?, ?>) method.invoke(
+                    classUnderTest,
+                    List.of(project, targetProject),
+                    documents,
+                    Set.of(depArt)
+            );
+            assertThat(result3).isEmpty();
+        }
+
+        @Test
+        void createDependencyToProjectArtifactMapping_MatchingVersion() throws Exception {
+            java.lang.reflect.Method method = DependencyGraphMojo.class.getDeclaredMethod(
+                    "createDependencyToProjectArtifactMapping",
+                    List.class, Map.class, Set.class
+            );
+            method.setAccessible(true);
+
+            org.apache.maven.project.MavenProject project = new org.apache.maven.project.MavenProject();
+            project.setGroupId("org.example.itests.projectversion");
+            project.setArtifactId("consumer-project");
+            project.setVersion("1.0.0");
+
+            org.apache.maven.project.MavenProject targetProject = new org.apache.maven.project.MavenProject();
+            targetProject.setGroupId("org.example.itests.projectversion");
+            targetProject.setArtifactId("dep-project");
+            targetProject.setVersion("1.0.0");
+
+            Document doc = POMUtils.readPom(getResourcesPath("project-version").resolve("consumer-project/pom.xml"));
+            MavenArtifact art = new MavenArtifact("org.example.itests.projectversion", "consumer-project");
+            MavenArtifact depArt = new MavenArtifact("org.example.itests.projectversion", "dep-project");
+
+            Map<MavenArtifact, MavenProjectAndDocument> documents = Map.of(
+                    art, new MavenProjectAndDocument(art, Path.of("pom.xml"), doc)
+            );
+
+            Map<?, ?> result = (Map<?, ?>) method.invoke(
+                    classUnderTest,
+                    List.of(project, targetProject),
+                    documents,
+                    Set.of(depArt)
+            );
+            assertThat(result).isNotEmpty();
         }
     }
 }

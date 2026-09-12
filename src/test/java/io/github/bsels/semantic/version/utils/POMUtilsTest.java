@@ -948,5 +948,22 @@ public class POMUtilsTest {
             Set<MavenArtifact> artifacts = POMUtils.getDependencyArtifactsWithProjectVersion(document);
             assertThat(artifacts).containsExactly(new MavenArtifact("org.example", "plugin1"));
         }
+
+        @Test
+        void incompleteDependency_Ignored() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.example</groupId>
+                                <!-- missing artifactId and version -->
+                            </dependency>
+                        </dependencies>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Set<MavenArtifact> artifacts = POMUtils.getDependencyArtifactsWithProjectVersion(document);
+            assertThat(artifacts).isEmpty();
+        }
     }
 }
