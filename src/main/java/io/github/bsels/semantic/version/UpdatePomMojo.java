@@ -437,25 +437,24 @@ public final class UpdatePomMojo extends BaseMojo {
         Queue<MavenArtifact> toBeUpdated = result.toBeUpdated();
         while (!toBeUpdated.isEmpty()) {
             MavenArtifact artifact = toBeUpdated.poll();
-            toBeUpdated.remove(artifact);
-            updatedArtifacts.add(artifact);
+            if (updatedArtifacts.add(artifact)) {
+                MavenProjectAndDocument mavenProjectAndDocument = documents.get(artifact);
+                VersionChange change = updateProjectVersion(
+                        SemanticVersionBump.PATCH,
+                        mavenProjectAndDocument.document()
+                ).orElseThrow();
 
-            MavenProjectAndDocument mavenProjectAndDocument = documents.get(artifact);
-            VersionChange change = updateProjectVersion(
-                    SemanticVersionBump.PATCH,
-                    mavenProjectAndDocument.document()
-            ).orElseThrow();
+                dependencyToProjectArtifacts.getOrDefault(artifact, List.of())
+                        .stream()
+                        .filter(Predicate.not(updatedArtifacts::contains))
+                        .forEach(toBeUpdated::offer);
 
-            dependencyToProjectArtifacts.getOrDefault(artifact, List.of())
-                    .stream()
-                    .filter(Predicate.not(updatedArtifacts::contains))
-                    .forEach(toBeUpdated::offer);
+                updateMarkdownFile(markdownMapping, artifact, mavenProjectAndDocument.pomFile(), change.newVersion());
+                executeScripts(mavenProjectAndDocument.pomFile().getParent(), change);
 
-            updateMarkdownFile(markdownMapping, artifact, mavenProjectAndDocument.pomFile(), change.newVersion());
-            executeScripts(mavenProjectAndDocument.pomFile().getParent(), change);
-
-            updatableDependencies.getOrDefault(artifact, List.of())
-                    .forEach(node -> POMUtils.updateVersionNodeIfOldVersionMatches(change, node));
+                updatableDependencies.getOrDefault(artifact, List.of())
+                        .forEach(node -> POMUtils.updateVersionNodeIfOldVersionMatches(change, node));
+            }
         }
     }
 
@@ -499,6 +498,10 @@ public final class UpdatePomMojo extends BaseMojo {
                 executeScripts(mavenProjectAndDocument.pomFile().getParent(), change);
             }
         }
+        toBeUpdated.removeIf(updatedArtifacts::contains);
+        toBeUpdated = toBeUpdated.stream()
+                .distinct()
+                .collect(Collectors.toCollection(ArrayDeque::new));
         return new UpdatedAndToUpdateArtifacts(updatedArtifacts, toBeUpdated);
     }
 
