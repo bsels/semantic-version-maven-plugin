@@ -4029,5 +4029,104 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                             }
                     );
         }
+
+        @Test
+        void complexDependencyTree_UpdatedArtifactsAddEvaluatesToFalse() {
+            // This test specifically exercises the branch where updatedArtifacts.add(artifact)
+            // evaluates to false in handleDependencyMavenProjects (when an artifact is queued multiple times
+            // via multiple dependency paths, e.g., module d depending on both a and c).
+            Path projectRoot = getResourcesPath("complex-dependency");
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "complex-dependency");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .doesNotContainKey(getResourcesPath("complex-dependency", "pom.xml"))
+                    .hasEntrySatisfying(
+                            getResourcesPath("complex-dependency", "a", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .contains("<version>6.1.0-a</version>")
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("complex-dependency", "b", "pom.xml"),
+                            writer -> {
+                                String content = writer.toString();
+                                assertThat(content)
+                                        .contains("<version>6.0.1-b</version>")
+                                        .contains("<version>6.1.0-a</version>");
+                            }
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("complex-dependency", "c", "pom.xml"),
+                            writer -> {
+                                String content = writer.toString();
+                                assertThat(content)
+                                        .contains("<version>6.0.1-c</version>")
+                                        .contains("<version>6.0.1-b</version>");
+                            }
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("complex-dependency", "d", "pom.xml"),
+                            writer -> {
+                                String content = writer.toString();
+                                assertThat(content)
+                                        .contains("<version>6.0.1-d</version>")
+                                        .contains("<version>6.1.0-a</version>")
+                                        .contains("<version>6.0.1-c</version>");
+                            }
+                    );
+        }
+
+        @Test
+        void complexDependencyDiamondTree_NoDoubleBumps() throws Exception {
+            Path projectRoot = getResourcesPath("complex-dependency-diamond");
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "complex-dependency-diamond");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .doesNotContainKey(getResourcesPath("complex-dependency-diamond", "pom.xml"))
+                    .hasEntrySatisfying(
+                            getResourcesPath("complex-dependency-diamond", "a", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .contains("<version>6.1.0-a</version>")
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("complex-dependency-diamond", "b", "pom.xml"),
+                            writer -> {
+                                String content = writer.toString();
+                                assertThat(content)
+                                        .contains("<version>6.0.1-b</version>")
+                                        .contains("<version>6.1.0-a</version>");
+                            }
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("complex-dependency-diamond", "c", "pom.xml"),
+                            writer -> {
+                                String content = writer.toString();
+                                assertThat(content)
+                                        .contains("<version>6.0.1-c</version>")
+                                        .contains("<version>6.1.0-a</version>");
+                            }
+                    )
+                    .hasEntrySatisfying(
+                            getResourcesPath("complex-dependency-diamond", "d", "pom.xml"),
+                            writer -> {
+                                String content = writer.toString();
+                                assertThat(content)
+                                        .contains("<version>6.0.1-d</version>")
+                                        .contains("<version>6.0.1-b</version>")
+                                        .contains("<version>6.0.1-c</version>");
+                            }
+                    );
+        }
     }
 }
