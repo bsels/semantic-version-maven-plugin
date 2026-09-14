@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.1 - 2026-09-14
+
+### Patch
+
+Bugfix:
+
+- Avoid double bump of dependent modules.
+
 ## 1.7.0 - 2026-09-12
 
 ### Minor
