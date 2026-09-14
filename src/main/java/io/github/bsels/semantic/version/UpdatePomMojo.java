@@ -438,7 +438,6 @@ public final class UpdatePomMojo extends BaseMojo {
         Queue<MavenArtifact> toBeUpdated = result.toBeUpdated();
         while (!toBeUpdated.isEmpty()) {
             MavenArtifact artifact = toBeUpdated.poll();
-            toBeUpdated.remove(artifact);
             if (updatedArtifacts.add(artifact)) {
                 MavenProjectAndDocument mavenProjectAndDocument = documents.get(artifact);
                 VersionChange change = updateProjectVersion(
