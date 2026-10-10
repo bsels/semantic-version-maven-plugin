@@ -233,6 +233,7 @@ public abstract sealed class BaseMojo extends AbstractMojo
             List<Path> markdownFiles = markdownFileStream.filter(Files::isRegularFile)
                     .filter(path -> path.toString().toLowerCase().endsWith(".md"))
                     .filter(this::isVersionMarkdownFile)
+                    .sorted()
                     .toList();
             List<VersionMarkdown> parsedMarkdowns = new ArrayList<>();
             for (Path markdownFile : markdownFiles) {
