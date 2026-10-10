@@ -1044,5 +1044,52 @@ public class POMUtilsTest {
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("Unable to find element 'properties' in 'project'");
         }
+
+        @Test
+        void nodeDoesNotExist_CreateTrue_EmptyProperties() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <properties/>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Optional<Node> nodeOpt = POMUtils.getProjectBuildOutputTimestampNode(document, true);
+            assertThat(nodeOpt).isPresent();
+        }
+
+        @Test
+        void nodeDoesNotExist_CreateTrue_FirstElementWithoutLeadingText() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project><properties><java.version>17</java.version></properties></project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Optional<Node> nodeOpt = POMUtils.getProjectBuildOutputTimestampNode(document, true);
+            assertThat(nodeOpt).isPresent();
+        }
+
+        @Test
+        void nodeDoesNotExist_CreateTrue_LastChildElementWithoutTrailingText() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <properties><java.version>17</java.version></properties>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Optional<Node> nodeOpt = POMUtils.getProjectBuildOutputTimestampNode(document, true);
+            assertThat(nodeOpt).isPresent();
+        }
+
+        @Test
+        void nodeDoesNotExist_CreateTrue_LastChildTextWithoutNewline() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <properties>
+                            <java.version>17</java.version>   </properties>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Optional<Node> nodeOpt = POMUtils.getProjectBuildOutputTimestampNode(document, true);
+            assertThat(nodeOpt).isPresent();
+        }
     }
 }
