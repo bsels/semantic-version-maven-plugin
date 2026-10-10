@@ -126,6 +126,7 @@ Repositories can enforce a uniform changelog entry format by adding
 `.versioning/template.md`. When this file exists, the `create` goal prompts for the declared
 variables and renders the Markdown body instead of accepting free-form input or opening an editor.
 
+<!-- @formatter:off -->
 ```markdown
 ---
 variables:
@@ -148,6 +149,7 @@ sections:
 {{/descriptions}}
 {{/issues}}
 ```
+<!-- @formatter:on -->
 
 | Setting                     | Type                    | Default               | Description                                                            |
 |-----------------------------|-------------------------|-----------------------|------------------------------------------------------------------------|
