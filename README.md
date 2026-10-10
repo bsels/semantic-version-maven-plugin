@@ -142,12 +142,11 @@ sections:
 ---
 
 {{#issues}}
-
 - [{{issueKey}}](https://company.atlassian.net/browse/{{issueKey}})
-  {{#descriptions}}
-    - {{description}}
-      {{/descriptions}}
-      {{/issues}}
+{{#descriptions}}
+  - {{description}}
+{{/descriptions}}
+{{/issues}}
 ```
 
 | Setting                     | Type                    | Default               | Description                                                            |

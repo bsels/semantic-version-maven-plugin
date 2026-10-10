@@ -468,8 +468,7 @@ public final class POMUtils {
     /// (groupId and artifactId) if its version matches `${project.version}`.
     ///
     /// @param element the XML Node to be processed, representing a dependency or plugin element in a Maven POM file
-    /// @return an [Optional] containing the extracted [MavenArtifact], or an empty [Optional] if required fields
-    ///                 are missing or the version does not match `${project.version}`
+    /// @return an [Optional] containing the extracted [MavenArtifact], or an empty [Optional] if required fields are missing or the version does not match `${project.version}`
     private static Optional<MavenArtifact> handleDependencyArtifactNodeWithProjectVersion(Node element) {
         Map<String, Node> tagContent = extractTagContent(element);
 

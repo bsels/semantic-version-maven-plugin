@@ -5,7 +5,6 @@ import org.apache.maven.plugin.MojoExecutionException;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -137,11 +136,12 @@ public final class ProcessUtils {
     /// environment variables.
     /// Optionally, the execution can be a dry run or include Git staging behavior.
     ///
-    /// @param script        the path to the script to be executed; must not be null
-    /// @param projectPath   the path to the project directory in which the script is executed; must not be null
-    /// @param versionChange an instance of [VersionChange] representing the old and new version values; must not be null
-    /// @param dryRun        a boolean flag indicating whether the operation should simulate changes without applying them
-    /// @param stage         a boolean flag indicating whether Git staging behavior should be applied during execution
+    /// @param script             the path to the script to be executed; must not be null
+    /// @param projectPath        the path to the project directory in which the script is executed; must not be null
+    /// @param versionChange      an instance of [VersionChange] representing the old and new version values; must not be null
+    /// @param executionTimestamp the timestamp of the script execution
+    /// @param dryRun             a boolean flag indicating whether the operation should simulate changes without applying them
+    /// @param stage              a boolean flag indicating whether Git staging behavior should be applied during execution
     /// @throws NullPointerException   if any of the `script`, `projectPath`, or `versionChange` arguments are null
     /// @throws MojoExecutionException if an I/O or interruption error occurs during script execution, or if the process exits with a non-zero status code
     public static void executeScripts(
