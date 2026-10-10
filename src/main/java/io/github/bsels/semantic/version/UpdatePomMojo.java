@@ -236,7 +236,7 @@ public final class UpdatePomMojo extends BaseMojo {
     /// - `UPSERT`: Indicates that the build timestamp should be updated if it exists,
     ///   or created if it does not already exist.
     @Parameter(property = "versioning.handleProjectBuildTimestamp", required = true, defaultValue = "SKIP")
-    HandleBuildTimestamp handleProjectBuildTimestamp;
+    HandleBuildTimestamp handleProjectBuildTimestamp = HandleBuildTimestamp.SKIP;
 
     /// A list that holds file system paths pointing to script files.
     /// Will be derived on execution from the `scripts` parameter.
@@ -561,6 +561,12 @@ public final class UpdatePomMojo extends BaseMojo {
             return Optional.empty();
         }
         POMUtils.updateVersion(versionNode, semanticVersionBump, suffix);
+        Optional<Node> buildTimestampNode = switch (handleProjectBuildTimestamp) {
+            case SKIP -> Optional.empty();
+            case UPDATE_ONLY -> POMUtils.getProjectBuildOutputTimestampNode(document, false);
+            case UPSERT -> POMUtils.getProjectBuildOutputTimestampNode(document, true);
+        };
+        buildTimestampNode.ifPresent(node -> node.setTextContent(executionTimestamp.toString()));
         return Optional.of(new VersionChange(originalVersion, versionNode.getTextContent()));
     }
 
