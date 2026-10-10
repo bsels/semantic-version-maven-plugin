@@ -3,6 +3,7 @@ package io.github.bsels.semantic.version;
 import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.parameters.ArtifactIdentifier;
 import io.github.bsels.semantic.version.parameters.Git;
+import io.github.bsels.semantic.version.parameters.HandleBuildTimestamp;
 import io.github.bsels.semantic.version.parameters.Modus;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.test.utils.ReadMockedMavenSession;
@@ -35,6 +36,8 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -4127,6 +4130,118 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
                                         .contains("<version>6.0.1-c</version>");
                             }
                     );
+        }
+    }
+
+    @Nested
+    class BuildTimestampTest {
+
+        @Test
+        void updateOnlyWithExistingTimestamp_UpdatesTimestamp() {
+            ZonedDateTime mockedZonedDateTime = Mockito.mock(ZonedDateTime.class);
+            Mockito.when(mockedZonedDateTime.toString()).thenReturn("2026-06-15T12:30:00Z");
+
+            try (MockedStatic<ZonedDateTime> zonedDateTimeMockedStatic = Mockito.mockStatic(ZonedDateTime.class)) {
+                zonedDateTimeMockedStatic.when(() -> ZonedDateTime.now(ZoneOffset.UTC))
+                        .thenReturn(mockedZonedDateTime);
+
+                Path projectRoot = getResourcesPath("build-timestamp", "with-timestamp");
+                classUnderTest = new UpdatePomMojo();
+                classUnderTest.setLog(testLog);
+                classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+                classUnderTest.modus = Modus.PROJECT_VERSION;
+                classUnderTest.versionBump = VersionBump.PATCH;
+                classUnderTest.handleProjectBuildTimestamp = HandleBuildTimestamp.UPDATE_ONLY;
+
+                assertThatNoException()
+                        .isThrownBy(classUnderTest::execute);
+
+                assertThat(mockedOutputFiles)
+                        .hasEntrySatisfying(
+                                getResourcesPath("build-timestamp", "with-timestamp", "pom.xml"),
+                                writer -> assertThat(writer.toString())
+                                        .contains("<project.build.outputTimestamp>2026-06-15T12:30:00Z</project.build.outputTimestamp>")
+                                        .doesNotContain("2020-01-01T00:00:00Z")
+                        );
+            }
+        }
+
+        @Test
+        void updateOnlyWithMissingTimestamp_DoesNotAddTimestamp() {
+            Path projectRoot = getResourcesPath("build-timestamp", "without-timestamp");
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+            classUnderTest.versionBump = VersionBump.PATCH;
+            classUnderTest.handleProjectBuildTimestamp = HandleBuildTimestamp.UPDATE_ONLY;
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .hasEntrySatisfying(
+                            getResourcesPath("build-timestamp", "without-timestamp", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .doesNotContain("project.build.outputTimestamp")
+                    );
+        }
+
+        @Test
+        void upsertWithExistingTimestamp_UpdatesTimestamp() {
+            ZonedDateTime mockedZonedDateTime = Mockito.mock(ZonedDateTime.class);
+            Mockito.when(mockedZonedDateTime.toString()).thenReturn("2026-06-15T12:30:00Z");
+
+            try (MockedStatic<ZonedDateTime> zonedDateTimeMockedStatic = Mockito.mockStatic(ZonedDateTime.class)) {
+                zonedDateTimeMockedStatic.when(() -> ZonedDateTime.now(ZoneOffset.UTC))
+                        .thenReturn(mockedZonedDateTime);
+
+                Path projectRoot = getResourcesPath("build-timestamp", "with-timestamp");
+                classUnderTest = new UpdatePomMojo();
+                classUnderTest.setLog(testLog);
+                classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+                classUnderTest.modus = Modus.PROJECT_VERSION;
+                classUnderTest.versionBump = VersionBump.PATCH;
+                classUnderTest.handleProjectBuildTimestamp = HandleBuildTimestamp.UPSERT;
+
+                assertThatNoException()
+                        .isThrownBy(classUnderTest::execute);
+
+                assertThat(mockedOutputFiles)
+                        .hasEntrySatisfying(
+                                getResourcesPath("build-timestamp", "with-timestamp", "pom.xml"),
+                                writer -> assertThat(writer.toString())
+                                        .contains("<project.build.outputTimestamp>2026-06-15T12:30:00Z</project.build.outputTimestamp>")
+                                        .doesNotContain("2020-01-01T00:00:00Z")
+                        );
+            }
+        }
+
+        @Test
+        void upsertWithMissingTimestamp_CreatesTimestamp() {
+            ZonedDateTime mockedZonedDateTime = Mockito.mock(ZonedDateTime.class);
+            Mockito.when(mockedZonedDateTime.toString()).thenReturn("2026-06-15T12:30:00Z");
+
+            try (MockedStatic<ZonedDateTime> zonedDateTimeMockedStatic = Mockito.mockStatic(ZonedDateTime.class)) {
+                zonedDateTimeMockedStatic.when(() -> ZonedDateTime.now(ZoneOffset.UTC))
+                        .thenReturn(mockedZonedDateTime);
+
+                Path projectRoot = getResourcesPath("build-timestamp", "without-timestamp");
+                classUnderTest = new UpdatePomMojo();
+                classUnderTest.setLog(testLog);
+                classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+                classUnderTest.modus = Modus.PROJECT_VERSION;
+                classUnderTest.versionBump = VersionBump.PATCH;
+                classUnderTest.handleProjectBuildTimestamp = HandleBuildTimestamp.UPSERT;
+
+                assertThatNoException()
+                        .isThrownBy(classUnderTest::execute);
+
+                assertThat(mockedOutputFiles)
+                        .hasEntrySatisfying(
+                                getResourcesPath("build-timestamp", "without-timestamp", "pom.xml"),
+                                writer -> assertThat(writer.toString())
+                                        .contains("<project.build.outputTimestamp>2026-06-15T12:30:00Z</project.build.outputTimestamp>")
+                        );
+            }
         }
     }
 }

@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -519,7 +520,7 @@ public class ProcessUtilsTest {
         @Test
         void nullScript_ThrowsNullPointerException() {
             assertThatThrownBy(() -> ProcessUtils.executeScripts(
-                    null, Path.of("."), new VersionChange("1.0.0", "1.1.0"), false, false))
+                    null, Path.of("."), new VersionChange("1.0.0", "1.1.0"), ZonedDateTime.now(), false, false))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`script` must not be null");
         }
@@ -527,7 +528,7 @@ public class ProcessUtilsTest {
         @Test
         void nullProjectPath_ThrowsNullPointerException() {
             assertThatThrownBy(() -> ProcessUtils.executeScripts(
-                    Path.of("script.sh"), null, new VersionChange("1.0.0", "1.1.0"), false, false))
+                    Path.of("script.sh"), null, new VersionChange("1.0.0", "1.1.0"), ZonedDateTime.now(), false, false))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`projectPath` must not be null");
         }
@@ -535,7 +536,7 @@ public class ProcessUtilsTest {
         @Test
         void nullVersionChange_ThrowsNullPointerException() {
             assertThatThrownBy(() -> ProcessUtils.executeScripts(
-                    Path.of("script.sh"), Path.of("."), null, false, false))
+                    Path.of("script.sh"), Path.of("."), null, ZonedDateTime.now(), false, false))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("`versionChange` must not be null");
         }
@@ -560,7 +561,7 @@ public class ProcessUtilsTest {
                 Mockito.when(process.waitFor()).thenReturn(0);
 
                 assertThatNoException().isThrownBy(() -> ProcessUtils.executeScripts(
-                        script, projectPath, versionChange, true, false));
+                        script, projectPath, versionChange, ZonedDateTime.now(), true, false));
 
                 assertThat(mockedBuilder.constructed()).hasSize(1);
                 ProcessBuilder builder = mockedBuilder.constructed().get(0);
@@ -600,7 +601,7 @@ public class ProcessUtilsTest {
                 Mockito.when(process.waitFor()).thenReturn(1);
 
                 assertThatThrownBy(() -> ProcessUtils.executeScripts(
-                        script, projectPath, versionChange, false, true))
+                        script, projectPath, versionChange, ZonedDateTime.now(), false, true))
                         .isInstanceOf(MojoExecutionException.class)
                         .hasMessage("Script execution failed.");
             }
@@ -624,7 +625,7 @@ public class ProcessUtilsTest {
                     }
             )) {
                 assertThatThrownBy(() -> ProcessUtils.executeScripts(
-                        script, projectPath, versionChange, false, false))
+                        script, projectPath, versionChange, ZonedDateTime.now(), false, false))
                         .isInstanceOf(MojoExecutionException.class)
                         .hasMessage("Script execution failed.")
                         .hasCause(ioException);
@@ -651,7 +652,7 @@ public class ProcessUtilsTest {
                 Mockito.when(process.waitFor()).thenThrow(interruptedException);
 
                 assertThatThrownBy(() -> ProcessUtils.executeScripts(
-                        script, projectPath, versionChange, false, false))
+                        script, projectPath, versionChange, ZonedDateTime.now(), false, false))
                         .isInstanceOf(MojoExecutionException.class)
                         .hasMessage("Script execution failed.")
                         .hasCause(interruptedException);

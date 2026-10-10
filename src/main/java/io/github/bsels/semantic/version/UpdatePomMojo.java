@@ -8,6 +8,7 @@ import io.github.bsels.semantic.version.models.SemanticVersionBump;
 import io.github.bsels.semantic.version.models.VersionChange;
 import io.github.bsels.semantic.version.models.VersionHeaders;
 import io.github.bsels.semantic.version.models.VersionMarkdown;
+import io.github.bsels.semantic.version.parameters.HandleBuildTimestamp;
 import io.github.bsels.semantic.version.parameters.VersionBump;
 import io.github.bsels.semantic.version.utils.MarkdownUtils;
 import io.github.bsels.semantic.version.utils.POMUtils;
@@ -224,6 +225,19 @@ public final class UpdatePomMojo extends BaseMojo {
     @Parameter(property = "versioning.suffix", required = false)
     String suffix;
 
+    /// Configures the handling strategy for the project's build timestamp during the versioning process.
+    /// This parameter determines how the build timestamp is processed or skipped.
+    ///
+    /// The property can take predefined values, where the default behavior is set to "SKIP" if not specified.
+    /// It must be explicitly defined as required for proper functionality.
+    ///
+    /// - `SKIP`: Indicates that the build timestamp should not be processed or altered.
+    /// - `UPDATE_ONLY`: Indicates that the build timestamp should be updated if it already exists.
+    /// - `UPSERT`: Indicates that the build timestamp should be updated if it exists,
+    ///   or created if it does not already exist.
+    @Parameter(property = "versioning.handleProjectBuildTimestamp", required = true, defaultValue = "SKIP")
+    HandleBuildTimestamp handleProjectBuildTimestamp = HandleBuildTimestamp.SKIP;
+
     /// A list that holds file system paths pointing to script files.
     /// Will be derived on execution from the `scripts` parameter.
     /// Each path represented by this list is of type [Path], allowing interaction with the file system.
@@ -409,6 +423,7 @@ public final class UpdatePomMojo extends BaseMojo {
                     scriptPath,
                     projectPath,
                     versionChange,
+                    executionTimestamp,
                     dryRun,
                     git.isStaging()
             );
@@ -546,6 +561,12 @@ public final class UpdatePomMojo extends BaseMojo {
             return Optional.empty();
         }
         POMUtils.updateVersion(versionNode, semanticVersionBump, suffix);
+        Optional<Node> buildTimestampNode = switch (handleProjectBuildTimestamp) {
+            case SKIP -> Optional.empty();
+            case UPDATE_ONLY -> POMUtils.getProjectBuildOutputTimestampNode(document, false);
+            case UPSERT -> POMUtils.getProjectBuildOutputTimestampNode(document, true);
+        };
+        buildTimestampNode.ifPresent(node -> node.setTextContent(executionTimestamp.toString()));
         return Optional.of(new VersionChange(originalVersion, versionNode.getTextContent()));
     }
 

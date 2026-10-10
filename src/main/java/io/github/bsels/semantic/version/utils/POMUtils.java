@@ -87,6 +87,8 @@ public final class POMUtils {
     public static final String VERSION = "version";
     /// Represents the project version placeholder `${project.version}` used in Maven POM files.
     public static final String PROJECT_VERSION_PLACEHOLDER = "${project.version}";
+    /// Represents the `project.build.outputTimestamp` property in Maven POM files.
+    public static final String PROJECT_BUILD_OUTPUT_TIMESTAMP = "project.build.outputTimestamp";
 
     /// A constant list of directory names representing the path segments typically used to locate build-related plugins
     /// within a project structure.
@@ -219,6 +221,71 @@ public final class POMUtils {
                     ), e
             );
         }
+    }
+
+    /// Finds the `project.build.outputTimestamp` node in the XML document.
+    /// If not present and `create` is true, creates it in the properties section as the last node
+    /// with the same indentation as the last node that was present.
+    ///
+    /// @param document the XML document; must not be null
+    /// @param create   whether to create the node if it does not exist
+    /// @return an Optional containing the `project.build.outputTimestamp` node if present or created, otherwise empty
+    /// @throws NullPointerException if document is null
+    public static Optional<Node> getProjectBuildOutputTimestampNode(Document document, boolean create)
+            throws NullPointerException {
+        Objects.requireNonNull(document, "`document` must not be null");
+        List<String> path = List.of(PROJECT, "properties", PROJECT_BUILD_OUTPUT_TIMESTAMP);
+        try {
+            return Optional.of(walk(document, path, 0));
+        } catch (IllegalStateException e) {
+            if (!create) {
+                return Optional.empty();
+            }
+            return Optional.of(createProjectBuildOutputTimestampNode(document));
+        }
+    }
+
+    /// Creates a new XML node representing the "project.build.outputTimestamp" property
+    /// inside the appropriate "properties" section of the provided document.
+    /// The method ensures that the new node is formatted consistently with the existing
+    /// indentation of the properties section.
+    ///
+    /// @param document the XML document in which to create the "project.build.outputTimestamp" node.
+    /// @return the newly created "project.build.outputTimestamp" node.
+    private static Node createProjectBuildOutputTimestampNode(Document document) {
+        Node propertiesNode = walk(document, List.of(PROJECT, "properties"), 0);
+
+        String propertyIndent = "\n        ";
+        String closingIndent = "\n    ";
+
+        NodeList childNodes = propertiesNode.getChildNodes();
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            Node child = childNodes.item(i);
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                Node prev = child.getPreviousSibling();
+                if (prev != null && prev.getNodeType() == Node.TEXT_NODE) {
+                    propertyIndent = prev.getTextContent();
+                }
+            }
+        }
+
+        if (childNodes.getLength() > 0) {
+            Node lastChild = childNodes.item(childNodes.getLength() - 1);
+            if (lastChild.getNodeType() == Node.TEXT_NODE) {
+                String text = lastChild.getTextContent();
+                if (text.contains("\n")) {
+                    closingIndent = text;
+                }
+                propertiesNode.removeChild(lastChild);
+            }
+        }
+
+        Node timestampNode = document.createElement(PROJECT_BUILD_OUTPUT_TIMESTAMP);
+        propertiesNode.appendChild(document.createTextNode(propertyIndent));
+        propertiesNode.appendChild(timestampNode);
+        propertiesNode.appendChild(document.createTextNode(closingIndent));
+
+        return timestampNode;
     }
 
     /// Parses the specified POM (Project Object Model) file and returns it as an XML Document object.
@@ -401,8 +468,7 @@ public final class POMUtils {
     /// (groupId and artifactId) if its version matches `${project.version}`.
     ///
     /// @param element the XML Node to be processed, representing a dependency or plugin element in a Maven POM file
-    /// @return an [Optional] containing the extracted [MavenArtifact], or an empty [Optional] if required fields
-    ///         are missing or the version does not match `${project.version}`
+    /// @return an [Optional] containing the extracted [MavenArtifact], or an empty [Optional] if required fields are missing or the version does not match `${project.version}`
     private static Optional<MavenArtifact> handleDependencyArtifactNodeWithProjectVersion(Node element) {
         Map<String, Node> tagContent = extractTagContent(element);
 

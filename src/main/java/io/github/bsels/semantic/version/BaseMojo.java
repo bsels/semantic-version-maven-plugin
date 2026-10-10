@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -73,7 +75,8 @@ public abstract sealed class BaseMojo extends AbstractMojo
     /// It can be used or referenced in Maven plugin implementations to locate
     /// or process the changelog file content during build processes.
     public static final String CHANGELOG_MD = "CHANGELOG.md";
-
+    /// Stores the timestamp of the execution.
+    protected final ZonedDateTime executionTimestamp;
     /// Represents the mode in which project versioning is handled within the Maven plugin.
     /// This parameter is used to define the strategy for managing version numbers across single or multi-module projects.
     ///
@@ -89,7 +92,6 @@ public abstract sealed class BaseMojo extends AbstractMojo
     ///   but only for leaf projects in a multi-module setup.
     @Parameter(property = "versioning.modus", required = true, defaultValue = "PROJECT_VERSION")
     protected Modus modus = Modus.PROJECT_VERSION;
-
     /// Represents the current Maven session during the execution of the plugin.
     /// Provides access to details such as the projects being built, current settings,
     /// system properties, and organizational workflow defined in the Maven runtime.
@@ -104,7 +106,6 @@ public abstract sealed class BaseMojo extends AbstractMojo
     /// - `defaultValue`: Defaults to Maven's `${session}`, representing the active Maven session.
     @Parameter(defaultValue = "${session}", required = true, readonly = true)
     protected MavenSession session;
-
     /// Indicates whether the plugin should execute in dry-run mode.
     /// When set to `true`, the plugin performs all operations and logs outputs
     /// without making actual changes to files or the project configuration.
@@ -115,7 +116,6 @@ public abstract sealed class BaseMojo extends AbstractMojo
     /// - `defaultValue`: Defaults to `false`, meaning dry-run mode is disabled by default.
     @Parameter(property = "versioning.dryRun", defaultValue = "false")
     protected boolean dryRun = false;
-
     /// Represents the directory used for storing versioning-related files during the Maven plugin execution.
     ///
     /// This field is a configuration parameter for the plugin,
@@ -132,7 +132,6 @@ public abstract sealed class BaseMojo extends AbstractMojo
     /// and operate on files related to versioning functionality.
     @Parameter(property = "versioning.directory", required = true, defaultValue = ".versioning")
     protected Path versionDirectory = Path.of(".versioning");
-
     /// Represents the Git version control system configuration for the Maven plugin.
     /// Used to manage versioning-related operations specific to Git.
     ///
@@ -142,7 +141,6 @@ public abstract sealed class BaseMojo extends AbstractMojo
     /// This field can be overridden by specifying the Maven property `versioning.git`.
     @Parameter(property = "versioning.git", required = true, defaultValue = "NO_GIT")
     protected Git git = Git.NO_GIT;
-
     /// Indicates whether the original POM file and CHANGELOG file should be backed up before modifying its content.
     ///
     /// This parameter is configurable via the Maven property `versioning.backup`.
@@ -150,7 +148,6 @@ public abstract sealed class BaseMojo extends AbstractMojo
     /// The default value for this parameter is `false`, meaning no backup will be created unless explicitly specified.
     @Parameter(property = "versioning.backup", required = true, defaultValue = "false")
     protected boolean backupFiles = false;
-
     /// Specifies the mode of artifact identification within a repository or dependency context.
     /// This parameter is configurable via the Maven property `versioning.identifier`.
     /// The default value is [ArtifactIdentifier#GROUP_ID_AND_ARTIFACT_ID],
@@ -163,6 +160,7 @@ public abstract sealed class BaseMojo extends AbstractMojo
     /// Maven framework typically uses this constructor during the build process.
     protected BaseMojo() {
         super();
+        this.executionTimestamp = ZonedDateTime.now(ZoneOffset.UTC);
     }
 
     /// Executes the Mojo.
@@ -235,6 +233,7 @@ public abstract sealed class BaseMojo extends AbstractMojo
             List<Path> markdownFiles = markdownFileStream.filter(Files::isRegularFile)
                     .filter(path -> path.toString().toLowerCase().endsWith(".md"))
                     .filter(this::isVersionMarkdownFile)
+                    .sorted()
                     .toList();
             List<VersionMarkdown> parsedMarkdowns = new ArrayList<>();
             for (Path markdownFile : markdownFiles) {
