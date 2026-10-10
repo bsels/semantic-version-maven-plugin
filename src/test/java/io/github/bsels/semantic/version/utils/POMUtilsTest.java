@@ -47,6 +47,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -964,6 +965,84 @@ public class POMUtilsTest {
 
             Set<MavenArtifact> artifacts = POMUtils.getDependencyArtifactsWithProjectVersion(document);
             assertThat(artifacts).isEmpty();
+        }
+    }
+
+    @Nested
+    class GetProjectBuildOutputTimestampNodeTest {
+
+        @Test
+        void nullDocument_ThrowsNullPointerException() {
+            assertThatThrownBy(() -> POMUtils.getProjectBuildOutputTimestampNode(null, true))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("`document` must not be null");
+        }
+
+        @Test
+        void nodeExists_ReturnsNode() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <properties>
+                            <java.version>17</java.version>
+                            <project.build.outputTimestamp>2026-10-10T09:09:00Z</project.build.outputTimestamp>
+                        </properties>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Optional<Node> nodeOpt = POMUtils.getProjectBuildOutputTimestampNode(document, false);
+            assertThat(nodeOpt).isPresent();
+            assertThat(nodeOpt.get().getNodeName()).isEqualTo("project.build.outputTimestamp");
+            assertThat(nodeOpt.get().getTextContent()).isEqualTo("2026-10-10T09:09:00Z");
+        }
+
+        @Test
+        void nodeDoesNotExist_CreateFalse_ReturnsEmpty() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <properties>
+                            <java.version>17</java.version>
+                        </properties>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Optional<Node> nodeOpt = POMUtils.getProjectBuildOutputTimestampNode(document, false);
+            assertThat(nodeOpt).isEmpty();
+        }
+
+        @Test
+        void nodeDoesNotExist_CreateTrue_CreatesNodeAsLastWithIndentation() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <properties>
+                            <java.version>17</java.version>
+                        </properties>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            Optional<Node> nodeOpt = POMUtils.getProjectBuildOutputTimestampNode(document, true);
+            assertThat(nodeOpt).isPresent();
+            assertThat(nodeOpt.get().getNodeName()).isEqualTo("project.build.outputTimestamp");
+
+            StringWriter writer = new StringWriter();
+            POMUtils.writePom(document, writer);
+            String xml = writer.toString();
+            assertThat(xml).contains("project.build.outputTimestamp");
+            int javaVersionIdx = xml.indexOf("<java.version>");
+            int timestampIdx = xml.indexOf("project.build.outputTimestamp");
+            assertThat(timestampIdx).isGreaterThan(javaVersionIdx);
+        }
+
+        @Test
+        void propertiesSectionDoesNotExist_CreateTrue_ThrowsIllegalStateException() throws Exception {
+            Document document = getDocumentBuilder().parse(new ByteArrayInputStream("""
+                    <project>
+                        <version>1.0.0</version>
+                    </project>
+                    """.getBytes(StandardCharsets.UTF_8)));
+
+            assertThatThrownBy(() -> POMUtils.getProjectBuildOutputTimestampNode(document, true))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Unable to find element 'properties' in 'project'");
         }
     }
 }
