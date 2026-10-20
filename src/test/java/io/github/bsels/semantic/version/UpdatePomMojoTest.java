@@ -4134,6 +4134,73 @@ public class UpdatePomMojoTest extends AbstractBaseMojoTest {
     }
 
     @Nested
+    class MultiAbcProjectTest {
+
+        @Test
+        void bumpOnlyB_bBecomes110AndDependenciesStay100() {
+            Path projectRoot = getResourcesPath("multi-abc");
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "multi-abc", "bump-b");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .doesNotContainKey(getResourcesPath("multi-abc", "pom.xml"))
+                    .doesNotContainKey(getResourcesPath("multi-abc", "a", "pom.xml"))
+                    .doesNotContainKey(getResourcesPath("multi-abc", "c", "pom.xml"))
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi-abc", "b", "pom.xml"),
+                            writer -> {
+                                String content = writer.toString();
+                                assertThat(content)
+                                        .contains("<version>1.1.0</version>")
+                                        .contains("<groupId>org.example.itests.multiabc</groupId>")
+                                        .contains("<artifactId>a</artifactId>")
+                                        .contains("<version>1.0.0</version>")
+                                        .contains("<artifactId>c</artifactId>")
+                                        .contains("<version>1.0.0</version>");
+                            }
+                    );
+        }
+
+        @Test
+        void bumpOnlyA_onlyBDependencyOnAChanges() {
+            Path projectRoot = getResourcesPath("multi-abc");
+            classUnderTest.session = ReadMockedMavenSession.readMockedMavenSession(projectRoot, Path.of("."));
+            classUnderTest.modus = Modus.PROJECT_VERSION;
+            classUnderTest.versionBump = VersionBump.FILE_BASED;
+            classUnderTest.versionDirectory = getResourcesPath("versioning", "multi-abc", "bump-a");
+
+            assertThatNoException()
+                    .isThrownBy(classUnderTest::execute);
+
+            assertThat(mockedOutputFiles)
+                    .doesNotContainKey(getResourcesPath("multi-abc", "pom.xml"))
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi-abc", "a", "pom.xml"),
+                            writer -> assertThat(writer.toString())
+                                    .contains("<version>1.1.0</version>")
+                    )
+                    .doesNotContainKey(getResourcesPath("multi-abc", "c", "pom.xml"))
+                    .hasEntrySatisfying(
+                            getResourcesPath("multi-abc", "b", "pom.xml"),
+                            writer -> {
+                                String content = writer.toString();
+                                assertThat(content)
+                                        .contains("<version>1.0.0</version>")
+                                        .contains("<artifactId>a</artifactId>")
+                                        .contains("<version>1.1.0</version>")
+                                        .contains("<artifactId>c</artifactId>")
+                                        .contains("<version>1.0.0</version>");
+                            }
+                    );
+        }
+    }
+
+    @Nested
     class BuildTimestampTest {
 
         @Test
