@@ -588,12 +588,9 @@ public final class UpdatePomMojo extends BaseMojo {
                 .filter(entry -> reactorArtifacts.contains(entry.getKey()))
                 .collect(Utils.groupingByImmutable(
                         Map.Entry::getKey,
-                        Collectors.mapping(
-                                Map.Entry::getValue,
-                                Utils.asImmutableList(Collectors.reducing(
-                                        new ArrayList<>(),
-                                        Utils.consumerToOperator(List::addAll)
-                                ))
+                        Collectors.flatMapping(
+                                ent -> ent.getValue().stream(),
+                                Utils.asImmutableList()
                         )
                 ));
     }
