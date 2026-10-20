@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.1 - 2026-10-20
+
+### Patch
+
+Bugfix:
+
+- Optimized artifact grouping in `UpdatePomMojo` by replacing a redundant `reducing` collector with `flatMapping`.
+- Added multi-project dependency tests for `UpdatePomMojo`.
+
 ## 1.8.0 - 2026-10-10
 
 ### Minor

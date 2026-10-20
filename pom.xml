@@ -4,7 +4,7 @@
 
     <groupId>io.github.bsels</groupId>
     <artifactId>semantic-version-maven-plugin</artifactId>
-    <version>1.8.0</version>
+    <version>1.8.1</version>
     <packaging>maven-plugin</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>
@@ -85,7 +85,7 @@
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <gpg.skip>true</gpg.skip>
-        <project.build.outputTimestamp>2026-10-10T12:09:40.079352127Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-10-20T12:26:56.703551713Z</project.build.outputTimestamp>
         <!-- endregion -->
     </properties>
 
